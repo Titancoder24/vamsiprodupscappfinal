@@ -363,18 +363,18 @@ async function readFileAsBase64(pickedFile: PickedFile): Promise<string> {
 
 // ===================== STEP 3: Generate MCQs using Parallel Batch Processing =====================
 // SCALABILITY: Designed to handle 10,000+ concurrent users
-// Each user's browser makes direct API calls - no central server bottleneck
+// SPEED OPTIMIZED: Target <15-20 seconds for 100 MCQs
 
-// Configuration for batch processing - optimized for scalability
+// Configuration for batch processing - OPTIMIZED FOR MAXIMUM SPEED
 const BATCH_CONFIG = {
-    BATCH_SIZE: 15,           // MCQs per batch request (optimal for token limits)
-    MAX_PARALLEL: 4,          // Concurrent API calls (reduced to avoid rate limits)
-    RETRY_COUNT: 3,           // Retries per failed batch
-    BASE_DELAY_MS: 200,       // Base delay between batch groups
-    MAX_DELAY_MS: 5000,       // Maximum delay on rate limit
-    RATE_LIMIT_BACKOFF: 2,    // Exponential backoff multiplier
-    CIRCUIT_BREAKER_THRESHOLD: 3, // Consecutive failures before circuit break
-    REQUEST_TIMEOUT_MS: 60000, // Request timeout (60 seconds)
+    BATCH_SIZE: 25,           // MCQs per batch (increased for fewer API calls)
+    MAX_PARALLEL: 8,          // Maximum concurrent API calls (aggressive parallelism)
+    RETRY_COUNT: 2,           // Fewer retries for speed
+    BASE_DELAY_MS: 50,        // Minimal delay between requests
+    MAX_DELAY_MS: 2000,       // Lower max delay for faster recovery
+    RATE_LIMIT_BACKOFF: 1.5,  // Gentler backoff
+    CIRCUIT_BREAKER_THRESHOLD: 5, // More tolerance before circuit break
+    REQUEST_TIMEOUT_MS: 45000, // 45 second timeout (faster fail)
 };
 
 // Rate limiter state (per session)
@@ -1037,8 +1037,9 @@ export default function PDFGeneratorScreen() {
         }
 
         const count = Math.min(1000, Math.max(1, parseInt(mcqCount) || 10));
-        // With parallel processing: ~6 batches of 15 MCQs run concurrently
-        const estimatedTime = count <= 20 ? Math.max(10, count) : Math.max(15, Math.ceil(count / 90) * 15);
+        // With speed-optimized parallel processing: 8 batches of 25 MCQs = 200 MCQs per parallel round
+        // ~5-7 seconds per round, so 100 MCQs in ~10s, 200 in ~15s
+        const estimatedTime = count <= 25 ? 8 : Math.max(10, Math.ceil(count / 200) * 7 + 5);
 
         try {
             // Deduct credits before starting
