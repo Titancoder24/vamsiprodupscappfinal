@@ -12,35 +12,49 @@ import {
     ScrollView,
     Modal,
     ActivityIndicator,
+    Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
     getNoteById,
     updateNote,
+    deleteNote,
     getAllTags,
     LocalNote,
     LocalTag,
 } from '../services/localNotesStorage';
+
+// Premium color palette
+const COLORS = {
+    background: '#FFFFFF',
+    surface: '#FAFAFA',
+    border: '#EBEBEB',
+    borderLight: '#F5F5F5',
+    text: '#1A1A1A',
+    textSecondary: '#717171',
+    textTertiary: '#A3A3A3',
+    primary: '#2563EB',
+    primaryLight: '#EFF6FF',
+    danger: '#EF4444',
+    success: '#10B981',
+};
 
 interface NoteEditorScreenProps {
     navigation: any;
     route: {
         params?: {
             noteId?: number;
+            isNew?: boolean;
         };
     };
 }
-
-const TAG_COLORS = [
-    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
-    '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
-];
 
 export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
     navigation,
     route,
 }) => {
     const noteId = route.params?.noteId;
+    const isNew = route.params?.isNew;
 
     // State
     const [title, setTitle] = useState('');
@@ -52,14 +66,24 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
     const [isSaving, setIsSaving] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [showTagPicker, setShowTagPicker] = useState(false);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const [wordCount, setWordCount] = useState(0);
 
     const contentInputRef = useRef<TextInput>(null);
+    const titleInputRef = useRef<TextInput>(null);
+    const saveIndicator = useRef(new Animated.Value(0)).current;
 
     // Load note and tags
     useEffect(() => {
         loadData();
     }, [noteId]);
+
+    // Update word count
+    useEffect(() => {
+        const words = content.trim().split(/\s+/).filter(w => w.length > 0).length;
+        setWordCount(words);
+    }, [content]);
 
     const loadData = async () => {
         setIsLoading(true);
@@ -70,7 +94,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
             if (noteId) {
                 const note = await getNoteById(noteId);
                 if (note) {
-                    setTitle(note.title);
+                    setTitle(note.title === 'Untitled Note' ? '' : note.title);
                     setContent(note.content);
                     setSelectedTags(note.tags);
                     setIsPinned(note.isPinned);
@@ -80,6 +104,11 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
             console.error('[NoteEditor] Error loading:', error);
         }
         setIsLoading(false);
+
+        // Focus title for new notes
+        if (isNew) {
+            setTimeout(() => titleInputRef.current?.focus(), 100);
+        }
     };
 
     // Auto-save on changes
@@ -88,29 +117,42 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
 
         const timer = setTimeout(() => {
             handleSave(false);
-        }, 2000);
+        }, 1500);
 
         return () => clearTimeout(timer);
     }, [title, content, selectedTags, isPinned, hasChanges]);
 
+    // Show save indicator animation
+    const showSaveIndicator = () => {
+        Animated.sequence([
+            Animated.timing(saveIndicator, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+            Animated.delay(1500),
+            Animated.timing(saveIndicator, {
+                toValue: 0,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    };
+
     const handleSave = async (showAlert: boolean = true) => {
-        if (!title.trim() && showAlert) {
-            Alert.alert('Error', 'Please enter a title');
-            return;
-        }
+        if (!noteId) return;
 
         setIsSaving(true);
         try {
-            if (noteId) {
-                await updateNote(noteId, {
-                    title: title.trim() || 'Untitled',
-                    content,
-                    tags: selectedTags,
-                    isPinned,
-                });
-                setLastSaved(new Date());
-                setHasChanges(false);
-            }
+            await updateNote(noteId, {
+                title: title.trim() || 'Untitled',
+                content,
+                tags: selectedTags,
+                isPinned,
+            });
+            setLastSaved(new Date());
+            setHasChanges(false);
+            showSaveIndicator();
         } catch (error) {
             console.error('[NoteEditor] Save error:', error);
             if (showAlert) {
@@ -118,6 +160,26 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
             }
         }
         setIsSaving(false);
+    };
+
+    const handleDelete = () => {
+        Alert.alert(
+            'Delete Note',
+            'This action cannot be undone.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        if (noteId) {
+                            await deleteNote(noteId);
+                            navigation.goBack();
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const handleTitleChange = (text: string) => {
@@ -141,9 +203,11 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
         });
     };
 
-    const togglePin = () => {
-        setIsPinned(prev => !prev);
+    const togglePin = async () => {
+        const newPinned = !isPinned;
+        setIsPinned(newPinned);
         setHasChanges(true);
+        setShowMoreMenu(false);
     };
 
     const formatLastSaved = () => {
@@ -152,14 +216,21 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
         const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
         if (diff < 5) return 'Saved';
         if (diff < 60) return `Saved ${diff}s ago`;
-        return `Saved at ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        return `Saved ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    };
+
+    const insertFormatting = (prefix: string, suffix: string = '') => {
+        const newContent = content + (content ? '\n' : '') + prefix;
+        setContent(newContent);
+        setHasChanges(true);
+        contentInputRef.current?.focus();
     };
 
     if (isLoading) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#3B82F6" />
+                    <ActivityIndicator size="large" color={COLORS.primary} />
                 </View>
             </SafeAreaView>
         );
@@ -177,32 +248,24 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                         onPress={() => navigation.goBack()}
                         style={styles.headerButton}
                     >
-                        <Ionicons name="chevron-back" size={24} color="#111827" />
+                        <Ionicons name="chevron-back" size={24} color={COLORS.text} />
                     </TouchableOpacity>
 
                     <View style={styles.headerCenter}>
-                        {isSaving && (
-                            <Text style={styles.savingText}>Saving...</Text>
-                        )}
-                        {lastSaved && !isSaving && (
-                            <Text style={styles.savedText}>{formatLastSaved()}</Text>
-                        )}
+                        <Animated.View style={{ opacity: saveIndicator }}>
+                            <View style={styles.savedIndicator}>
+                                <Ionicons name="checkmark-circle" size={14} color={COLORS.success} />
+                                <Text style={styles.savedText}>Saved</Text>
+                            </View>
+                        </Animated.View>
                     </View>
 
                     <View style={styles.headerActions}>
-                        <TouchableOpacity onPress={togglePin} style={styles.headerIconButton}>
-                            <Ionicons
-                                name={isPinned ? 'pin' : 'pin-outline'}
-                                size={20}
-                                color={isPinned ? '#3B82F6' : '#6B7280'}
-                            />
-                        </TouchableOpacity>
                         <TouchableOpacity
-                            onPress={() => handleSave(true)}
-                            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-                            disabled={isSaving}
+                            onPress={() => setShowMoreMenu(true)}
+                            style={styles.headerButton}
                         >
-                            <Text style={styles.saveButtonText}>Save</Text>
+                            <Ionicons name="ellipsis-horizontal" size={22} color={COLORS.text} />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -210,45 +273,50 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                 {/* Title Input */}
                 <View style={styles.titleContainer}>
                     <TextInput
+                        ref={titleInputRef}
                         style={styles.titleInput}
-                        placeholder="Note title..."
-                        placeholderTextColor="#9CA3AF"
+                        placeholder="Title"
+                        placeholderTextColor={COLORS.textTertiary}
                         value={title}
                         onChangeText={handleTitleChange}
-                        autoFocus={!noteId}
+                        multiline={false}
+                        returnKeyType="next"
+                        onSubmitEditing={() => contentInputRef.current?.focus()}
                     />
                 </View>
 
-                {/* Tags Section */}
-                <View style={styles.tagsSection}>
+                {/* Tags Row */}
+                <View style={styles.tagsRow}>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.tagsScroll}
+                        contentContainerStyle={styles.tagsScrollContent}
                     >
                         {selectedTags.map(tag => (
-                            <View
+                            <TouchableOpacity
                                 key={tag.id}
-                                style={[styles.selectedTag, { backgroundColor: tag.color + '20' }]}
+                                style={[styles.tagPill, { backgroundColor: tag.color + '15' }]}
+                                onPress={() => toggleTag(tag)}
                             >
                                 <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
-                                <Text style={[styles.selectedTagText, { color: tag.color }]}>
+                                <Text style={[styles.tagPillText, { color: tag.color }]}>
                                     {tag.name}
                                 </Text>
-                                <TouchableOpacity onPress={() => toggleTag(tag)}>
-                                    <Ionicons name="close" size={14} color={tag.color} />
-                                </TouchableOpacity>
-                            </View>
+                                <Ionicons name="close" size={12} color={tag.color} />
+                            </TouchableOpacity>
                         ))}
                         <TouchableOpacity
-                            style={styles.addTagButton}
+                            style={styles.addTagPill}
                             onPress={() => setShowTagPicker(true)}
                         >
-                            <Ionicons name="add" size={18} color="#6B7280" />
-                            <Text style={styles.addTagText}>Add Tag</Text>
+                            <Ionicons name="add" size={16} color={COLORS.textTertiary} />
+                            <Text style={styles.addTagText}>Tag</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>
+
+                {/* Divider */}
+                <View style={styles.divider} />
 
                 {/* Content Editor */}
                 <ScrollView
@@ -259,49 +327,104 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                     <TextInput
                         ref={contentInputRef}
                         style={styles.contentInput}
-                        placeholder="Start typing your note..."
-                        placeholderTextColor="#9CA3AF"
+                        placeholder="Start writing..."
+                        placeholderTextColor={COLORS.textTertiary}
                         value={content}
                         onChangeText={handleContentChange}
                         multiline
                         textAlignVertical="top"
+                        scrollEnabled={false}
                     />
                 </ScrollView>
 
-                {/* Formatting Toolbar */}
+                {/* Bottom Toolbar */}
                 <View style={styles.toolbar}>
-                    <TouchableOpacity
-                        style={styles.toolbarButton}
-                        onPress={() => handleContentChange(content + '\n# ')}
-                    >
-                        <Text style={styles.toolbarButtonText}>H1</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.toolbarButton}
-                        onPress={() => handleContentChange(content + '\n## ')}
-                    >
-                        <Text style={styles.toolbarButtonText}>H2</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.toolbarButton}
-                        onPress={() => handleContentChange(content + '\n- ')}
-                    >
-                        <Ionicons name="list" size={18} color="#374151" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.toolbarButton}
-                        onPress={() => handleContentChange(content + '\n> ')}
-                    >
-                        <Ionicons name="chatbox-outline" size={18} color="#374151" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.toolbarButton}
-                        onPress={() => handleContentChange(content + '\n---\n')}
-                    >
-                        <Ionicons name="remove" size={18} color="#374151" />
-                    </TouchableOpacity>
+                    <View style={styles.toolbarLeft}>
+                        <TouchableOpacity
+                            style={styles.toolbarBtn}
+                            onPress={() => insertFormatting('# ')}
+                        >
+                            <Text style={styles.toolbarBtnText}>H1</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.toolbarBtn}
+                            onPress={() => insertFormatting('## ')}
+                        >
+                            <Text style={styles.toolbarBtnText}>H2</Text>
+                        </TouchableOpacity>
+                        <View style={styles.toolbarDivider} />
+                        <TouchableOpacity
+                            style={styles.toolbarBtn}
+                            onPress={() => insertFormatting('- ')}
+                        >
+                            <Ionicons name="list" size={18} color={COLORS.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.toolbarBtn}
+                            onPress={() => insertFormatting('> ')}
+                        >
+                            <Ionicons name="chatbox-outline" size={18} color={COLORS.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.toolbarBtn}
+                            onPress={() => insertFormatting('[ ] ')}
+                        >
+                            <Ionicons name="checkbox-outline" size={18} color={COLORS.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.wordCount}>{wordCount} words</Text>
                 </View>
             </KeyboardAvoidingView>
+
+            {/* More Menu Modal */}
+            <Modal
+                visible={showMoreMenu}
+                animationType="fade"
+                transparent
+                onRequestClose={() => setShowMoreMenu(false)}
+            >
+                <TouchableOpacity
+                    style={styles.menuOverlay}
+                    activeOpacity={1}
+                    onPress={() => setShowMoreMenu(false)}
+                >
+                    <View style={styles.menuContainer}>
+                        <TouchableOpacity style={styles.menuItem} onPress={togglePin}>
+                            <Ionicons
+                                name={isPinned ? "pin" : "pin-outline"}
+                                size={20}
+                                color={isPinned ? COLORS.primary : COLORS.text}
+                            />
+                            <Text style={styles.menuItemText}>
+                                {isPinned ? 'Unpin note' : 'Pin note'}
+                            </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => {
+                                setShowMoreMenu(false);
+                                setShowTagPicker(true);
+                            }}
+                        >
+                            <Ionicons name="pricetags-outline" size={20} color={COLORS.text} />
+                            <Text style={styles.menuItemText}>Manage tags</Text>
+                        </TouchableOpacity>
+                        <View style={styles.menuDivider} />
+                        <TouchableOpacity
+                            style={styles.menuItem}
+                            onPress={() => {
+                                setShowMoreMenu(false);
+                                handleDelete();
+                            }}
+                        >
+                            <Ionicons name="trash-outline" size={20} color={COLORS.danger} />
+                            <Text style={[styles.menuItemText, { color: COLORS.danger }]}>
+                                Delete note
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
 
             {/* Tag Picker Modal */}
             <Modal
@@ -310,11 +433,14 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                 presentationStyle="pageSheet"
                 onRequestClose={() => setShowTagPicker(false)}
             >
-                <SafeAreaView style={styles.modalContainer}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Select Tags</Text>
-                        <TouchableOpacity onPress={() => setShowTagPicker(false)}>
-                            <Text style={styles.modalDone}>Done</Text>
+                <SafeAreaView style={styles.tagModalContainer}>
+                    <View style={styles.tagModalHeader}>
+                        <Text style={styles.tagModalTitle}>Tags</Text>
+                        <TouchableOpacity
+                            style={styles.tagModalDone}
+                            onPress={() => setShowTagPicker(false)}
+                        >
+                            <Text style={styles.tagModalDoneText}>Done</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -324,9 +450,9 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                             if (categoryTags.length === 0) return null;
 
                             return (
-                                <View key={category}>
+                                <View key={category} style={styles.tagCategory}>
                                     <Text style={styles.tagCategoryTitle}>
-                                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                                        {category === 'custom' ? 'Your Tags' : category.charAt(0).toUpperCase() + category.slice(1)}
                                     </Text>
                                     <View style={styles.tagGrid}>
                                         {categoryTags.map(tag => {
@@ -335,7 +461,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                                                 <TouchableOpacity
                                                     key={tag.id}
                                                     style={[
-                                                        styles.tagPickerItem,
+                                                        styles.tagOption,
                                                         isSelected && { backgroundColor: tag.color, borderColor: tag.color },
                                                     ]}
                                                     onPress={() => toggleTag(tag)}
@@ -348,7 +474,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                                                     />
                                                     <Text
                                                         style={[
-                                                            styles.tagPickerItemText,
+                                                            styles.tagOptionText,
                                                             isSelected && { color: '#fff' },
                                                         ]}
                                                     >
@@ -374,7 +500,7 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.background,
     },
     keyboardAvoid: {
         flex: 1,
@@ -388,198 +514,240 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 12,
-        paddingVertical: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.borderLight,
     },
     headerButton: {
-        padding: 8,
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     headerCenter: {
         flex: 1,
         alignItems: 'center',
     },
+    savedIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    savedText: {
+        fontSize: 13,
+        color: COLORS.success,
+        fontWeight: '500',
+    },
     headerActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-    },
-    headerIconButton: {
-        padding: 8,
-    },
-    savingText: {
-        fontSize: 12,
-        color: '#9CA3AF',
-    },
-    savedText: {
-        fontSize: 12,
-        color: '#10B981',
-    },
-    saveButton: {
-        backgroundColor: '#3B82F6',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    saveButtonDisabled: {
-        backgroundColor: '#93C5FD',
-    },
-    saveButtonText: {
-        color: '#fff',
-        fontSize: 14,
-        fontWeight: '600',
     },
     titleContainer: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 8,
+        paddingHorizontal: 24,
+        paddingTop: 24,
+        paddingBottom: 12,
     },
     titleInput: {
-        fontSize: 22,
+        fontSize: 28,
         fontWeight: '700',
-        color: '#111827',
+        color: COLORS.text,
+        letterSpacing: -0.5,
         ...(Platform.OS === 'web' && { outlineStyle: 'none' as any }),
     },
-    tagsSection: {
-        paddingHorizontal: 20,
-        paddingBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F3F4F6',
+    tagsRow: {
+        paddingHorizontal: 24,
+        paddingBottom: 16,
     },
-    tagsScroll: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    tagsScrollContent: {
         gap: 8,
     },
-    selectedTag: {
+    tagPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 16,
         gap: 6,
     },
     tagDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
-    selectedTagText: {
+    tagPillText: {
         fontSize: 13,
         fontWeight: '500',
     },
-    addTagButton: {
+    addTagPill: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        paddingVertical: 5,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
         borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
+        borderWidth: 1.5,
+        borderColor: COLORS.border,
         borderStyle: 'dashed',
         gap: 4,
     },
     addTagText: {
         fontSize: 13,
-        color: '#6B7280',
+        color: COLORS.textTertiary,
+        fontWeight: '500',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: COLORS.borderLight,
+        marginHorizontal: 24,
     },
     editorScroll: {
         flex: 1,
-        paddingHorizontal: 20,
-        paddingTop: 16,
+        paddingHorizontal: 24,
+        paddingTop: 20,
     },
     contentInput: {
         fontSize: 16,
-        lineHeight: 24,
-        color: '#111827',
-        minHeight: 300,
+        lineHeight: 26,
+        color: COLORS.text,
+        minHeight: 400,
         ...(Platform.OS === 'web' && { outlineStyle: 'none' as any }),
     },
     toolbar: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         paddingVertical: 10,
-        paddingHorizontal: 20,
+        paddingHorizontal: 16,
         borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
-        backgroundColor: '#F9FAFB',
-        gap: 8,
+        borderTopColor: COLORS.borderLight,
+        backgroundColor: COLORS.surface,
     },
-    toolbarButton: {
+    toolbarLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    toolbarBtn: {
         width: 40,
         height: 36,
         borderRadius: 8,
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    toolbarButtonText: {
-        fontSize: 12,
+    toolbarBtnText: {
+        fontSize: 13,
         fontWeight: '700',
-        color: '#374151',
+        color: COLORS.textSecondary,
     },
-    modalContainer: {
+    toolbarDivider: {
+        width: 1,
+        height: 20,
+        backgroundColor: COLORS.border,
+        marginHorizontal: 8,
+    },
+    wordCount: {
+        fontSize: 12,
+        color: COLORS.textTertiary,
+        fontWeight: '500',
+    },
+    menuOverlay: {
         flex: 1,
-        backgroundColor: '#F9FAFB',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        justifyContent: 'flex-start',
+        alignItems: 'flex-end',
+        paddingTop: 60,
+        paddingRight: 16,
     },
-    modalHeader: {
+    menuContainer: {
+        backgroundColor: COLORS.background,
+        borderRadius: 14,
+        minWidth: 200,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+        elevation: 8,
+        overflow: 'hidden',
+    },
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        gap: 12,
+    },
+    menuItemText: {
+        fontSize: 15,
+        color: COLORS.text,
+        fontWeight: '500',
+    },
+    menuDivider: {
+        height: 1,
+        backgroundColor: COLORS.borderLight,
+    },
+    tagModalContainer: {
+        flex: 1,
+        backgroundColor: COLORS.surface,
+    },
+    tagModalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 16,
-        backgroundColor: '#fff',
+        backgroundColor: COLORS.background,
         borderBottomWidth: 1,
-        borderBottomColor: '#E5E7EB',
+        borderBottomColor: COLORS.borderLight,
     },
-    modalTitle: {
+    tagModalTitle: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#111827',
+        color: COLORS.text,
     },
-    modalDone: {
+    tagModalDone: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
+    tagModalDoneText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#3B82F6',
+        color: COLORS.primary,
     },
     tagPickerList: {
         flex: 1,
         padding: 20,
     },
+    tagCategory: {
+        marginBottom: 24,
+    },
     tagCategoryTitle: {
         fontSize: 12,
         fontWeight: '600',
-        color: '#9CA3AF',
+        color: COLORS.textTertiary,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
-        marginBottom: 12,
-        marginTop: 8,
+        marginBottom: 14,
     },
     tagGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 8,
-        marginBottom: 16,
+        gap: 10,
     },
-    tagPickerItem: {
+    tagOption: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#fff',
-        gap: 6,
+        borderWidth: 1.5,
+        borderColor: COLORS.border,
+        backgroundColor: COLORS.background,
+        gap: 8,
     },
-    tagPickerItemText: {
+    tagOptionText: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#374151',
+        color: COLORS.text,
     },
 });
 
