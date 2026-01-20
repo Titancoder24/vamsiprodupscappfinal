@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     StyleSheet,
     Text,
@@ -8,6 +8,7 @@ import {
     Dimensions,
     Animated,
     Platform,
+    Easing,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,13 +16,198 @@ import { Ionicons } from '@expo/vector-icons';
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-// Phone Mockup Component - Smaller version for hero
-const PhoneMockup = ({ scale = 1 }) => {
-    const phoneWidth = 220 * scale;
-    const phoneHeight = 440 * scale;
+// Sparkle Component
+const Sparkle = ({ delay, left, top, size = 4 }) => {
+    const opacity = useRef(new Animated.Value(0)).current;
+    const scale = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        const animate = () => {
+            Animated.sequence([
+                Animated.delay(delay),
+                Animated.parallel([
+                    Animated.timing(opacity, {
+                        toValue: 1,
+                        duration: 400,
+                        useNativeDriver: true,
+                    }),
+                    Animated.spring(scale, {
+                        toValue: 1,
+                        friction: 4,
+                        useNativeDriver: true,
+                    }),
+                ]),
+                Animated.delay(800),
+                Animated.parallel([
+                    Animated.timing(opacity, {
+                        toValue: 0,
+                        duration: 400,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(scale, {
+                        toValue: 0,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                ]),
+            ]).start(() => animate());
+        };
+        animate();
+    }, []);
 
     return (
-        <View style={[styles.phoneMockup, { width: phoneWidth, height: phoneHeight }]}>
+        <Animated.View
+            style={[
+                styles.sparkle,
+                {
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    width: size,
+                    height: size,
+                    opacity,
+                    transform: [{ scale }],
+                },
+            ]}
+        />
+    );
+};
+
+// Sparkles Container
+const SparklesBackground = () => {
+    const sparkles = [
+        { delay: 0, left: 10, top: 20, size: 3 },
+        { delay: 300, left: 85, top: 15, size: 4 },
+        { delay: 600, left: 25, top: 60, size: 3 },
+        { delay: 900, left: 70, top: 45, size: 5 },
+        { delay: 1200, left: 45, top: 25, size: 3 },
+        { delay: 1500, left: 90, top: 70, size: 4 },
+        { delay: 1800, left: 15, top: 80, size: 3 },
+        { delay: 2100, left: 60, top: 85, size: 4 },
+        { delay: 2400, left: 35, top: 40, size: 3 },
+        { delay: 2700, left: 80, top: 30, size: 5 },
+    ];
+
+    return (
+        <View style={styles.sparklesContainer}>
+            {sparkles.map((s, i) => (
+                <Sparkle key={i} {...s} />
+            ))}
+        </View>
+    );
+};
+
+// Animated Grid Background
+const AnimatedGrid = () => {
+    const pulse = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulse, {
+                    toValue: 1,
+                    duration: 3000,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulse, {
+                    toValue: 0,
+                    duration: 3000,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    }, []);
+
+    const glowOpacity = pulse.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.03, 0.08],
+    });
+
+    return (
+        <View style={styles.gridContainer}>
+            {/* Grid Lines */}
+            <View style={styles.gridLines}>
+                {[...Array(12)].map((_, i) => (
+                    <View key={`v${i}`} style={[styles.gridLineVertical, { left: `${(i + 1) * 8}%` }]} />
+                ))}
+                {[...Array(8)].map((_, i) => (
+                    <View key={`h${i}`} style={[styles.gridLineHorizontal, { top: `${(i + 1) * 12}%` }]} />
+                ))}
+            </View>
+
+            {/* Animated Glow Spots */}
+            <Animated.View style={[styles.glowSpot, styles.glowSpot1, { opacity: glowOpacity }]} />
+            <Animated.View style={[styles.glowSpot, styles.glowSpot2, { opacity: glowOpacity }]} />
+        </View>
+    );
+};
+
+// Animated Avatar Component
+const AnimatedAvatar = ({ index, emoji, delay }) => {
+    const bounce = useRef(new Animated.Value(0)).current;
+    const scale = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        const startAnimation = () => {
+            Animated.loop(
+                Animated.sequence([
+                    Animated.delay(delay),
+                    Animated.parallel([
+                        Animated.timing(bounce, {
+                            toValue: -6,
+                            duration: 600,
+                            easing: Easing.inOut(Easing.ease),
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(scale, {
+                            toValue: 1.1,
+                            duration: 600,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                    Animated.parallel([
+                        Animated.timing(bounce, {
+                            toValue: 0,
+                            duration: 600,
+                            easing: Easing.inOut(Easing.ease),
+                            useNativeDriver: true,
+                        }),
+                        Animated.timing(scale, {
+                            toValue: 1,
+                            duration: 600,
+                            useNativeDriver: true,
+                        }),
+                    ]),
+                ])
+            ).start();
+        };
+        startAnimation();
+    }, []);
+
+    const bgColors = ['#DBEAFE', '#D1FAE5', '#FEF3C7', '#FCE7F3'];
+
+    return (
+        <Animated.View
+            style={[
+                styles.animatedAvatar,
+                {
+                    backgroundColor: bgColors[index % bgColors.length],
+                    marginLeft: index > 0 ? -10 : 0,
+                    zIndex: 4 - index,
+                    transform: [{ translateY: bounce }, { scale }],
+                },
+            ]}
+        >
+            <Text style={styles.avatarEmoji}>{emoji}</Text>
+        </Animated.View>
+    );
+};
+
+// Phone Mockup Component - Compact
+const PhoneMockup = () => {
+    return (
+        <View style={styles.phoneMockup}>
             <View style={styles.phoneScreen}>
                 {/* Dynamic Island */}
                 <View style={styles.dynamicIsland}>
@@ -31,7 +217,7 @@ const PhoneMockup = ({ scale = 1 }) => {
                 {/* Quiz UI */}
                 <View style={styles.quizContent}>
                     <View style={styles.quizHeader}>
-                        <Ionicons name="chevron-back" size={14} color="#94A3B8" />
+                        <Ionicons name="chevron-back" size={12} color="#94A3B8" />
                         <Text style={styles.quizSubject}>Modern History</Text>
                         <View style={styles.quizBadge}>
                             <Text style={styles.quizBadgeText}>12/20</Text>
@@ -39,9 +225,9 @@ const PhoneMockup = ({ scale = 1 }) => {
                     </View>
 
                     <View style={styles.questionCard}>
-                        <Text style={styles.questionLabel}>Question 13</Text>
+                        <Text style={styles.questionLabel}>Q 13</Text>
                         <Text style={styles.questionText}>
-                            Which act introduced communal representation in India?
+                            Which act introduced communal representation?
                         </Text>
                     </View>
 
@@ -128,8 +314,6 @@ const PricingCard = ({ plan, price, period, features, popular, onPress }) => {
 };
 
 export default function LandingScreen({ navigation }) {
-    const scrollY = useRef(new Animated.Value(0)).current;
-
     const handleGetStarted = () => {
         navigation.navigate('Login');
     };
@@ -145,10 +329,7 @@ export default function LandingScreen({ navigation }) {
                             <Text style={styles.logoText}>UPSC Prep</Text>
                         </View>
 
-                        <TouchableOpacity
-                            style={styles.signInButton}
-                            onPress={handleGetStarted}
-                        >
+                        <TouchableOpacity style={styles.signInButton} onPress={handleGetStarted}>
                             <Text style={styles.signInButtonText}>Sign In</Text>
                         </TouchableOpacity>
                     </View>
@@ -158,16 +339,14 @@ export default function LandingScreen({ navigation }) {
                     style={styles.scrollView}
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
-                    onScroll={Animated.event(
-                        [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                        { useNativeDriver: false }
-                    )}
-                    scrollEventThrottle={16}
                 >
-                    {/* Hero Section - Updated Layout */}
+                    {/* Hero Section */}
                     <View style={styles.heroSection}>
-                        {/* Grid Background */}
-                        <View style={styles.gridBackground} />
+                        {/* Animated Grid Background */}
+                        <AnimatedGrid />
+
+                        {/* Sparkles */}
+                        <SparklesBackground />
 
                         <View style={styles.heroRow}>
                             {/* Text Content */}
@@ -191,28 +370,24 @@ export default function LandingScreen({ navigation }) {
 
                                 {/* CTA Buttons */}
                                 <View style={styles.heroButtons}>
-                                    <TouchableOpacity
-                                        style={styles.primaryButton}
-                                        onPress={handleGetStarted}
-                                    >
+                                    <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
                                         <Text style={styles.primaryButtonText}>Start Learning Free</Text>
                                         <Ionicons name="arrow-forward" size={16} color="#FFF" />
                                     </TouchableOpacity>
                                 </View>
 
-                                {/* Social Proof */}
+                                {/* Social Proof with Animated Avatars */}
                                 <View style={styles.socialProof}>
                                     <View style={styles.avatarStack}>
-                                        {[1, 2, 3, 4].map((i) => (
-                                            <View key={i} style={[styles.avatar, { marginLeft: i > 1 ? -8 : 0 }]}>
-                                                <Text style={styles.avatarText}>{String.fromCharCode(64 + i)}</Text>
-                                            </View>
-                                        ))}
+                                        <AnimatedAvatar index={0} emoji="👨‍🎓" delay={0} />
+                                        <AnimatedAvatar index={1} emoji="👩‍💼" delay={200} />
+                                        <AnimatedAvatar index={2} emoji="🧑‍🏫" delay={400} />
+                                        <AnimatedAvatar index={3} emoji="👨‍💻" delay={600} />
                                     </View>
-                                    <View>
+                                    <View style={styles.socialProofTextContainer}>
                                         <View style={styles.starsRow}>
                                             {[1, 2, 3, 4, 5].map((i) => (
-                                                <Ionicons key={i} name="star" size={10} color="#FACC15" />
+                                                <Ionicons key={i} name="star" size={12} color="#FACC15" />
                                             ))}
                                         </View>
                                         <Text style={styles.socialProofText}>
@@ -225,7 +400,7 @@ export default function LandingScreen({ navigation }) {
                             {/* Phone Mockup - Positioned closer */}
                             {isWeb && width > 768 && (
                                 <View style={styles.mockupContainer}>
-                                    <PhoneMockup scale={0.9} />
+                                    <PhoneMockup />
                                 </View>
                             )}
                         </View>
@@ -269,18 +444,15 @@ export default function LandingScreen({ navigation }) {
                     </View>
 
                     {/* Pricing Section */}
-                    <View style={styles.pricingSection} id="pricing">
+                    <View style={styles.pricingSection}>
                         <View style={styles.pricingHeader}>
-                            <Text style={styles.pricingHeaderTitle}>
-                                Simple, transparent pricing
-                            </Text>
+                            <Text style={styles.pricingHeaderTitle}>Simple, transparent pricing</Text>
                             <Text style={styles.pricingHeaderSubtitle}>
                                 Choose the plan that works for you. Upgrade anytime.
                             </Text>
                         </View>
 
                         <View style={styles.pricingCards}>
-                            {/* Starter Plan */}
                             <PricingCard
                                 plan="Starter"
                                 price="399"
@@ -296,7 +468,6 @@ export default function LandingScreen({ navigation }) {
                                 onPress={handleGetStarted}
                             />
 
-                            {/* Pro Plan */}
                             <PricingCard
                                 plan="Pro"
                                 price="599"
@@ -327,10 +498,7 @@ export default function LandingScreen({ navigation }) {
                                 Join thousands of aspirants already using AI to prepare smarter.
                             </Text>
 
-                            <TouchableOpacity
-                                style={styles.ctaPrimaryButton}
-                                onPress={handleGetStarted}
-                            >
+                            <TouchableOpacity style={styles.ctaPrimaryButton} onPress={handleGetStarted}>
                                 <Text style={styles.ctaPrimaryButtonText}>Create Free Account</Text>
                                 <Ionicons name="arrow-forward" size={16} color="#0F172A" />
                             </TouchableOpacity>
@@ -363,6 +531,95 @@ const styles = StyleSheet.create({
         flex: 1,
     },
 
+    // Sparkles
+    sparklesContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1,
+        pointerEvents: 'none',
+    },
+    sparkle: {
+        position: 'absolute',
+        backgroundColor: '#2563EB',
+        borderRadius: 10,
+        ...Platform.select({
+            web: {
+                boxShadow: '0 0 10px 2px rgba(37, 99, 235, 0.5)',
+            },
+        }),
+    },
+
+    // Animated Grid
+    gridContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: height * 0.7,
+        overflow: 'hidden',
+        zIndex: 0,
+    },
+    gridLines: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    gridLineVertical: {
+        position: 'absolute',
+        top: 0,
+        bottom: 0,
+        width: 1,
+        backgroundColor: 'rgba(37, 99, 235, 0.05)',
+    },
+    gridLineHorizontal: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: 1,
+        backgroundColor: 'rgba(37, 99, 235, 0.05)',
+    },
+    glowSpot: {
+        position: 'absolute',
+        borderRadius: 500,
+        backgroundColor: '#2563EB',
+    },
+    glowSpot1: {
+        width: 400,
+        height: 400,
+        top: -100,
+        right: -100,
+    },
+    glowSpot2: {
+        width: 300,
+        height: 300,
+        bottom: 50,
+        left: -100,
+    },
+
+    // Animated Avatars
+    animatedAvatar: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        borderWidth: 3,
+        borderColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ...Platform.select({
+            web: {
+                boxShadow: '0 4px 15px rgba(0, 0, 0, 0.1)',
+            },
+        }),
+    },
+    avatarEmoji: {
+        fontSize: 16,
+    },
+
     // Navbar
     navbar: {
         position: 'absolute',
@@ -377,7 +634,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        backgroundColor: 'rgba(255, 255, 255, 0.9)',
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderRadius: 50,
@@ -420,35 +677,28 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'ios' ? 120 : 80,
     },
 
-    // Grid Background
-    gridBackground: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: height * 0.5,
-        backgroundColor: '#FAFAFA',
-        opacity: 0.5,
-    },
-
     // Hero Section
     heroSection: {
         paddingHorizontal: 24,
         paddingTop: 20,
-        paddingBottom: 40,
+        paddingBottom: 60,
         maxWidth: 1100,
         alignSelf: 'center',
         width: '100%',
+        position: 'relative',
+        minHeight: isWeb ? 500 : 'auto',
     },
     heroRow: {
         flexDirection: isWeb && width > 768 ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 40,
+        gap: 30,
+        position: 'relative',
+        zIndex: 10,
     },
     heroContent: {
         flex: 1,
-        maxWidth: 520,
+        maxWidth: 480,
     },
     heroBadge: {
         flexDirection: 'row',
@@ -477,10 +727,10 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     heroTitle: {
-        fontSize: isWeb ? 48 : 38,
+        fontSize: isWeb ? 46 : 36,
         fontWeight: '800',
         color: '#0F172A',
-        lineHeight: isWeb ? 56 : 46,
+        lineHeight: isWeb ? 54 : 44,
         letterSpacing: -1.5,
         marginBottom: 16,
     },
@@ -488,10 +738,10 @@ const styles = StyleSheet.create({
         color: '#2563EB',
     },
     heroSubtitle: {
-        fontSize: 16,
+        fontSize: 15,
         color: '#64748B',
-        lineHeight: 26,
-        marginBottom: 28,
+        lineHeight: 24,
+        marginBottom: 24,
     },
     heroButtons: {
         flexDirection: 'row',
@@ -521,20 +771,8 @@ const styles = StyleSheet.create({
     avatarStack: {
         flexDirection: 'row',
     },
-    avatar: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: '#E2E8F0',
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    avatarText: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: '#64748B',
+    socialProofTextContainer: {
+        marginLeft: 4,
     },
     starsRow: {
         flexDirection: 'row',
@@ -542,7 +780,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     socialProofText: {
-        fontSize: 11,
+        fontSize: 12,
         color: '#64748B',
     },
     socialProofBold: {
@@ -556,17 +794,19 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     phoneMockup: {
+        width: 200,
+        height: 400,
         backgroundColor: '#000',
-        borderRadius: 36,
-        padding: 6,
+        borderRadius: 32,
+        padding: 5,
         ...Platform.select({
             web: {
-                boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.3)',
+                boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.35)',
             },
             default: {
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 20 },
-                shadowOpacity: 0.25,
+                shadowOpacity: 0.3,
                 shadowRadius: 40,
                 elevation: 15,
             },
@@ -575,96 +815,91 @@ const styles = StyleSheet.create({
     phoneScreen: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        borderRadius: 30,
+        borderRadius: 27,
         overflow: 'hidden',
     },
     dynamicIsland: {
         alignItems: 'center',
-        paddingTop: 6,
+        paddingTop: 5,
     },
     dynamicIslandPill: {
-        width: 70,
-        height: 20,
+        width: 60,
+        height: 18,
         backgroundColor: '#000',
-        borderRadius: 10,
+        borderRadius: 9,
     },
     quizContent: {
         flex: 1,
-        paddingTop: 30,
+        paddingTop: 25,
     },
     quizHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 12,
-        paddingBottom: 10,
+        paddingHorizontal: 10,
+        paddingBottom: 8,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
     },
     quizSubject: {
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '700',
         color: '#0F172A',
     },
     quizBadge: {
         backgroundColor: '#EFF6FF',
-        paddingHorizontal: 6,
+        paddingHorizontal: 5,
         paddingVertical: 2,
-        borderRadius: 8,
+        borderRadius: 6,
     },
     quizBadgeText: {
-        fontSize: 8,
+        fontSize: 7,
         fontWeight: '700',
         color: '#2563EB',
     },
     questionCard: {
         backgroundColor: '#FFFFFF',
-        margin: 12,
-        padding: 12,
-        borderRadius: 12,
+        margin: 10,
+        padding: 10,
+        borderRadius: 10,
         borderWidth: 1,
         borderColor: '#F1F5F9',
-        ...Platform.select({
-            web: {
-                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
-            },
-        }),
     },
     questionLabel: {
-        fontSize: 8,
+        fontSize: 7,
         fontWeight: '700',
         color: '#94A3B8',
         textTransform: 'uppercase',
-        marginBottom: 4,
+        marginBottom: 3,
     },
     questionText: {
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '600',
         color: '#0F172A',
-        lineHeight: 15,
+        lineHeight: 13,
     },
     optionsContainer: {
-        paddingHorizontal: 12,
-        gap: 5,
+        paddingHorizontal: 10,
+        gap: 4,
     },
     optionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        borderRadius: 10,
-        padding: 8,
+        borderRadius: 8,
+        padding: 6,
     },
     optionItemCorrect: {
         backgroundColor: '#ECFDF5',
         borderColor: '#A7F3D0',
     },
     optionBadge: {
-        width: 16,
-        height: 16,
-        borderRadius: 8,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
         borderColor: '#E5E7EB',
@@ -676,12 +911,12 @@ const styles = StyleSheet.create({
         borderColor: '#10B981',
     },
     optionBadgeText: {
-        fontSize: 7,
+        fontSize: 6,
         fontWeight: '700',
         color: '#64748B',
     },
     optionText: {
-        fontSize: 9,
+        fontSize: 8,
         color: '#475569',
         flex: 1,
     },
