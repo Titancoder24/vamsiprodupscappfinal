@@ -10,7 +10,7 @@ import { VisualReferenceProvider } from './src/context/VisualReferenceContext';
 import { WebLayout } from './src/components/WebContainer';
 
 // Auth Screens
-import WelcomeScreen from './src/screens/WelcomeScreen';
+import LandingScreen from './src/screens/LandingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 
 // Main App Screens
@@ -78,19 +78,17 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Auth Navigator (Welcome + Login)
+// Auth Navigator (Landing + Login)
 const AuthNavigator = () => {
-  const { isFirstLaunch } = useAuth();
-
   return (
     <Stack.Navigator
-      initialRouteName={isFirstLaunch ? 'Welcome' : 'Login'}
+      initialRouteName="Landing"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
       }}
     >
-      <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
     </Stack.Navigator>
   );
