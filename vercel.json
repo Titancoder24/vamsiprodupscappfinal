@@ -1,0 +1,48 @@
+{
+  "installCommand": "cd my-app && npm install --legacy-peer-deps",
+  "buildCommand": "cd my-app && npm run build",
+  "outputDirectory": "my-app/dist",
+  "rewrites": [
+    {
+      "source": "/admin",
+      "destination": "https://upsc-v3-admin.vercel.app/admin"
+    },
+    {
+      "source": "/admin/",
+      "destination": "https://upsc-v3-admin.vercel.app/admin/"
+    },
+    {
+      "source": "/admin/:match*",
+      "destination": "https://upsc-v3-admin.vercel.app/admin/:match*"
+    },
+    {
+      "source": "/api/:match*",
+      "destination": "https://upsc-v3-admin.vercel.app/admin/api/:match*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/_expo/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
+}
+
