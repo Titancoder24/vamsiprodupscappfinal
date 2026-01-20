@@ -239,7 +239,7 @@ export default function BillingScreen() {
                             <Text style={[styles.planName, { color: isDark ? '#FFF' : '#1A1A1A' }]}>Pro</Text>
                         </View>
                         <View style={styles.priceRow}>
-                            <Text style={[styles.planPrice, { color: isDark ? '#FFF' : '#1A1A1A' }]}>₹699</Text>
+                            <Text style={[styles.planPrice, { color: isDark ? '#FFF' : '#1A1A1A' }]}>₹599</Text>
                             <Text style={[styles.planPeriod, { color: isDark ? '#666' : '#888' }]}>/month</Text>
                         </View>
                     </View>
@@ -328,8 +328,8 @@ export default function BillingScreen() {
                     </View>
                     <Text style={[styles.packageCredits, { color: isDark ? '#FFF' : '#1A1A1A' }]}>750</Text>
                     <Text style={[styles.packageCreditsLabel, { color: isDark ? '#666' : '#888' }]}>credits</Text>
-                    <Text style={[styles.packagePrice, { color: '#6366F1' }]}>₹699</Text>
-                    <Text style={[styles.packagePerCredit, { color: isDark ? '#555' : '#AAA' }]}>₹0.93/credit</Text>
+                    <Text style={[styles.packagePrice, { color: '#6366F1' }]}>₹599</Text>
+                    <Text style={[styles.packagePerCredit, { color: isDark ? '#555' : '#AAA' }]}>₹0.80/credit</Text>
                 </TouchableOpacity>
 
                 {/* 1200 Credits */}

@@ -20,6 +20,7 @@ import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
 import { checkNewsMatches } from '../services/NewsMatchService';
 import CreditsBadge from '../components/CreditsBadge';
+import AIOnboarding, { useOnboarding } from '../components/AIOnboarding';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -28,6 +29,9 @@ export default function HomeScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const [stats, setStats] = useState({ totalTests: 0, correctAnswers: 0, totalQuestions: 0 });
   const [streak, setStreak] = useState({ currentStreak: 0 });
+
+  // AI Onboarding State
+  const { showOnboarding, setShowOnboarding, loading: onboardingLoading } = useOnboarding();
 
   // Notification State
   const [newsMatches, setNewsMatches] = useState([]);
@@ -201,6 +205,13 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      {/* AI Onboarding Co-Pilots */}
+      <AIOnboarding
+        visible={showOnboarding}
+        onComplete={() => setShowOnboarding(false)}
+        onNavigateToBilling={() => navigation.navigate('Billing')}
+      />
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
