@@ -24,24 +24,29 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
+import { useAuth } from '../context/AuthContext';
 import {
     getSubscriptionPlans,
     getCreditPackages,
     getUserCredits,
     getTransactionHistory,
-    createSubscriptionCheckout,
-    createCreditCheckout,
     formatPrice,
     SubscriptionPlan,
     CreditPackage,
     CreditBalance,
     CREDIT_COSTS,
 } from '../services/billingService';
+import {
+    getSubscriptionPaymentUrl,
+    getCreditPurchaseUrl,
+    DODO_CONFIG,
+} from '../services/dodoPaymentsService';
 
 export default function BillingScreen() {
     const { theme, isDark } = useTheme();
     const { horizontalPadding } = useWebStyles();
     const navigation = useNavigation<any>();
+    const { user } = useAuth() as { user: { email?: string; name?: string } | null };
 
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -50,6 +55,12 @@ export default function BillingScreen() {
     const [credits, setCredits] = useState<CreditBalance | null>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'plans' | 'credits' | 'history'>('plans');
+
+    // Get user email for DodoPayments
+    const userEmail = user?.email || '';
+    const returnUrl = Platform.OS === 'web'
+        ? `${window.location.origin}/billing?success=true`
+        : 'upscprep://billing/success';
 
     useEffect(() => {
         loadData();
@@ -76,45 +87,52 @@ export default function BillingScreen() {
     };
 
     const handleSubscribe = async (planType: 'basic' | 'pro') => {
-        try {
-            Alert.alert(
-                'Subscribe to ' + (planType === 'basic' ? 'Basic' : 'Pro') + ' Plan',
-                'You will be redirected to complete payment via UPI.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Continue',
-                        onPress: async () => {
-                            const checkoutUrl = await createSubscriptionCheckout(planType);
-                            Linking.openURL(checkoutUrl);
-                        },
-                    },
-                ]
-            );
-        } catch (error: any) {
-            Alert.alert('Error', error.message);
+        if (!userEmail) {
+            Alert.alert('Login Required', 'Please login to subscribe to a plan.');
+            return;
         }
+
+        const planName = planType === 'basic' ? 'Basic (₹399/month)' : 'Pro (₹699/month)';
+        const monthlyCredits = planType === 'basic' ? 200 : 400;
+
+        Alert.alert(
+            `Subscribe to ${planType === 'basic' ? 'Basic' : 'Pro'} Plan`,
+            `${planName}\n\n✓ ${monthlyCredits} AI credits/month\n✓ All AI features\n✓ Cancel anytime\n\nPay with UPI or Card`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: '💳 Pay Now',
+                    onPress: () => {
+                        const paymentUrl = getSubscriptionPaymentUrl(planType, userEmail, returnUrl);
+                        console.log('[Billing] Opening payment:', paymentUrl);
+                        Linking.openURL(paymentUrl);
+                    },
+                },
+            ]
+        );
     };
 
-    const handleBuyCredits = async (packageId: string, packageName: string) => {
-        try {
-            Alert.alert(
-                'Buy ' + packageName,
-                'You will be redirected to complete payment via UPI.',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Continue',
-                        onPress: async () => {
-                            const checkoutUrl = await createCreditCheckout(packageId);
-                            Linking.openURL(checkoutUrl);
-                        },
-                    },
-                ]
-            );
-        } catch (error: any) {
-            Alert.alert('Error', error.message);
+    const handleBuyCredits = async (credits: 50 | 120 | 300, packageName: string, price: number) => {
+        if (!userEmail) {
+            Alert.alert('Login Required', 'Please login to purchase credits.');
+            return;
         }
+
+        Alert.alert(
+            `Buy ${packageName}`,
+            `₹${price} for ${credits} credits\n\n✓ Credits never expire\n✓ Use on any AI feature\n\nPay with UPI or Card`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: '💳 Pay Now',
+                    onPress: () => {
+                        const paymentUrl = getCreditPurchaseUrl(credits, userEmail, returnUrl);
+                        console.log('[Billing] Opening payment:', paymentUrl);
+                        Linking.openURL(paymentUrl);
+                    },
+                },
+            ]
+        );
     };
 
     const renderCreditsCard = () => (
@@ -266,7 +284,7 @@ export default function BillingScreen() {
                     <TouchableOpacity
                         key={pkg.id}
                         style={[styles.packageCard, { backgroundColor: isDark ? '#1E1E2E' : '#fff', borderColor: theme.colors.border }]}
-                        onPress={() => handleBuyCredits(pkg.id, pkg.name)}
+                        onPress={() => handleBuyCredits(pkg.credits as 50 | 120 | 300, pkg.name, pkg.price_inr)}
                     >
                         <Text style={[styles.packageCredits, { color: theme.colors.primary }]}>{pkg.credits}</Text>
                         <Text style={[styles.packageCreditsLabel, { color: theme.colors.textSecondary }]}>credits</Text>
