@@ -32,6 +32,8 @@ export default function HomeScreen({ navigation }) {
 
   // AI Onboarding State
   const { showOnboarding, setShowOnboarding, loading: onboardingLoading } = useOnboarding();
+  const creditsRef = React.useRef(null);
+  const [creditsPosition, setCreditsPosition] = useState(null);
 
   // Notification State
   const [newsMatches, setNewsMatches] = useState([]);
@@ -40,6 +42,17 @@ export default function HomeScreen({ navigation }) {
 
   // Get first name from user
   const firstName = user?.name?.split(' ')[0] || 'Aspirant';
+
+  // Measure credits badge position for onboarding cursor
+  useEffect(() => {
+    if (creditsRef.current && showOnboarding) {
+      setTimeout(() => {
+        creditsRef.current?.measureInWindow((x, y, w, h) => {
+          setCreditsPosition({ x: x + w / 2, y: y + h / 2 });
+        });
+      }, 500);
+    }
+  }, [showOnboarding]);
 
   useFocusEffect(
     useCallback(() => {
@@ -210,6 +223,7 @@ export default function HomeScreen({ navigation }) {
         visible={showOnboarding}
         onComplete={() => setShowOnboarding(false)}
         onNavigateToBilling={() => navigation.navigate('Billing')}
+        creditsPosition={creditsPosition}
       />
 
       <ScrollView
@@ -229,7 +243,9 @@ export default function HomeScreen({ navigation }) {
 
             <View style={styles.headerActions}>
               {/* Credits Badge - Shows actual credits */}
-              <CreditsBadge />
+              <View ref={creditsRef} collapsable={false}>
+                <CreditsBadge />
+              </View>
 
               {/* Notification Bell */}
               <TouchableOpacity

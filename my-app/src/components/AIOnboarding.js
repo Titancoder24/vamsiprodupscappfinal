@@ -7,270 +7,199 @@ import {
     Animated,
     Dimensions,
     Platform,
-    Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-// AI Cursor Component (Figma-style)
-const AICursor = ({ color = '#2563EB', name, position, children }) => {
+// Animated AI Cursor that points at elements
+const AICursor = ({ name, color, position, message, onComplete, isLast }) => {
+    const cursorX = useRef(new Animated.Value(position.startX || 0)).current;
+    const cursorY = useRef(new Animated.Value(position.startY || 0)).current;
     const bounce = useRef(new Animated.Value(0)).current;
+    const clickScale = useRef(new Animated.Value(1)).current;
+    const messageOpacity = useRef(new Animated.Value(0)).current;
+    const [showClick, setShowClick] = useState(false);
 
     useEffect(() => {
-        Animated.loop(
-            Animated.sequence([
-                Animated.timing(bounce, { toValue: -3, duration: 800, useNativeDriver: true }),
-                Animated.timing(bounce, { toValue: 0, duration: 800, useNativeDriver: true }),
-            ])
-        ).start();
+        // Animate cursor moving to target
+        Animated.sequence([
+            // Move to target
+            Animated.parallel([
+                Animated.spring(cursorX, { toValue: position.endX, friction: 6, useNativeDriver: true }),
+                Animated.spring(cursorY, { toValue: position.endY, friction: 6, useNativeDriver: true }),
+            ]),
+            // Wait a moment
+            Animated.delay(300),
+            // Show click animation
+            Animated.parallel([
+                Animated.sequence([
+                    Animated.timing(clickScale, { toValue: 0.8, duration: 100, useNativeDriver: true }),
+                    Animated.timing(clickScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+                ]),
+            ]),
+        ]).start(() => {
+            setShowClick(true);
+            // Show message after click
+            Animated.timing(messageOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+
+            // Start bounce
+            Animated.loop(
+                Animated.sequence([
+                    Animated.timing(bounce, { toValue: -5, duration: 600, useNativeDriver: true }),
+                    Animated.timing(bounce, { toValue: 0, duration: 600, useNativeDriver: true }),
+                ])
+            ).start();
+        });
     }, []);
 
     return (
-        <Animated.View
-            style={[
-                styles.cursorContainer,
-                position,
-                { transform: [{ translateY: bounce }] },
-            ]}
-        >
-            {/* Cursor Arrow */}
-            <View style={[styles.cursorArrow, { borderBottomColor: color }]} />
+        <View style={styles.cursorOverlay}>
+            {/* Animated Cursor */}
+            <Animated.View
+                style={[
+                    styles.cursor,
+                    {
+                        transform: [
+                            { translateX: cursorX },
+                            { translateY: cursorY },
+                            { translateY: bounce },
+                            { scale: clickScale },
+                        ],
+                    },
+                ]}
+            >
+                {/* Cursor Arrow SVG-like shape */}
+                <View style={[styles.cursorArrow, { borderTopColor: color }]} />
 
-            {/* Name Badge */}
-            <View style={[styles.cursorBadge, { backgroundColor: color }]}>
-                <Text style={styles.cursorName}>{name}</Text>
-            </View>
+                {/* Name Tag */}
+                <View style={[styles.cursorTag, { backgroundColor: color }]}>
+                    <Text style={styles.cursorName}>{name}</Text>
+                </View>
+            </Animated.View>
 
-            {/* Comment Bubble */}
-            <View style={[styles.commentBubble, { borderColor: color }]}>
-                <Text style={styles.commentText}>{children}</Text>
-            </View>
-        </Animated.View>
+            {/* Click Ripple Effect */}
+            {showClick && (
+                <Animated.View
+                    style={[
+                        styles.clickRipple,
+                        {
+                            left: position.endX + 5,
+                            top: position.endY + 5,
+                            borderColor: color,
+                        },
+                    ]}
+                />
+            )}
+
+            {/* Message Bubble */}
+            <Animated.View
+                style={[
+                    styles.messageBubble,
+                    {
+                        opacity: messageOpacity,
+                        left: Math.min(position.endX + 30, width - 280),
+                        top: Math.max(position.endY + 40, 60),
+                        borderColor: color,
+                    },
+                ]}
+            >
+                <Text style={styles.messageText}>{message}</Text>
+
+                <View style={styles.buttonRow}>
+                    <TouchableOpacity style={styles.skipBtn} onPress={onComplete}>
+                        <Text style={styles.skipBtnText}>Skip</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.gotItBtn, { backgroundColor: color }]}
+                        onPress={onComplete}
+                    >
+                        <Text style={styles.gotItBtnText}>{isLast ? "Got it!" : "Next"}</Text>
+                    </TouchableOpacity>
+                </View>
+            </Animated.View>
+        </View>
     );
 };
 
-// Onboarding Steps
-const ONBOARDING_STEPS = [
-    {
-        id: 'welcome',
-        agent: 'Arjun',
-        color: '#2563EB',
-        title: 'Welcome to UPSC Prep! 👋',
-        message: "Hi! I'm Arjun, your AI study companion. Let me show you around the app and help you get started!",
-        position: { top: '20%', left: isWeb ? '30%' : '10%' },
-    },
-    {
-        id: 'features-intro',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: 'Powerful AI Features',
-        message: "Hello! I'm Priya. This app has 7 amazing AI-powered features to help you crack UPSC. Let me explain each one!",
-        position: { top: '15%', right: isWeb ? '25%' : '5%' },
-    },
-    {
-        id: 'feature-1',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '1. AI MCQ Generator',
-        message: 'Generate unlimited practice MCQs from any topic. Our AI creates exam-quality questions tailored to UPSC patterns.',
-        position: { top: '25%', left: isWeb ? '20%' : '5%' },
-    },
-    {
-        id: 'feature-2',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '2. PDF to MCQ Converter',
-        message: 'Upload any PDF (NCERT, notes) and instantly get MCQs generated from the content. Study smarter, not harder!',
-        position: { top: '30%', right: isWeb ? '20%' : '5%' },
-    },
-    {
-        id: 'feature-3',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '3. Mains Answer Evaluator',
-        message: 'Write practice answers and get instant AI feedback on structure, content, and presentation - just like a real examiner!',
-        position: { top: '35%', left: isWeb ? '25%' : '5%' },
-    },
-    {
-        id: 'feature-4',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '4. Mind Map Generator',
-        message: 'Visualize complex topics with AI-generated mind maps. Perfect for revision and connecting concepts!',
-        position: { top: '40%', right: isWeb ? '25%' : '5%' },
-    },
-    {
-        id: 'feature-5',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '5. Smart News Feed',
-        message: 'Daily current affairs auto-tagged for UPSC relevance. Never miss an important news item again!',
-        position: { top: '30%', left: isWeb ? '20%' : '5%' },
-    },
-    {
-        id: 'feature-6',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '6. Notes Summarizer',
-        message: 'Turn lengthy notes into crisp summaries. AI extracts key points so you remember what matters most.',
-        position: { top: '25%', right: isWeb ? '20%' : '5%' },
-    },
-    {
-        id: 'feature-7',
-        agent: 'Priya',
-        color: '#8B5CF6',
-        title: '7. Dynamic Study Roadmap',
-        message: 'Get a personalized study plan that adapts to your progress. Your path to success, customized!',
-        position: { top: '20%', left: isWeb ? '25%' : '5%' },
-    },
-    {
-        id: 'pricing',
-        agent: 'Arjun',
-        color: '#2563EB',
-        title: 'Choose Your Plan 💎',
-        message: "To unlock all these AI features, you'll need credits. I recommend the Pro plan at ₹599/month - it gives you 400 credits and access to ALL features. Best value for serious aspirants!",
-        position: { top: '20%', left: isWeb ? '30%' : '10%' },
-    },
-    {
-        id: 'pricing-explain',
-        agent: 'Arjun',
-        color: '#2563EB',
-        title: 'Why Pro at ₹599?',
-        message: '✅ 400 AI Credits (enough for 100+ sessions)\n✅ Mains Answer Evaluator access\n✅ Mind Map Generator\n✅ Priority Support\n✅ Early feature access\n\nStarter at ₹399 is great too, but Pro gives you double the credits!',
-        position: { top: '25%', right: isWeb ? '20%' : '5%' },
-    },
-    {
-        id: 'done',
-        agent: 'Arjun',
-        color: '#2563EB',
-        title: "You're All Set! 🚀",
-        message: "That's it! Start exploring the app. I'll be here if you need any help. Good luck with your UPSC preparation!",
-        position: { top: '20%', left: isWeb ? '30%' : '10%' },
-    },
-];
-
-export default function AIOnboarding({ visible, onComplete, onNavigateToBilling }) {
+// Main Onboarding Component
+export default function AIOnboarding({ visible, onComplete, onNavigateToBilling, creditsPosition }) {
     const [currentStep, setCurrentStep] = useState(0);
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const slideAnim = useRef(new Animated.Value(50)).current;
 
-    useEffect(() => {
-        if (visible) {
-            Animated.parallel([
-                Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-                Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
-            ]).start();
-        }
-    }, [visible, currentStep]);
+    // Define where the cursor should point (relative to screen)
+    const steps = [
+        {
+            name: 'Arjun',
+            color: '#2563EB',
+            message: "👋 Hey! I'm Arjun. See this credits badge? Tap it to buy AI credits and unlock all premium features!",
+            position: {
+                startX: isWeb ? width * 0.3 : 50,
+                startY: isWeb ? 200 : 100,
+                endX: creditsPosition?.x || (isWeb ? width - 150 : width - 80),
+                endY: creditsPosition?.y || (isWeb ? 80 : 50),
+            },
+        },
+        {
+            name: 'Priya',
+            color: '#8B5CF6',
+            message: "💎 I recommend the Pro plan at ₹599/month - you get 400 credits, enough for 100+ AI sessions. Best value for serious aspirants!",
+            position: {
+                startX: isWeb ? width * 0.6 : width - 50,
+                startY: isWeb ? 250 : 150,
+                endX: creditsPosition?.x || (isWeb ? width - 150 : width - 80),
+                endY: creditsPosition?.y || (isWeb ? 80 : 50),
+            },
+        },
+    ];
 
     const handleNext = () => {
-        if (currentStep < ONBOARDING_STEPS.length - 1) {
-            // Animate out
-            Animated.parallel([
-                Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
-                Animated.timing(slideAnim, { toValue: -50, duration: 200, useNativeDriver: true }),
-            ]).start(() => {
-                setCurrentStep(currentStep + 1);
-                slideAnim.setValue(50);
-                // Animate in
-                Animated.parallel([
-                    Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
-                    Animated.spring(slideAnim, { toValue: 0, friction: 8, useNativeDriver: true }),
-                ]).start();
-            });
+        if (currentStep < steps.length - 1) {
+            setCurrentStep(currentStep + 1);
         } else {
             handleComplete();
         }
     };
 
-    const handleSkip = () => {
-        handleComplete();
-    };
-
     const handleComplete = async () => {
         try {
-            await AsyncStorage.setItem('onboarding_complete', 'true');
+            await AsyncStorage.setItem('ai_onboarding_complete', 'true');
         } catch (e) { }
         onComplete();
     };
 
-    const handleGoToPricing = () => {
-        handleComplete();
-        onNavigateToBilling?.();
-    };
-
     if (!visible) return null;
 
-    const step = ONBOARDING_STEPS[currentStep];
-    const isPricingStep = step.id === 'pricing' || step.id === 'pricing-explain';
+    const step = steps[currentStep];
 
     return (
-        <Modal transparent visible={visible} animationType="none">
-            <View style={styles.overlay}>
-                {/* Animated Content */}
-                <Animated.View
-                    style={[
-                        styles.contentContainer,
-                        {
-                            opacity: fadeAnim,
-                            transform: [{ translateY: slideAnim }],
-                        },
-                    ]}
-                >
-                    {/* AI Cursor */}
-                    <View style={styles.cursorWrapper}>
-                        <AICursor
-                            color={step.color}
-                            name={step.agent}
-                            position={{ alignSelf: 'flex-start' }}
-                        >
-                            {step.message}
-                        </AICursor>
-                    </View>
+        <View style={styles.container}>
+            {/* Semi-transparent overlay */}
+            <View style={styles.overlay} />
 
-                    {/* Title */}
-                    <Text style={styles.stepTitle}>{step.title}</Text>
+            {/* Spotlight on credits area */}
+            <View
+                style={[
+                    styles.spotlight,
+                    {
+                        left: (creditsPosition?.x || (isWeb ? width - 150 : width - 80)) - 30,
+                        top: (creditsPosition?.y || (isWeb ? 80 : 50)) - 15,
+                    },
+                ]}
+            />
 
-                    {/* Progress */}
-                    <View style={styles.progressContainer}>
-                        {ONBOARDING_STEPS.map((_, i) => (
-                            <View
-                                key={i}
-                                style={[
-                                    styles.progressDot,
-                                    i === currentStep && styles.progressDotActive,
-                                    i < currentStep && styles.progressDotDone,
-                                ]}
-                            />
-                        ))}
-                    </View>
-
-                    {/* Buttons */}
-                    <View style={styles.buttonContainer}>
-                        <TouchableOpacity style={styles.skipButton} onPress={handleSkip}>
-                            <Text style={styles.skipButtonText}>Skip Tour</Text>
-                        </TouchableOpacity>
-
-                        {isPricingStep && (
-                            <TouchableOpacity style={styles.pricingButton} onPress={handleGoToPricing}>
-                                <Text style={styles.pricingButtonText}>View Plans</Text>
-                                <Ionicons name="arrow-forward" size={16} color="#FFF" />
-                            </TouchableOpacity>
-                        )}
-
-                        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
-                            <Text style={styles.nextButtonText}>
-                                {currentStep === ONBOARDING_STEPS.length - 1 ? "Let's Go!" : 'Next'}
-                            </Text>
-                            <Ionicons name="arrow-forward" size={16} color="#FFF" />
-                        </TouchableOpacity>
-                    </View>
-                </Animated.View>
-            </View>
-        </Modal>
+            {/* AI Cursor */}
+            <AICursor
+                key={currentStep}
+                name={step.name}
+                color={step.color}
+                position={step.position}
+                message={step.message}
+                onComplete={handleNext}
+                isLast={currentStep === steps.length - 1}
+            />
+        </View>
     );
 }
 
@@ -285,7 +214,7 @@ export const useOnboarding = () => {
 
     const checkOnboardingStatus = async () => {
         try {
-            const completed = await AsyncStorage.getItem('onboarding_complete');
+            const completed = await AsyncStorage.getItem('ai_onboarding_complete');
             setShowOnboarding(completed !== 'true');
         } catch (e) {
             setShowOnboarding(true);
@@ -295,7 +224,7 @@ export const useOnboarding = () => {
 
     const resetOnboarding = async () => {
         try {
-            await AsyncStorage.removeItem('onboarding_complete');
+            await AsyncStorage.removeItem('ai_onboarding_complete');
             setShowOnboarding(true);
         } catch (e) { }
     };
@@ -304,53 +233,84 @@ export const useOnboarding = () => {
 };
 
 const styles = StyleSheet.create({
+    container: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+    },
     overlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
-    contentContainer: {
-        width: '100%',
-        maxWidth: 500,
-        alignItems: 'center',
+    spotlight: {
+        position: 'absolute',
+        width: 80,
+        height: 45,
+        backgroundColor: 'transparent',
+        borderRadius: 25,
+        borderWidth: 3,
+        borderColor: '#FFF',
+        ...Platform.select({
+            web: {
+                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 20px 5px rgba(255, 255, 255, 0.3)',
+            },
+        }),
     },
-    cursorWrapper: {
-        width: '100%',
-        marginBottom: 24,
+    cursorOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
     },
-    cursorContainer: {
-        alignItems: 'flex-start',
+    cursor: {
+        position: 'absolute',
+        zIndex: 100,
     },
     cursorArrow: {
         width: 0,
         height: 0,
-        borderLeftWidth: 6,
-        borderRightWidth: 6,
-        borderBottomWidth: 12,
+        borderLeftWidth: 8,
+        borderRightWidth: 8,
+        borderTopWidth: 20,
         borderLeftColor: 'transparent',
         borderRightColor: 'transparent',
-        marginLeft: 8,
-        marginBottom: -1,
+        transform: [{ rotate: '-45deg' }],
     },
-    cursorBadge: {
-        paddingHorizontal: 10,
-        paddingVertical: 4,
+    cursorTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
         borderRadius: 4,
-        marginBottom: 8,
+        marginLeft: 12,
+        marginTop: -5,
     },
     cursorName: {
         color: '#FFF',
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '700',
     },
-    commentBubble: {
+    clickRipple: {
+        position: 'absolute',
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        borderWidth: 2,
+        ...Platform.select({
+            web: {
+                animation: 'pulse 1s infinite',
+            },
+        }),
+    },
+    messageBubble: {
+        position: 'absolute',
         backgroundColor: '#FFF',
-        borderRadius: 12,
+        borderRadius: 16,
         borderWidth: 2,
         padding: 16,
-        maxWidth: isWeb ? 400 : '100%',
+        maxWidth: 260,
         ...Platform.select({
             web: {
                 boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)',
@@ -360,84 +320,38 @@ const styles = StyleSheet.create({
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: 0.3,
                 shadowRadius: 10,
-                elevation: 8,
+                elevation: 10,
             },
         }),
     },
-    commentText: {
-        fontSize: 15,
-        color: '#1F2937',
-        lineHeight: 24,
-    },
-    stepTitle: {
-        fontSize: 20,
-        fontWeight: '800',
-        color: '#FFF',
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    progressContainer: {
-        flexDirection: 'row',
-        gap: 6,
-        marginBottom: 24,
-    },
-    progressDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    progressDotActive: {
-        backgroundColor: '#2563EB',
-        width: 24,
-    },
-    progressDotDone: {
-        backgroundColor: '#10B981',
-    },
-    buttonContainer: {
-        flexDirection: 'row',
-        gap: 12,
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-    },
-    skipButton: {
-        paddingVertical: 12,
-        paddingHorizontal: 20,
-        borderRadius: 50,
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.3)',
-    },
-    skipButtonText: {
-        color: 'rgba(255, 255, 255, 0.7)',
+    messageText: {
         fontSize: 14,
+        color: '#1F2937',
+        lineHeight: 22,
+        marginBottom: 14,
+    },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 10,
+    },
+    skipBtn: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+    },
+    skipBtnText: {
+        color: '#6B7280',
+        fontSize: 13,
         fontWeight: '600',
     },
-    pricingButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 12,
+    gotItBtn: {
+        paddingVertical: 8,
         paddingHorizontal: 20,
-        borderRadius: 50,
-        backgroundColor: '#8B5CF6',
+        borderRadius: 20,
     },
-    pricingButtonText: {
+    gotItBtnText: {
         color: '#FFF',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    nextButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 50,
-        backgroundColor: '#2563EB',
-    },
-    nextButtonText: {
-        color: '#FFF',
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
     },
 });
