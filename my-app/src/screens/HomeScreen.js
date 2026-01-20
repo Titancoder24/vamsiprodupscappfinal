@@ -18,7 +18,7 @@ import { getStats, checkStreakStatus } from '../utils/storage';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
-import { checkNewsMatches } from '../services/NewsMatchService';
+import { checkNewsMatches, markMatchAsRead, forceRefreshMatches } from '../services/NewsMatchService';
 import CreditsBadge from '../components/CreditsBadge';
 import AIOnboarding, { useOnboarding } from '../components/AIOnboarding';
 
@@ -397,7 +397,7 @@ export default function HomeScreen({ navigation }) {
         </View>
       </ScrollView>
 
-      {/* Notifications Modal */}
+      {/* Notifications Modal - Knowledge Radar */}
       <Modal
         visible={showNotifications}
         transparent={true}
@@ -407,54 +407,102 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                Knowledge Radar 📡
-              </Text>
-              <TouchableOpacity onPress={() => setShowNotifications(false)}>
-                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
-              News matching your study notes
-            </Text>
-
-            <FlatList
-              data={newsMatches}
-              keyExtractor={(item, index) => `${item.articleId}-${index}`}
-              contentContainerStyle={styles.matchesList}
-              ListEmptyComponent={
-                <View style={styles.emptyMatches}>
-                  <Ionicons name="search-outline" size={48} color={theme.colors.textSecondary} style={{ opacity: 0.5 }} />
-                  <Text style={[styles.emptyMatchesText, { color: theme.colors.textSecondary }]}>
-                    No current affairs match your notes right now. Keep studying!
-                  </Text>
-                </View>
-              }
-              renderItem={({ item }) => (
+              <View>
+                <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+                  Knowledge Radar
+                </Text>
+                <Text style={[styles.modalSubtitle, { color: theme.colors.textSecondary }]}>
+                  News matching your study tags
+                </Text>
+              </View>
+              <View style={styles.modalHeaderActions}>
                 <TouchableOpacity
-                  style={[styles.matchCard, { backgroundColor: isDark ? '#333' : '#F9F9F9' }]}
-                  onPress={() => {
-                    setShowNotifications(false);
-                    navigation.navigate('ArticleDetail', { articleId: item.articleId });
+                  style={[styles.refreshButton, { backgroundColor: theme.colors.primary + '15' }]}
+                  onPress={async () => {
+                    setLoadingMatches(true);
+                    const matches = await forceRefreshMatches();
+                    setNewsMatches(matches);
+                    setLoadingMatches(false);
                   }}
                 >
-                  <View style={styles.matchBadge}>
-                    <Ionicons name="bookmark" size={12} color="#FFFFFF" />
-                    <Text style={styles.matchBadgeText}>{item.matchReason}</Text>
-                  </View>
-                  <Text style={[styles.matchTitle, { color: theme.colors.text }]}>{item.articleTitle}</Text>
-                  {item.articleSummary && (
-                    <Text style={[styles.matchSummary, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-                      {item.articleSummary}
-                    </Text>
-                  )}
-                  <View style={styles.matchFooter}>
-                    <Text style={[styles.tapToRead, { color: theme.colors.primary }]}>Tap to read Article →</Text>
-                  </View>
+                  <Ionicons name="refresh" size={18} color={theme.colors.primary} />
                 </TouchableOpacity>
-              )}
-            />
+                <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                  <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {loadingMatches ? (
+              <View style={styles.emptyMatches}>
+                <Ionicons name="sync" size={32} color={theme.colors.primary} />
+                <Text style={[styles.emptyMatchesText, { color: theme.colors.textSecondary }]}>
+                  Scanning news for your topics...
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={newsMatches}
+                keyExtractor={(item, index) => `${item.articleId}-${index}`}
+                contentContainerStyle={styles.matchesList}
+                ListEmptyComponent={
+                  <View style={styles.emptyMatches}>
+                    <View style={styles.emptyIconContainer}>
+                      <Ionicons name="telescope-outline" size={40} color={theme.colors.textSecondary} />
+                    </View>
+                    <Text style={[styles.emptyMatchesTitle, { color: theme.colors.text }]}>
+                      No Matches Yet
+                    </Text>
+                    <Text style={[styles.emptyMatchesText, { color: theme.colors.textSecondary }]}>
+                      Create notes or add tags to topics you're studying. We'll alert you when related news appears.
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.goToNotesButton, { backgroundColor: theme.colors.primary }]}
+                      onPress={() => {
+                        setShowNotifications(false);
+                        navigation.navigate('Notes');
+                      }}
+                    >
+                      <Text style={styles.goToNotesText}>Go to Notes</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={[styles.matchCard, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}
+                    onPress={async () => {
+                      await markMatchAsRead(item.articleId);
+                      setShowNotifications(false);
+                      navigation.navigate('ArticleDetail', { articleId: item.articleId });
+                    }}
+                  >
+                    <View style={[styles.matchBadge, { backgroundColor: item.tagColor || theme.colors.primary }]}>
+                      <Ionicons name="pricetag" size={10} color="#FFFFFF" />
+                      <Text style={styles.matchBadgeText}>{item.matchedTag || 'Topic Match'}</Text>
+                    </View>
+                    <Text style={[styles.matchTitle, { color: theme.colors.text }]} numberOfLines={2}>
+                      {item.articleTitle}
+                    </Text>
+                    {item.articleSummary && (
+                      <Text style={[styles.matchSummary, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+                        {item.articleSummary}
+                      </Text>
+                    )}
+                    <View style={styles.matchFooter}>
+                      {item.articleSource && (
+                        <Text style={[styles.matchSource, { color: theme.colors.textSecondary }]}>
+                          {item.articleSource}
+                        </Text>
+                      )}
+                      <View style={styles.readArticle}>
+                        <Text style={[styles.tapToRead, { color: theme.colors.primary }]}>Read Article</Text>
+                        <Ionicons name="arrow-forward" size={14} color={theme.colors.primary} />
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
           </View>
         </View>
       </Modal>
@@ -792,16 +840,29 @@ const styles = StyleSheet.create({
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  modalHeaderActions: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    gap: 12,
+  },
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   modalTitle: {
     fontSize: 22,
     fontWeight: '700',
+    marginBottom: 4,
   },
   modalSubtitle: {
-    fontSize: 14,
-    marginBottom: 20,
+    fontSize: 13,
+    opacity: 0.7,
   },
   matchesList: {
     paddingBottom: 40,
@@ -810,48 +871,89 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   matchBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#6366F1',
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginBottom: 8,
-    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginBottom: 10,
+    gap: 5,
   },
   matchBadgeText: {
     color: 'white',
     fontSize: 11,
     fontWeight: '600',
+    textTransform: 'capitalize',
   },
   matchTitle: {
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 6,
+    lineHeight: 22,
   },
   matchSummary: {
-    fontSize: 13,
-    marginBottom: 10,
-    opacity: 0.8,
+    fontSize: 14,
+    marginBottom: 12,
+    lineHeight: 20,
+    opacity: 0.85,
   },
   matchFooter: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  matchSource: {
+    fontSize: 12,
+    opacity: 0.6,
+  },
+  readArticle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   tapToRead: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
   },
   emptyMatches: {
     alignItems: 'center',
     padding: 40,
-    gap: 16,
+    gap: 12,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  emptyMatchesTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
   },
   emptyMatchesText: {
     textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 20,
+    paddingHorizontal: 20,
+  },
+  goToNotesButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 16,
+  },
+  goToNotesText: {
+    color: 'white',
     fontSize: 15,
-  }
+    fontWeight: '600',
+  },
 });
