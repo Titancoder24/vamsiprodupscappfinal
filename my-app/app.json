@@ -35,6 +35,9 @@
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
       ]
     },
@@ -44,15 +47,13 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "4e10b57d-b617-4ee5-a67a-d8f2cd673f1e"
+        "projectId": "c3760649-25c4-46cf-b4ce-4fb60eb2aa5c"
       }
     },
-    "owner": "ampire25",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "owner": "vamsi2026",
+    "runtimeVersion": "1.0.0",
     "updates": {
-      "url": "https://u.expo.dev/your-project-id"
+      "url": "https://u.expo.dev/c3760649-25c4-46cf-b4ce-4fb60eb2aa5c"
     },
     "plugins": [
       "expo-router",
