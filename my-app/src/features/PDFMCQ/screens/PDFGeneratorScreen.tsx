@@ -361,57 +361,258 @@ async function readFileAsBase64(pickedFile: PickedFile): Promise<string> {
     }
 }
 
-// ===================== STEP 3: Generate MCQs using OpenRouter directly =====================
+// ===================== STEP 3: Generate MCQs using Parallel Batch Processing =====================
+
+// Configuration for batch processing
+const BATCH_CONFIG = {
+    BATCH_SIZE: 15,  // MCQs per batch request
+    MAX_PARALLEL: 6, // Maximum concurrent API calls
+    RETRY_COUNT: 2,  // Retries per failed batch
+};
+
+// Robust JSON repair function
+function repairJSON(jsonString: string): string {
+    let cleaned = jsonString
+        // Remove markdown code blocks
+        .replace(/```(?:json)?\s*/gi, '')
+        .replace(/```\s*/gi, '')
+        // Fix common issues
+        .replace(/,\s*]/g, ']')  // Remove trailing commas before ]
+        .replace(/,\s*}/g, '}')  // Remove trailing commas before }
+        .replace(/\n/g, ' ')     // Replace newlines with spaces
+        .replace(/\r/g, '')      // Remove carriage returns
+        .replace(/\t/g, ' ')     // Replace tabs with spaces
+        .replace(/\\n/g, ' ')    // Replace escaped newlines
+        .replace(/\\"/g, '"')    // Fix double-escaped quotes
+        .replace(/"{/g, '{')     // Fix quote before brace
+        .replace(/}"/g, '}')     // Fix quote after brace
+        .replace(/"\[/g, '[')    // Fix quote before bracket
+        .replace(/\]"/g, ']')    // Fix quote after bracket
+        .trim();
+
+    // Try to extract just the JSON object/array
+    const startBrace = cleaned.indexOf('{');
+    const startBracket = cleaned.indexOf('[');
+
+    if (startBrace !== -1 && (startBracket === -1 || startBrace < startBracket)) {
+        // Object starts first - find matching close brace
+        let depth = 0;
+        let endIndex = -1;
+        for (let i = startBrace; i < cleaned.length; i++) {
+            if (cleaned[i] === '{') depth++;
+            if (cleaned[i] === '}') depth--;
+            if (depth === 0) {
+                endIndex = i;
+                break;
+            }
+        }
+        if (endIndex !== -1) {
+            cleaned = cleaned.substring(startBrace, endIndex + 1);
+        }
+    }
+
+    return cleaned;
+}
+
+// Parse MCQs from AI response with multiple fallback strategies
+function parseMCQsFromResponse(content: string): MCQ[] {
+    console.log('[PDF-MCQ] Parsing response, length:', content.length);
+
+    // Strategy 1: Direct JSON parse
+    try {
+        const parsed = JSON.parse(content);
+        if (parsed?.mcqs?.length) {
+            return parsed.mcqs.map((m: any, i: number) => ({
+                id: i + 1,
+                question: m.question || '',
+                optionA: m.optionA || m.option_a || m.options?.A || '',
+                optionB: m.optionB || m.option_b || m.options?.B || '',
+                optionC: m.optionC || m.option_c || m.options?.C || '',
+                optionD: m.optionD || m.option_d || m.options?.D || '',
+                correctAnswer: (m.correctAnswer || m.correct_answer || m.answer || 'A').toString().toUpperCase().charAt(0),
+                explanation: m.explanation || ''
+            }));
+        }
+    } catch (e) { }
+
+    // Strategy 2: Repair JSON and parse
+    try {
+        const repaired = repairJSON(content);
+        const parsed = JSON.parse(repaired);
+        if (parsed?.mcqs?.length) {
+            return parsed.mcqs.map((m: any, i: number) => ({
+                id: i + 1,
+                question: m.question || '',
+                optionA: m.optionA || m.option_a || '',
+                optionB: m.optionB || m.option_b || '',
+                optionC: m.optionC || m.option_c || '',
+                optionD: m.optionD || m.option_d || '',
+                correctAnswer: (m.correctAnswer || m.correct_answer || 'A').toString().toUpperCase().charAt(0),
+                explanation: m.explanation || ''
+            }));
+        }
+    } catch (e) { }
+
+    // Strategy 3: Extract from code block
+    try {
+        const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (codeBlockMatch) {
+            const repaired = repairJSON(codeBlockMatch[1]);
+            const parsed = JSON.parse(repaired);
+            if (parsed?.mcqs?.length) {
+                return parsed.mcqs.map((m: any, i: number) => ({
+                    id: i + 1,
+                    question: m.question || '',
+                    optionA: m.optionA || m.option_a || '',
+                    optionB: m.optionB || m.option_b || '',
+                    optionC: m.optionC || m.option_c || '',
+                    optionD: m.optionD || m.option_d || '',
+                    correctAnswer: (m.correctAnswer || m.correct_answer || 'A').toString().toUpperCase().charAt(0),
+                    explanation: m.explanation || ''
+                }));
+            }
+        }
+    } catch (e) { }
+
+    // Strategy 4: Extract individual MCQ objects using regex
+    try {
+        const mcqObjects: MCQ[] = [];
+        const regex = /\{[^{}]*"question"\s*:\s*"[^"]+?"[^{}]*\}/g;
+        const matches = content.match(regex) || [];
+
+        for (const match of matches) {
+            try {
+                const obj = JSON.parse(repairJSON(match));
+                mcqObjects.push({
+                    id: mcqObjects.length + 1,
+                    question: obj.question || '',
+                    optionA: obj.optionA || obj.option_a || '',
+                    optionB: obj.optionB || obj.option_b || '',
+                    optionC: obj.optionC || obj.option_c || '',
+                    optionD: obj.optionD || obj.option_d || '',
+                    correctAnswer: (obj.correctAnswer || obj.correct_answer || 'A').toString().toUpperCase().charAt(0),
+                    explanation: obj.explanation || ''
+                });
+            } catch (e) { }
+        }
+
+        if (mcqObjects.length > 0) {
+            console.log('[PDF-MCQ] Extracted', mcqObjects.length, 'MCQs via regex');
+            return mcqObjects;
+        }
+    } catch (e) { }
+
+    // Strategy 5: Fallback to text parsing
+    console.log('[PDF-MCQ] Using text parser as fallback');
+    return parseMCQResponse(content);
+}
+
+// Generate a single batch of MCQs
+async function generateBatch(base64Data: string, mimeType: string, batchNum: number, batchSize: number, totalCount: number): Promise<MCQ[]> {
+    const prompt = `You are an expert UPSC question creator. Analyze the PDF and create EXACTLY ${batchSize} MCQs.
+
+This is batch ${batchNum} of ${Math.ceil(totalCount / batchSize)}. Generate questions ${((batchNum - 1) * batchSize) + 1} to ${Math.min(batchNum * batchSize, totalCount)}.
+
+REQUIREMENTS:
+- Create EXACTLY ${batchSize} MCQs from the document
+- Each question tests understanding, not memorization
+- 4 options (A, B, C, D) per question
+- One correct answer per question
+- Brief explanation for each
+
+RESPOND WITH VALID JSON ONLY:
+{"mcqs":[{"question":"...","optionA":"...","optionB":"...","optionC":"...","optionD":"...","correctAnswer":"A","explanation":"..."}]}
+
+Generate ${batchSize} MCQs now:`;
+
+    const messages = [{
+        role: 'user',
+        content: [
+            { type: 'text', text: prompt },
+            {
+                type: 'image_url',
+                image_url: { url: `data:${mimeType};base64,${base64Data}` }
+            }
+        ]
+    }];
+
+    const response = await fetch(CONFIG.OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://upsc-prep.app',
+            'X-Title': 'UPSC PDF MCQ Generator',
+        },
+        body: JSON.stringify({
+            model: CONFIG.AI_MODEL,
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 4096,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`Batch ${batchNum} API Error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+
+    if (!content) {
+        throw new Error(`Batch ${batchNum}: No content`);
+    }
+
+    return parseMCQsFromResponse(content);
+}
+
+// Process batches with retry logic
+async function processBatchWithRetry(base64Data: string, mimeType: string, batchNum: number, batchSize: number, totalCount: number): Promise<MCQ[]> {
+    for (let attempt = 1; attempt <= BATCH_CONFIG.RETRY_COUNT + 1; attempt++) {
+        try {
+            return await generateBatch(base64Data, mimeType, batchNum, batchSize, totalCount);
+        } catch (error) {
+            console.warn(`[PDF-MCQ] Batch ${batchNum} attempt ${attempt} failed:`, error);
+            if (attempt > BATCH_CONFIG.RETRY_COUNT) {
+                return []; // Return empty on final failure
+            }
+            await new Promise(r => setTimeout(r, 500 * attempt)); // Exponential backoff
+        }
+    }
+    return [];
+}
+
+// Main parallel batch processing function
 async function generateMCQsFromPDF(base64Data: string, fileName: string, mimeType: string, count: number): Promise<MCQ[]> {
-    console.log('[PDF-MCQ] Generating MCQs via OpenRouter directly...');
+    console.log('[PDF-MCQ] Starting parallel batch generation...');
     console.log('[PDF-MCQ] File:', fileName, 'Type:', mimeType, 'Count:', count);
 
     if (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY.length < 10) {
         throw new Error('API key not configured');
     }
 
-    const prompt = `You are an expert UPSC exam question creator. Analyze this PDF document and create EXACTLY ${count} Multiple Choice Questions (MCQs).
+    const startTime = Date.now();
+
+    // For small counts, use single request
+    if (count <= 20) {
+        const prompt = `You are an expert UPSC question creator. Analyze this PDF and create EXACTLY ${count} MCQs.
 
 REQUIREMENTS:
-1. Create EXACTLY ${count} MCQs based on the document content
-2. Each question should test understanding, not just memorization
-3. 4 options per question (A, B, C, D)
-4. Only ONE correct answer per question
-5. Include detailed explanation for each answer
+- Create EXACTLY ${count} MCQs from the document content
+- 4 options (A, B, C, D) per question
+- One correct answer per question
+- Brief explanation for each
 
-OUTPUT FORMAT - Return valid JSON:
-{
-  "mcqs": [
-    {
-      "question": "Question text here",
-      "optionA": "Option A text",
-      "optionB": "Option B text",
-      "optionC": "Option C text",
-      "optionD": "Option D text",
-      "correctAnswer": "A",
-      "explanation": "Detailed explanation why this is correct"
-    }
-  ]
-}
+RESPOND WITH VALID JSON ONLY:
+{"mcqs":[{"question":"...","optionA":"...","optionB":"...","optionC":"...","optionD":"...","correctAnswer":"A","explanation":"..."}]}`;
 
-Generate ${count} high-quality MCQs from this document now:`;
-
-    try {
-        // Build message with PDF as image/document
         const messages = [{
             role: 'user',
             content: [
                 { type: 'text', text: prompt },
-                {
-                    type: 'image_url',
-                    image_url: {
-                        url: `data:${mimeType};base64,${base64Data}`
-                    }
-                }
+                { type: 'image_url', image_url: { url: `data:${mimeType};base64,${base64Data}` } }
             ]
         }];
-
-        console.log('[PDF-MCQ] Sending request to OpenRouter...');
 
         const response = await fetch(CONFIG.OPENROUTER_URL, {
             method: 'POST',
@@ -429,66 +630,63 @@ Generate ${count} high-quality MCQs from this document now:`;
             }),
         });
 
-        console.log('[PDF-MCQ] Response status:', response.status);
-
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[PDF-MCQ] API Error:', response.status, errorText);
             throw new Error(`API Error: ${response.status}`);
         }
 
         const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
 
-        if (!data.choices?.[0]?.message?.content) {
+        if (!content) {
             throw new Error('No content in response');
         }
 
-        const content = data.choices[0].message.content;
-        console.log('[PDF-MCQ] Response content length:', content.length);
+        const mcqs = parseMCQsFromResponse(content);
+        console.log(`[PDF-MCQ] Generated ${mcqs.length} MCQs in ${(Date.now() - startTime) / 1000}s`);
+        return mcqs;
+    }
 
-        // Parse JSON response
-        let parsed;
-        try {
-            parsed = JSON.parse(content);
-        } catch {
-            // Try extracting from code block
-            const match = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-            if (match) {
-                parsed = JSON.parse(match[1].trim());
-            } else {
-                const objMatch = content.match(/\{[\s\S]*"mcqs"[\s\S]*\}/);
-                if (objMatch) {
-                    parsed = JSON.parse(objMatch[0]);
-                } else {
-                    // Fallback to text parsing
-                    console.log('[PDF-MCQ] JSON parse failed, using text parser');
-                    return parseMCQResponse(content);
-                }
+    // For large counts, use parallel batch processing
+    const batchSize = BATCH_CONFIG.BATCH_SIZE;
+    const totalBatches = Math.ceil(count / batchSize);
+
+    console.log(`[PDF-MCQ] Processing ${totalBatches} batches of ${batchSize} MCQs each`);
+
+    const allMCQs: MCQ[] = [];
+
+    // Process batches in parallel groups
+    for (let groupStart = 0; groupStart < totalBatches; groupStart += BATCH_CONFIG.MAX_PARALLEL) {
+        const groupEnd = Math.min(groupStart + BATCH_CONFIG.MAX_PARALLEL, totalBatches);
+        const batchPromises: Promise<MCQ[]>[] = [];
+
+        for (let batchNum = groupStart + 1; batchNum <= groupEnd; batchNum++) {
+            const thisBatchSize = Math.min(batchSize, count - (batchNum - 1) * batchSize);
+            batchPromises.push(
+                processBatchWithRetry(base64Data, mimeType, batchNum, thisBatchSize, count)
+            );
+        }
+
+        console.log(`[PDF-MCQ] Processing batch group ${groupStart + 1}-${groupEnd} (${batchPromises.length} parallel requests)`);
+
+        const batchResults = await Promise.all(batchPromises);
+
+        // Merge results and assign sequential IDs
+        for (const batchMCQs of batchResults) {
+            for (const mcq of batchMCQs) {
+                allMCQs.push({
+                    ...mcq,
+                    id: allMCQs.length + 1
+                });
             }
         }
 
-        if (!parsed?.mcqs?.length) {
-            throw new Error('No MCQs in response');
-        }
-
-        console.log('[PDF-MCQ] Parsed', parsed.mcqs.length, 'MCQs');
-
-        // Map to MCQ format with IDs
-        return parsed.mcqs.map((m: any, i: number) => ({
-            id: i + 1,
-            question: m.question || '',
-            optionA: m.optionA || m.option_a || '',
-            optionB: m.optionB || m.option_b || '',
-            optionC: m.optionC || m.option_c || '',
-            optionD: m.optionD || m.option_d || '',
-            correctAnswer: (m.correctAnswer || m.correct_answer || 'A').toUpperCase(),
-            explanation: m.explanation || ''
-        }));
-
-    } catch (error: any) {
-        console.error('[PDF-MCQ] Error:', error);
-        throw new Error(error.message || 'Failed to generate MCQs');
+        console.log(`[PDF-MCQ] Total MCQs so far: ${allMCQs.length}`);
     }
+
+    const elapsed = (Date.now() - startTime) / 1000;
+    console.log(`[PDF-MCQ] ✅ Generated ${allMCQs.length} MCQs in ${elapsed.toFixed(1)}s`);
+
+    return allMCQs;
 }
 
 // ===================== STEP 4: Generate MCQs from text (fallback) =====================
@@ -701,8 +899,9 @@ export default function PDFGeneratorScreen() {
             return;
         }
 
-        const count = Math.min(200, Math.max(1, parseInt(mcqCount) || 10));
-        const estimatedTime = Math.max(20, count * 2);
+        const count = Math.min(1000, Math.max(1, parseInt(mcqCount) || 10));
+        // With parallel processing: ~6 batches of 15 MCQs run concurrently
+        const estimatedTime = count <= 20 ? Math.max(10, count) : Math.max(15, Math.ceil(count / 90) * 15);
 
         try {
             // Deduct credits before starting
@@ -989,7 +1188,7 @@ export default function PDFGeneratorScreen() {
                                         Number of MCQs
                                     </Text>
                                     <Text style={[styles.countHint, { color: theme.colors.textSecondary }]}>
-                                        1 to 200 questions
+                                        1 to 1000 questions
                                     </Text>
                                 </View>
                                 <TextInput
