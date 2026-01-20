@@ -17,9 +17,12 @@ const PLAN_CREDITS = {
 
 // LIVE Credit amounts for packages
 const PACKAGE_CREDITS: Record<string, number> = {
-    'pdt_0NWfLXQfz6P34vDNgGT6J': 50,   // 50 credits pack (LIVE)
-    'pdt_0NWfLZHVYcwnA37B60iio': 120,  // 120 credits pack (LIVE)
-    'pdt_0NWfLbT49dqQm9bNqVVjS': 300,  // 300 credits pack (LIVE)
+    'pdt_0NWfLXQfz6P34vDNgGT6J': 50,    // 50 credits pack (LIVE)
+    'pdt_0NWfLZHVYcwnA37B60iio': 120,   // 120 credits pack (LIVE)
+    'pdt_0NWfLbT49dqQm9bNqVVjS': 300,   // 300 credits pack (LIVE)
+    'pdt_0NWfNy0Q3SrufzdKZlE2G': 750,   // 750 credits pack (LIVE)
+    'pdt_0NWfO0TYn9murkxJ3FWbC': 1200,  // 1200 credits pack (LIVE)
+    'pdt_0NWfO2IA7c8uoxbXKPkFP': 1999,  // 1999 credits pack (LIVE)
 };
 
 // LIVE Product to plan type mapping

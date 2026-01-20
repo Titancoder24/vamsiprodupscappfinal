@@ -43,6 +43,9 @@ const CHECKOUT_URLS = {
     CREDITS_50: 'https://checkout.dodopayments.com/buy/pdt_0NWfLXQfz6P34vDNgGT6J',
     CREDITS_120: 'https://checkout.dodopayments.com/buy/pdt_0NWfLZHVYcwnA37B60iio',
     CREDITS_300: 'https://checkout.dodopayments.com/buy/pdt_0NWfLbT49dqQm9bNqVVjS',
+    CREDITS_750: 'https://checkout.dodopayments.com/buy/pdt_0NWfNy0Q3SrufzdKZlE2G',
+    CREDITS_1200: 'https://checkout.dodopayments.com/buy/pdt_0NWfO0TYn9murkxJ3FWbC',
+    CREDITS_1999: 'https://checkout.dodopayments.com/buy/pdt_0NWfO2IA7c8uoxbXKPkFP',
 };
 
 export default function BillingScreen() {
@@ -277,6 +280,7 @@ export default function BillingScreen() {
                 One-time purchase • Credits never expire
             </Text>
 
+            {/* Row 1: Starter packages */}
             <View style={styles.packagesRow}>
                 {/* 50 Credits */}
                 <TouchableOpacity
@@ -291,15 +295,12 @@ export default function BillingScreen() {
 
                 {/* 120 Credits */}
                 <TouchableOpacity
-                    style={[styles.packageCard, styles.packageCardPopular, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: '#6366F1' }]}
+                    style={[styles.packageCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: isDark ? '#2A2A4E' : '#E8E8E8' }]}
                     onPress={() => openCheckout(CHECKOUT_URLS.CREDITS_120, '120 Credits')}
                 >
-                    <View style={styles.saveBadge}>
-                        <Text style={styles.saveBadgeText}>BEST VALUE</Text>
-                    </View>
                     <Text style={[styles.packageCredits, { color: isDark ? '#FFF' : '#1A1A1A' }]}>120</Text>
                     <Text style={[styles.packageCreditsLabel, { color: isDark ? '#666' : '#888' }]}>credits</Text>
-                    <Text style={[styles.packagePrice, { color: '#6366F1' }]}>₹199</Text>
+                    <Text style={[styles.packagePrice, { color: '#10B981' }]}>₹199</Text>
                     <Text style={[styles.packagePerCredit, { color: isDark ? '#555' : '#AAA' }]}>₹1.66/credit</Text>
                 </TouchableOpacity>
 
@@ -315,8 +316,53 @@ export default function BillingScreen() {
                 </TouchableOpacity>
             </View>
 
+            {/* Row 2: Bulk packages */}
+            <View style={[styles.packagesRow, { marginTop: 12 }]}>
+                {/* 750 Credits */}
+                <TouchableOpacity
+                    style={[styles.packageCard, styles.packageCardPopular, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: '#6366F1' }]}
+                    onPress={() => openCheckout(CHECKOUT_URLS.CREDITS_750, '750 Credits')}
+                >
+                    <View style={styles.saveBadge}>
+                        <Text style={styles.saveBadgeText}>POPULAR</Text>
+                    </View>
+                    <Text style={[styles.packageCredits, { color: isDark ? '#FFF' : '#1A1A1A' }]}>750</Text>
+                    <Text style={[styles.packageCreditsLabel, { color: isDark ? '#666' : '#888' }]}>credits</Text>
+                    <Text style={[styles.packagePrice, { color: '#6366F1' }]}>₹699</Text>
+                    <Text style={[styles.packagePerCredit, { color: isDark ? '#555' : '#AAA' }]}>₹0.93/credit</Text>
+                </TouchableOpacity>
+
+                {/* 1200 Credits */}
+                <TouchableOpacity
+                    style={[styles.packageCard, styles.packageCardPopular, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: '#10B981' }]}
+                    onPress={() => openCheckout(CHECKOUT_URLS.CREDITS_1200, '1200 Credits')}
+                >
+                    <View style={[styles.saveBadge, { backgroundColor: '#10B981' }]}>
+                        <Text style={styles.saveBadgeText}>BEST VALUE</Text>
+                    </View>
+                    <Text style={[styles.packageCredits, { color: isDark ? '#FFF' : '#1A1A1A' }]}>1200</Text>
+                    <Text style={[styles.packageCreditsLabel, { color: isDark ? '#666' : '#888' }]}>credits</Text>
+                    <Text style={[styles.packagePrice, { color: '#10B981' }]}>₹999</Text>
+                    <Text style={[styles.packagePerCredit, { color: isDark ? '#555' : '#AAA' }]}>₹0.83/credit</Text>
+                </TouchableOpacity>
+
+                {/* 1999 Credits */}
+                <TouchableOpacity
+                    style={[styles.packageCard, styles.packageCardPopular, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: '#F59E0B' }]}
+                    onPress={() => openCheckout(CHECKOUT_URLS.CREDITS_1999, '1999 Credits')}
+                >
+                    <View style={[styles.saveBadge, { backgroundColor: '#F59E0B' }]}>
+                        <Text style={styles.saveBadgeText}>ULTIMATE</Text>
+                    </View>
+                    <Text style={[styles.packageCredits, { color: isDark ? '#FFF' : '#1A1A1A' }]}>1999</Text>
+                    <Text style={[styles.packageCreditsLabel, { color: isDark ? '#666' : '#888' }]}>credits</Text>
+                    <Text style={[styles.packagePrice, { color: '#F59E0B' }]}>₹1499</Text>
+                    <Text style={[styles.packagePerCredit, { color: isDark ? '#555' : '#AAA' }]}>₹0.75/credit</Text>
+                </TouchableOpacity>
+            </View>
+
             {/* Credit Usage Guide */}
-            <View style={[styles.usageGuide, { backgroundColor: isDark ? '#1A1A2E' : '#F9FAFB', borderColor: isDark ? '#2A2A4E' : '#E5E7EB' }]}>
+            <View style={[styles.usageGuide, { backgroundColor: isDark ? '#1A1A2E' : '#F9FAFB', borderColor: isDark ? '#2A2A4E' : '#E5E7EB', marginTop: 20 }]}>
                 <Text style={[styles.usageTitle, { color: isDark ? '#FFF' : '#1A1A1A' }]}>
                     <Ionicons name="information-circle" size={16} /> Credit Usage
                 </Text>
