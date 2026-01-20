@@ -1,12 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { throttle } from '../../../utils/throttle';
-import { createNote, updateNote } from '../services/notesApi';
-import { Note, UpdateNotePayload, CreateNotePayload } from '../types';
+import { createNote, updateNote, getAllTags, LocalNote, LocalTag } from '../services/localNotesStorage';
 
 interface UseSaveNoteOptions {
-    userId: number;
+    userId?: number;
     throttleMs?: number;
-    onSaveSuccess?: (note: Note) => void;
+    onSaveSuccess?: (note: LocalNote) => void;
     onSaveError?: (error: Error) => void;
 }
 
@@ -17,8 +15,8 @@ interface SaveNoteState {
     isDirty: boolean;
 }
 
-export function useSaveNote(options: UseSaveNoteOptions) {
-    const { userId, throttleMs = 500, onSaveSuccess, onSaveError } = options;
+export function useSaveNote(options: UseSaveNoteOptions = {}) {
+    const { throttleMs = 500, onSaveSuccess, onSaveError } = options;
 
     const [state, setState] = useState<SaveNoteState>({
         isSaving: false,
@@ -34,12 +32,12 @@ export function useSaveNote(options: UseSaveNoteOptions) {
         tagIds: number[];
     } | null>(null);
 
-    // Core save function - now accepts plainText string instead of LexicalRoot
+    // Core save function - uses local storage
     const doSave = useCallback(async (
         title: string,
         plainText: string,
         tagIds: number[] = []
-    ): Promise<Note | null> => {
+    ): Promise<LocalNote | null> => {
         if (!title.trim()) {
             console.log('[useSaveNote] Skipping save - empty title');
             return null;
@@ -48,25 +46,30 @@ export function useSaveNote(options: UseSaveNoteOptions) {
         setState(prev => ({ ...prev, isSaving: true, error: null }));
 
         try {
-            let savedNote: Note;
+            // Get full tag objects from IDs
+            const allTags = await getAllTags();
+            const selectedTags = allTags.filter(tag => tagIds.includes(tag.id));
+
+            let savedNote: LocalNote;
 
             if (noteIdRef.current) {
                 // Update existing note
-                const payload: UpdateNotePayload = {
+                const result = await updateNote(noteIdRef.current, {
                     title,
-                    plainText,
-                    tagIds,
-                };
-                savedNote = await updateNote(noteIdRef.current, payload);
+                    content: plainText,
+                    tags: selectedTags,
+                });
+                if (!result) {
+                    throw new Error('Failed to update note');
+                }
+                savedNote = result;
             } else {
                 // Create new note
-                const payload: CreateNotePayload = {
-                    userId,
+                savedNote = await createNote({
                     title,
-                    plainText,
-                    tagIds,
-                };
-                savedNote = await createNote(payload);
+                    content: plainText,
+                    tags: selectedTags,
+                });
                 noteIdRef.current = savedNote.id;
             }
 
@@ -89,29 +92,10 @@ export function useSaveNote(options: UseSaveNoteOptions) {
             onSaveError?.(err);
             return null;
         }
-    }, [userId, onSaveSuccess, onSaveError]);
+    }, [onSaveSuccess, onSaveError]);
 
-    // Throttled save function
-    const throttledSaveRef = useRef(
-        throttle(
-            (title: string, plainText: string, tagIds: number[]) => {
-                doSave(title, plainText, tagIds);
-            },
-            throttleMs,
-            { leading: false, trailing: true }
-        )
-    );
-
-    // Update throttle when throttleMs changes
-    useEffect(() => {
-        throttledSaveRef.current = throttle(
-            (title: string, plainText: string, tagIds: number[]) => {
-                doSave(title, plainText, tagIds);
-            },
-            throttleMs,
-            { leading: false, trailing: true }
-        );
-    }, [throttleMs, doSave]);
+    // Simple throttle implementation
+    const throttleTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Autosave function (throttled)
     const save = useCallback((
@@ -121,15 +105,25 @@ export function useSaveNote(options: UseSaveNoteOptions) {
     ) => {
         pendingSaveRef.current = { title, plainText, tagIds };
         setState(prev => ({ ...prev, isDirty: true }));
-        throttledSaveRef.current(title, plainText, tagIds);
-    }, []);
+
+        if (throttleTimerRef.current) {
+            clearTimeout(throttleTimerRef.current);
+        }
+
+        throttleTimerRef.current = setTimeout(() => {
+            doSave(title, plainText, tagIds);
+        }, throttleMs);
+    }, [doSave, throttleMs]);
 
     // Immediate save (not throttled)
     const saveNow = useCallback(async (
         title: string,
         plainText: string,
         tagIds: number[] = []
-    ): Promise<Note | null> => {
+    ): Promise<LocalNote | null> => {
+        if (throttleTimerRef.current) {
+            clearTimeout(throttleTimerRef.current);
+        }
         pendingSaveRef.current = null;
         return doSave(title, plainText, tagIds);
     }, [doSave]);
@@ -143,6 +137,9 @@ export function useSaveNote(options: UseSaveNoteOptions) {
     const reset = useCallback(() => {
         noteIdRef.current = null;
         pendingSaveRef.current = null;
+        if (throttleTimerRef.current) {
+            clearTimeout(throttleTimerRef.current);
+        }
         setState({
             isSaving: false,
             lastSaved: null,
@@ -154,6 +151,9 @@ export function useSaveNote(options: UseSaveNoteOptions) {
     // Flush pending save on unmount
     useEffect(() => {
         return () => {
+            if (throttleTimerRef.current) {
+                clearTimeout(throttleTimerRef.current);
+            }
             if (pendingSaveRef.current && state.isDirty) {
                 const { title, plainText, tagIds } = pendingSaveRef.current;
                 doSave(title, plainText, tagIds);
@@ -172,4 +172,3 @@ export function useSaveNote(options: UseSaveNoteOptions) {
 }
 
 export default useSaveNote;
-

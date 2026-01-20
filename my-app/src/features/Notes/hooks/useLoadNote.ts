@@ -1,16 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
-import { fetchNote } from '../services/notesApi';
-import { Note, EMPTY_LEXICAL_STATE, LexicalRoot } from '../types';
+import { getNoteById, LocalNote } from '../services/localNotesStorage';
 
 interface UseLoadNoteOptions {
     noteId?: number | null;
     autoLoad?: boolean;
-    onLoadSuccess?: (note: Note) => void;
+    onLoadSuccess?: (note: LocalNote) => void;
     onLoadError?: (error: Error) => void;
 }
 
 interface LoadNoteState {
-    note: Note | null;
+    note: LocalNote | null;
     isLoading: boolean;
     error: Error | null;
 }
@@ -24,9 +23,9 @@ export function useLoadNote(options: UseLoadNoteOptions = {}) {
         error: null,
     });
 
-    const load = useCallback(async (id?: number): Promise<Note | null> => {
+    const load = useCallback(async (id?: number): Promise<LocalNote | null> => {
         const targetId = id ?? noteId;
-        
+
         if (!targetId) {
             console.log('[useLoadNote] No note ID to load');
             return null;
@@ -35,7 +34,11 @@ export function useLoadNote(options: UseLoadNoteOptions = {}) {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
         try {
-            const note = await fetchNote(targetId);
+            const note = await getNoteById(targetId);
+
+            if (!note) {
+                throw new Error('Note not found');
+            }
 
             setState({
                 note,
@@ -76,18 +79,19 @@ export function useLoadNote(options: UseLoadNoteOptions = {}) {
 
     // Derive editor state
     const title = state.note?.title ?? '';
-    const content = state.note?.content ?? EMPTY_LEXICAL_STATE;
+    const content = state.note?.content ?? '';
     const tags = state.note?.tags ?? [];
+    const plainText = state.note?.content ?? '';
 
     return {
         ...state,
         load,
         reset,
         title,
-        content: content as LexicalRoot,
+        content,
         tags,
+        plainText,
     };
 }
 
 export default useLoadNote;
-

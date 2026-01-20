@@ -10,65 +10,17 @@ import {
     Platform,
     Alert,
     ScrollView,
+    Modal,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../../context/AuthContext';
-import { TagPicker } from '../components/TagPicker';
-import { useSaveNote } from '../hooks/useSaveNote';
-import { useLoadNote } from '../hooks/useLoadNote';
-import type { Tag } from '../types';
-import { Input } from '../../../components/Input';
-
-// Block types
-type BlockType = 'paragraph' | 'h1' | 'h2' | 'h3' | 'bullet' | 'numbered' | 'quote' | 'divider';
-
-interface Block {
-    id: string;
-    type: BlockType;
-    content: string;
-}
-
-// Parse a line to determine its type and content
-const parseLineType = (text: string): { type: BlockType; content: string } => {
-    if (text.startsWith('# ')) return { type: 'h1', content: text.slice(2) };
-    if (text.startsWith('## ')) return { type: 'h2', content: text.slice(3) };
-    if (text.startsWith('### ')) return { type: 'h3', content: text.slice(4) };
-    if (text.startsWith('- ') || text.startsWith('* ')) return { type: 'bullet', content: text.slice(2) };
-    if (/^\d+\.\s/.test(text)) return { type: 'numbered', content: text.replace(/^\d+\.\s/, '') };
-    if (text.startsWith('> ')) return { type: 'quote', content: text.slice(2) };
-    if (text === '---' || text === '***') return { type: 'divider', content: '' };
-    return { type: 'paragraph', content: text };
-};
-
-// Convert blocks back to plain text for saving
-const blocksToText = (blocks: Block[]): string => {
-    return blocks.map(block => {
-        switch (block.type) {
-            case 'h1': return `# ${block.content}`;
-            case 'h2': return `## ${block.content}`;
-            case 'h3': return `### ${block.content}`;
-            case 'bullet': return `- ${block.content}`;
-            case 'numbered': return `1. ${block.content}`;
-            case 'quote': return `> ${block.content}`;
-            case 'divider': return '---';
-            default: return block.content;
-        }
-    }).join('\n');
-};
-
-// Parse text into blocks
-const textToBlocks = (text: string): Block[] => {
-    if (!text) return [{ id: '1', type: 'paragraph', content: '' }];
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-        const { type, content } = parseLineType(line);
-        return { id: String(i + 1), type, content };
-    });
-};
-
-// Generate unique ID
-let blockIdCounter = Date.now();
-const generateId = () => String(++blockIdCounter);
+import {
+    getNoteById,
+    updateNote,
+    getAllTags,
+    LocalNote,
+    LocalTag,
+} from '../services/localNotesStorage';
 
 interface NoteEditorScreenProps {
     navigation: any;
@@ -79,166 +31,135 @@ interface NoteEditorScreenProps {
     };
 }
 
+const TAG_COLORS = [
+    '#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6',
+    '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
+];
+
 export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
     navigation,
     route,
 }) => {
     const noteId = route.params?.noteId;
-    const { user } = useAuth();
-    const userId = user?.id || 1;
 
     // State
     const [title, setTitle] = useState('');
-    const [blocks, setBlocks] = useState<Block[]>([{ id: '1', type: 'paragraph', content: '' }]);
-    const [selectedTags, setSelectedTags] = useState<Tag[]>([]);
-    const [focusedBlockId, setFocusedBlockId] = useState<string | null>('1');
-    const inputRefs = useRef<{ [key: string]: TextInput | null }>({});
+    const [content, setContent] = useState('');
+    const [selectedTags, setSelectedTags] = useState<LocalTag[]>([]);
+    const [allTags, setAllTags] = useState<LocalTag[]>([]);
+    const [isPinned, setIsPinned] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [showTagPicker, setShowTagPicker] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
 
-    // Hooks
-    const {
-        note,
-        isLoading: isLoadingNote,
-        load: loadNote,
-        title: loadedTitle,
-        content: loadedContent,
-        tags: loadedTags,
-    } = useLoadNote({ noteId, autoLoad: true });
+    const contentInputRef = useRef<TextInput>(null);
 
-    const {
-        saveNow,
-        setNoteId,
-        isSaving,
-        lastSaved,
-    } = useSaveNote({
-        userId,
-        onSaveSuccess: (savedNote) => {
-            if (!noteId) {
-                setNoteId(savedNote.id);
-            }
-        },
-        onSaveError: (error) => {
-            Alert.alert('Save Error', error.message);
-        },
-    });
-
-    // Load note data into state
+    // Load note and tags
     useEffect(() => {
-        if (note) {
-            setTitle(note.title);
-            setBlocks(textToBlocks(note.plainText || ''));
-            setSelectedTags(note.tags);
-            setNoteId(note.id);
-        }
-    }, [note, setNoteId]);
+        loadData();
+    }, [noteId]);
 
-    // Handle block content change
-    const handleBlockChange = useCallback((blockId: string, newText: string) => {
-        setBlocks(prev => {
-            const blockIndex = prev.findIndex(b => b.id === blockId);
-            if (blockIndex === -1) return prev;
+    const loadData = async () => {
+        setIsLoading(true);
+        try {
+            const tags = await getAllTags();
+            setAllTags(tags);
 
-            // Check if Enter was pressed (newText contains newline)
-            if (newText.includes('\n')) {
-                const lines = newText.split('\n');
-                const newBlocks = [...prev];
-
-                // Update current block with first line
-                const { type, content } = parseLineType(lines[0]);
-                newBlocks[blockIndex] = { ...newBlocks[blockIndex], type, content };
-
-                // Insert new blocks for remaining lines
-                const additionalBlocks = lines.slice(1).map(line => {
-                    const parsed = parseLineType(line);
-                    return { id: generateId(), type: parsed.type, content: parsed.content };
-                });
-
-                newBlocks.splice(blockIndex + 1, 0, ...additionalBlocks);
-
-                // Focus the last new block
-                setTimeout(() => {
-                    const lastNewBlockId = additionalBlocks[additionalBlocks.length - 1]?.id;
-                    if (lastNewBlockId) {
-                        setFocusedBlockId(lastNewBlockId);
-                        inputRefs.current[lastNewBlockId]?.focus();
-                    }
-                }, 50);
-
-                return newBlocks;
-            }
-
-            // Normal text change - check for markdown prefixes
-            const { type, content } = parseLineType(newText);
-            const newBlocks = [...prev];
-            newBlocks[blockIndex] = { ...newBlocks[blockIndex], type, content };
-            return newBlocks;
-        });
-    }, []);
-
-    // Handle backspace on empty block
-    const handleKeyPress = useCallback((blockId: string, key: string) => {
-        if (key === 'Backspace') {
-            setBlocks(prev => {
-                const blockIndex = prev.findIndex(b => b.id === blockId);
-                if (blockIndex <= 0) return prev;
-
-                const currentBlock = prev[blockIndex];
-                if (currentBlock.content === '' && currentBlock.type === 'paragraph') {
-                    // Delete this block and focus previous
-                    const newBlocks = prev.filter(b => b.id !== blockId);
-                    setTimeout(() => {
-                        const prevBlockId = prev[blockIndex - 1]?.id;
-                        if (prevBlockId) {
-                            setFocusedBlockId(prevBlockId);
-                            inputRefs.current[prevBlockId]?.focus();
-                        }
-                    }, 50);
-                    return newBlocks;
+            if (noteId) {
+                const note = await getNoteById(noteId);
+                if (note) {
+                    setTitle(note.title);
+                    setContent(note.content);
+                    setSelectedTags(note.tags);
+                    setIsPinned(note.isPinned);
                 }
-                return prev;
-            });
+            }
+        } catch (error) {
+            console.error('[NoteEditor] Error loading:', error);
         }
-    }, []);
+        setIsLoading(false);
+    };
 
-    // Handle title change (no autosave)
-    const handleTitleChange = useCallback((newTitle: string) => {
-        setTitle(newTitle);
-    }, []);
+    // Auto-save on changes
+    useEffect(() => {
+        if (!hasChanges || !noteId) return;
 
-    // Handle tags change (no autosave)
-    const handleTagsChange = useCallback((newTags: Tag[]) => {
-        setSelectedTags(newTags);
-    }, []);
+        const timer = setTimeout(() => {
+            handleSave(false);
+        }, 2000);
 
-    // Manual save
-    const handleSave = useCallback(async () => {
-        if (!title.trim()) {
+        return () => clearTimeout(timer);
+    }, [title, content, selectedTags, isPinned, hasChanges]);
+
+    const handleSave = async (showAlert: boolean = true) => {
+        if (!title.trim() && showAlert) {
             Alert.alert('Error', 'Please enter a title');
             return;
         }
-        const plainText = blocksToText(blocks);
-        await saveNow(title, plainText, selectedTags.map(t => t.id));
-    }, [title, blocks, selectedTags, saveNow]);
 
-    // Handle back navigation
-    const handleBack = useCallback(() => {
-        navigation.goBack();
-    }, [navigation]);
+        setIsSaving(true);
+        try {
+            if (noteId) {
+                await updateNote(noteId, {
+                    title: title.trim() || 'Untitled',
+                    content,
+                    tags: selectedTags,
+                    isPinned,
+                });
+                setLastSaved(new Date());
+                setHasChanges(false);
+            }
+        } catch (error) {
+            console.error('[NoteEditor] Save error:', error);
+            if (showAlert) {
+                Alert.alert('Error', 'Failed to save note');
+            }
+        }
+        setIsSaving(false);
+    };
 
-    // Format last saved time
+    const handleTitleChange = (text: string) => {
+        setTitle(text);
+        setHasChanges(true);
+    };
+
+    const handleContentChange = (text: string) => {
+        setContent(text);
+        setHasChanges(true);
+    };
+
+    const toggleTag = (tag: LocalTag) => {
+        setSelectedTags(prev => {
+            const exists = prev.some(t => t.id === tag.id);
+            const newTags = exists
+                ? prev.filter(t => t.id !== tag.id)
+                : [...prev, tag];
+            setHasChanges(true);
+            return newTags;
+        });
+    };
+
+    const togglePin = () => {
+        setIsPinned(prev => !prev);
+        setHasChanges(true);
+    };
+
     const formatLastSaved = () => {
         if (!lastSaved) return '';
         const now = new Date();
         const diff = Math.floor((now.getTime() - lastSaved.getTime()) / 1000);
-        if (diff < 5) return 'Saved just now';
+        if (diff < 5) return 'Saved';
         if (diff < 60) return `Saved ${diff}s ago`;
         return `Saved at ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     };
 
-    if (isLoadingNote) {
+    if (isLoading) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <Text style={styles.loadingText}>Loading note...</Text>
+                    <ActivityIndicator size="large" color="#3B82F6" />
                 </View>
             </SafeAreaView>
         );
@@ -253,11 +174,10 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity
-                        onPress={handleBack}
+                        onPress={() => navigation.goBack()}
                         style={styles.headerButton}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Ionicons name="chevron-back" size={24} color="#1a1a1a" />
+                        <Ionicons name="chevron-back" size={24} color="#111827" />
                     </TouchableOpacity>
 
                     <View style={styles.headerCenter}>
@@ -269,116 +189,184 @@ export const NoteEditorScreen: React.FC<NoteEditorScreenProps> = ({
                         )}
                     </View>
 
-                    <TouchableOpacity
-                        onPress={handleSave}
-                        style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
-                        disabled={isSaving}
-                    >
-                        <Text style={styles.saveButtonText}>
-                            {isSaving ? 'Saving...' : 'Save'}
-                        </Text>
-                    </TouchableOpacity>
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity onPress={togglePin} style={styles.headerIconButton}>
+                            <Ionicons
+                                name={isPinned ? 'pin' : 'pin-outline'}
+                                size={20}
+                                color={isPinned ? '#3B82F6' : '#6B7280'}
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => handleSave(true)}
+                            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
+                            disabled={isSaving}
+                        >
+                            <Text style={styles.saveButtonText}>Save</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Title Input */}
                 <View style={styles.titleContainer}>
-                    <Input
+                    <TextInput
                         style={styles.titleInput}
                         placeholder="Note title..."
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor="#9CA3AF"
                         value={title}
                         onChangeText={handleTitleChange}
-                        multiline={false}
                         autoFocus={!noteId}
                     />
                 </View>
 
-                {/* Tags Picker */}
-                <View style={styles.tagsContainer}>
-                    <TagPicker
-                        selectedTags={selectedTags}
-                        onTagsChange={handleTagsChange}
-                        placeholder="Add tags..."
-                        maxTags={5}
-                    />
+                {/* Tags Section */}
+                <View style={styles.tagsSection}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.tagsScroll}
+                    >
+                        {selectedTags.map(tag => (
+                            <View
+                                key={tag.id}
+                                style={[styles.selectedTag, { backgroundColor: tag.color + '20' }]}
+                            >
+                                <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
+                                <Text style={[styles.selectedTagText, { color: tag.color }]}>
+                                    {tag.name}
+                                </Text>
+                                <TouchableOpacity onPress={() => toggleTag(tag)}>
+                                    <Ionicons name="close" size={14} color={tag.color} />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                        <TouchableOpacity
+                            style={styles.addTagButton}
+                            onPress={() => setShowTagPicker(true)}
+                        >
+                            <Ionicons name="add" size={18} color="#6B7280" />
+                            <Text style={styles.addTagText}>Add Tag</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
                 </View>
 
-                {/* Block-based Editor (Notion-like) */}
+                {/* Content Editor */}
                 <ScrollView
                     style={styles.editorScroll}
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    {blocks.map((block, index) => (
-                        <View key={block.id} style={styles.blockContainer}>
-                            {block.type === 'divider' ? (
-                                <View style={styles.dividerBlock} />
-                            ) : (
-                                <Input
-                                    ref={(ref) => { inputRefs.current[block.id] = ref; }}
-                                    style={[
-                                        styles.blockInput,
-                                        block.type === 'h1' && styles.h1Block,
-                                        block.type === 'h2' && styles.h2Block,
-                                        block.type === 'h3' && styles.h3Block,
-                                        block.type === 'bullet' && styles.bulletBlock,
-                                        block.type === 'numbered' && styles.numberedBlock,
-                                        block.type === 'quote' && styles.quoteBlock,
-                                    ]}
-                                    value={block.content}
-                                    onChangeText={(text) => {
-                                        // Reconstruct full line with prefix for parsing
-                                        let fullText = text;
-                                        if (block.type === 'h1') fullText = `# ${text}`;
-                                        else if (block.type === 'h2') fullText = `## ${text}`;
-                                        else if (block.type === 'h3') fullText = `### ${text}`;
-                                        else if (block.type === 'bullet') fullText = `- ${text}`;
-                                        else if (block.type === 'numbered') fullText = `1. ${text}`;
-                                        else if (block.type === 'quote') fullText = `> ${text}`;
-                                        handleBlockChange(block.id, fullText);
-                                    }}
-                                    onKeyPress={({ nativeEvent }) => {
-                                        if (nativeEvent.key === 'Backspace' && block.content === '') {
-                                            handleKeyPress(block.id, 'Backspace');
-                                        }
-                                    }}
-                                    onFocus={() => setFocusedBlockId(block.id)}
-                                    placeholder={index === 0 ? "Type '# ' for heading, '- ' for list..." : ''}
-                                    placeholderTextColor="#c4c4c4"
-                                    multiline
-                                    blurOnSubmit={false}
-                                    autoFocus={index === 0 && !noteId}
-                                    underlineColorAndroid="transparent"
-                                    selectionColor="#6366f1"
-                                />
-                            )}
-                            {block.type === 'bullet' && (
-                                <Text style={styles.bulletMarker}>•</Text>
-                            )}
-                            {block.type === 'numbered' && (
-                                <Text style={styles.numberedMarker}>{index + 1}.</Text>
-                            )}
-                            {block.type === 'quote' && (
-                                <View style={styles.quoteBar} />
-                            )}
-                        </View>
-                    ))}
-                    {/* Add block button */}
-                    <TouchableOpacity
-                        style={styles.addBlockButton}
-                        onPress={() => {
-                            const newBlock = { id: generateId(), type: 'paragraph' as BlockType, content: '' };
-                            setBlocks(prev => [...prev, newBlock]);
-                            setTimeout(() => {
-                                setFocusedBlockId(newBlock.id);
-                                inputRefs.current[newBlock.id]?.focus();
-                            }, 50);
-                        }}
-                    >
-                        <Ionicons name="add" size={20} color="#9ca3af" />
-                    </TouchableOpacity>
+                    <TextInput
+                        ref={contentInputRef}
+                        style={styles.contentInput}
+                        placeholder="Start typing your note..."
+                        placeholderTextColor="#9CA3AF"
+                        value={content}
+                        onChangeText={handleContentChange}
+                        multiline
+                        textAlignVertical="top"
+                    />
                 </ScrollView>
+
+                {/* Formatting Toolbar */}
+                <View style={styles.toolbar}>
+                    <TouchableOpacity
+                        style={styles.toolbarButton}
+                        onPress={() => handleContentChange(content + '\n# ')}
+                    >
+                        <Text style={styles.toolbarButtonText}>H1</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.toolbarButton}
+                        onPress={() => handleContentChange(content + '\n## ')}
+                    >
+                        <Text style={styles.toolbarButtonText}>H2</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.toolbarButton}
+                        onPress={() => handleContentChange(content + '\n- ')}
+                    >
+                        <Ionicons name="list" size={18} color="#374151" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.toolbarButton}
+                        onPress={() => handleContentChange(content + '\n> ')}
+                    >
+                        <Ionicons name="chatbox-outline" size={18} color="#374151" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.toolbarButton}
+                        onPress={() => handleContentChange(content + '\n---\n')}
+                    >
+                        <Ionicons name="remove" size={18} color="#374151" />
+                    </TouchableOpacity>
+                </View>
             </KeyboardAvoidingView>
+
+            {/* Tag Picker Modal */}
+            <Modal
+                visible={showTagPicker}
+                animationType="slide"
+                presentationStyle="pageSheet"
+                onRequestClose={() => setShowTagPicker(false)}
+            >
+                <SafeAreaView style={styles.modalContainer}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Select Tags</Text>
+                        <TouchableOpacity onPress={() => setShowTagPicker(false)}>
+                            <Text style={styles.modalDone}>Done</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <ScrollView style={styles.tagPickerList}>
+                        {['subject', 'source', 'topic', 'custom'].map(category => {
+                            const categoryTags = allTags.filter(t => t.category === category);
+                            if (categoryTags.length === 0) return null;
+
+                            return (
+                                <View key={category}>
+                                    <Text style={styles.tagCategoryTitle}>
+                                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                                    </Text>
+                                    <View style={styles.tagGrid}>
+                                        {categoryTags.map(tag => {
+                                            const isSelected = selectedTags.some(t => t.id === tag.id);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={tag.id}
+                                                    style={[
+                                                        styles.tagPickerItem,
+                                                        isSelected && { backgroundColor: tag.color, borderColor: tag.color },
+                                                    ]}
+                                                    onPress={() => toggleTag(tag)}
+                                                >
+                                                    <View
+                                                        style={[
+                                                            styles.tagDot,
+                                                            { backgroundColor: isSelected ? '#fff' : tag.color },
+                                                        ]}
+                                                    />
+                                                    <Text
+                                                        style={[
+                                                            styles.tagPickerItemText,
+                                                            isSelected && { color: '#fff' },
+                                                        ]}
+                                                    >
+                                                        {tag.name}
+                                                    </Text>
+                                                    {isSelected && (
+                                                        <Ionicons name="checkmark" size={14} color="#fff" />
+                                                    )}
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </ScrollView>
+                </SafeAreaView>
+            </Modal>
         </SafeAreaView>
     );
 };
@@ -396,10 +384,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    loadingText: {
-        fontSize: 16,
-        color: '#6b7280',
-    },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -407,7 +391,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: '#E5E7EB',
     },
     headerButton: {
         padding: 8,
@@ -416,22 +400,30 @@ const styles = StyleSheet.create({
         flex: 1,
         alignItems: 'center',
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    headerIconButton: {
+        padding: 8,
+    },
     savingText: {
         fontSize: 12,
-        color: '#6b7280',
+        color: '#9CA3AF',
     },
     savedText: {
         fontSize: 12,
-        color: '#22c55e',
+        color: '#10B981',
     },
     saveButton: {
-        backgroundColor: '#6366f1',
+        backgroundColor: '#3B82F6',
         paddingHorizontal: 16,
         paddingVertical: 8,
         borderRadius: 8,
     },
     saveButtonDisabled: {
-        backgroundColor: '#a5b4fc',
+        backgroundColor: '#93C5FD',
     },
     saveButtonText: {
         color: '#fff',
@@ -444,98 +436,150 @@ const styles = StyleSheet.create({
         paddingBottom: 8,
     },
     titleInput: {
-        fontSize: 24,
+        fontSize: 22,
         fontWeight: '700',
-        color: '#1a1a1a',
+        color: '#111827',
+        ...(Platform.OS === 'web' && { outlineStyle: 'none' as any }),
     },
-    tagsContainer: {
+    tagsSection: {
         paddingHorizontal: 20,
+        paddingBottom: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
+    },
+    tagsScroll: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    selectedTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 16,
+        gap: 6,
+    },
+    tagDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    selectedTagText: {
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    addTagButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        borderStyle: 'dashed',
+        gap: 4,
+    },
+    addTagText: {
+        fontSize: 13,
+        color: '#6B7280',
     },
     editorScroll: {
         flex: 1,
         paddingHorizontal: 20,
-        paddingTop: 8,
+        paddingTop: 16,
     },
-    blockContainer: {
-        position: 'relative',
-    },
-    blockInput: {
+    contentInput: {
         fontSize: 16,
-        lineHeight: 20,
-        color: '#1a1a1a',
-        paddingVertical: 1,
-        paddingHorizontal: 0,
-        borderWidth: 0,
-        outlineWidth: 0,
-        backgroundColor: 'transparent',
-        minHeight: 22,
-    },
-    h1Block: {
-        fontSize: 26,
-        fontWeight: '700',
-        lineHeight: 30,
-        color: '#111',
-        minHeight: 32,
-    },
-    h2Block: {
-        fontSize: 20,
-        fontWeight: '600',
         lineHeight: 24,
-        color: '#111',
-        minHeight: 26,
+        color: '#111827',
+        minHeight: 300,
+        ...(Platform.OS === 'web' && { outlineStyle: 'none' as any }),
     },
-    h3Block: {
-        fontSize: 17,
-        fontWeight: '600',
-        lineHeight: 22,
-        color: '#111',
-        minHeight: 24,
-    },
-    bulletBlock: {
-        paddingLeft: 20,
-    },
-    numberedBlock: {
-        paddingLeft: 24,
-    },
-    quoteBlock: {
-        paddingLeft: 16,
-        fontStyle: 'italic',
-        color: '#6b7280',
-    },
-    bulletMarker: {
-        position: 'absolute',
-        left: 0,
-        top: 1,
-        fontSize: 16,
-        color: '#1a1a1a',
-        lineHeight: 20,
-    },
-    numberedMarker: {
-        position: 'absolute',
-        left: 0,
-        top: 1,
-        fontSize: 14,
-        color: '#6b7280',
-        lineHeight: 20,
-    },
-    quoteBar: {
-        position: 'absolute',
-        left: 0,
-        top: 2,
-        bottom: 2,
-        width: 3,
-        backgroundColor: '#6366f1',
-        borderRadius: 1,
-    },
-    dividerBlock: {
-        height: 1,
-        backgroundColor: '#e5e7eb',
-        marginVertical: 12,
-    },
-    addBlockButton: {
-        paddingVertical: 12,
+    toolbar: {
+        flexDirection: 'row',
         alignItems: 'center',
-        opacity: 0.5,
+        justifyContent: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#E5E7EB',
+        backgroundColor: '#F9FAFB',
+        gap: 8,
+    },
+    toolbarButton: {
+        width: 40,
+        height: 36,
+        borderRadius: 8,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    toolbarButtonText: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#374151',
+    },
+    modalContainer: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E7EB',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#111827',
+    },
+    modalDone: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#3B82F6',
+    },
+    tagPickerList: {
+        flex: 1,
+        padding: 20,
+    },
+    tagCategoryTitle: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#9CA3AF',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+        marginBottom: 12,
+        marginTop: 8,
+    },
+    tagGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginBottom: 16,
+    },
+    tagPickerItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        backgroundColor: '#fff',
+        gap: 6,
+    },
+    tagPickerItemText: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#374151',
     },
 });
 
