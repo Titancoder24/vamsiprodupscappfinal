@@ -95,10 +95,10 @@ export default function BillingScreen() {
         const planName = planType === 'basic' ? 'Basic (₹399/month)' : 'Pro (₹699/month)';
         const monthlyCredits = planType === 'basic' ? 200 : 400;
 
-        // Get product ID
+        // LIVE Product IDs
         const productId = planType === 'pro'
-            ? 'pdt_0NWfIFkWCMpUGhXYfg4aw'  // Pro Plan
-            : 'pdt_0NWfIDvBZePuVfiU5bmom'; // Basic Plan
+            ? 'pdt_0NWfLU5OfjnVhmPz86wWZ'  // Pro Plan (LIVE)
+            : 'pdt_0NWfLOSWmnFywSwZldAHa'; // Basic Plan (LIVE)
 
         // DodoPayments checkout URL
         const paymentUrl = `https://checkout.dodopayments.com/buy/${productId}?email=${encodeURIComponent(userEmail)}&redirect_url=${encodeURIComponent(returnUrl)}`;
@@ -140,11 +140,11 @@ export default function BillingScreen() {
             return;
         }
 
-        // Get product ID for credits
+        // LIVE Product IDs for credits
         const productMap: Record<number, string> = {
-            50: 'pdt_0NWfIIB8YCLeExHJxEp0D',
-            120: 'pdt_0NWfIJl53N3g787FepmFP',
-            300: 'pdt_0NWfILvFXsCCRNki0ojs6',
+            50: 'pdt_0NWfLXQfz6P34vDNgGT6J',   // LIVE
+            120: 'pdt_0NWfLZHVYcwnA37B60iio',  // LIVE
+            300: 'pdt_0NWfLbT49dqQm9bNqVVjS',  // LIVE
         };
 
         const productId = productMap[credits];

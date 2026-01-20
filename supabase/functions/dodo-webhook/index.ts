@@ -15,17 +15,17 @@ const PLAN_CREDITS = {
     pro: 400,
 };
 
-// Credit amounts for packages
+// LIVE Credit amounts for packages
 const PACKAGE_CREDITS: Record<string, number> = {
-    'pdt_0NWfIIB8YCLeExHJxEp0D': 50,   // 50 credits pack
-    'pdt_0NWfIJl53N3g787FepmFP': 120,  // 120 credits pack
-    'pdt_0NWfILvFXsCCRNki0ojs6': 300,  // 300 credits pack
+    'pdt_0NWfLXQfz6P34vDNgGT6J': 50,   // 50 credits pack (LIVE)
+    'pdt_0NWfLZHVYcwnA37B60iio': 120,  // 120 credits pack (LIVE)
+    'pdt_0NWfLbT49dqQm9bNqVVjS': 300,  // 300 credits pack (LIVE)
 };
 
-// Product to plan type mapping
+// LIVE Product to plan type mapping
 const PRODUCT_PLANS: Record<string, 'basic' | 'pro'> = {
-    'pdt_0NWfIDvBZePuVfiU5bmom': 'basic',  // Basic Plan
-    'pdt_0NWfIFkWCMpUGhXYfg4aw': 'pro',    // Pro Plan
+    'pdt_0NWfLOSWmnFywSwZldAHa': 'basic',  // Basic Plan (LIVE)
+    'pdt_0NWfLU5OfjnVhmPz86wWZ': 'pro',    // Pro Plan (LIVE)
 };
 
 serve(async (req) => {

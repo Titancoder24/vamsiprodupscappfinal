@@ -11,24 +11,23 @@
 
 // ===================== CONFIGURATION =====================
 const DODO_CONFIG = {
-    // Use test mode for development, live for production
-    API_URL: 'https://test.dodopayments.com',  // Change to live.dodopayments.com for production
+    // LIVE MODE - Production Environment
+    API_URL: 'https://live.dodopayments.com',
 
-    // Actual Product IDs from DodoPayments
+    // LIVE Product IDs from DodoPayments
     PRODUCTS: {
-        BASIC_PLAN: 'pdt_0NWfIDvBZePuVfiU5bmom',    // ₹399/month - 200 credits
-        PRO_PLAN: 'pdt_0NWfIFkWCMpUGhXYfg4aw',      // ₹699/month - 400 credits
-        CREDITS_50: 'pdt_0NWfIIB8YCLeExHJxEp0D',    // ₹99 - 50 credits
-        CREDITS_120: 'pdt_0NWfIJl53N3g787FepmFP',   // ₹199 - 120 credits
-        CREDITS_300: 'pdt_0NWfILvFXsCCRNki0ojs6',   // ₹399 - 300 credits
+        BASIC_PLAN: 'pdt_0NWfLOSWmnFywSwZldAHa',    // ₹399/month - 200 credits
+        PRO_PLAN: 'pdt_0NWfLU5OfjnVhmPz86wWZ',      // ₹699/month - 400 credits
+        CREDITS_50: 'pdt_0NWfLXQfz6P34vDNgGT6J',    // ₹99 - 50 credits
+        CREDITS_120: 'pdt_0NWfLZHVYcwnA37B60iio',   // ₹199 - 120 credits
+        CREDITS_300: 'pdt_0NWfLbT49dqQm9bNqVVjS',   // ₹399 - 300 credits
     },
 
     // Business ID
     BUSINESS_ID: 'bus_0NWdKs3BLzg0nKRSCQD1L',
 
-
-    // Actual Meter ID for tracking AI credit usage
-    METER_ID: 'mtr_0NWfJaySPm0hrjJ8Rjgpz',
+    // LIVE Meter ID for tracking AI credit usage
+    METER_ID: 'mtr_0NWfLo4DtyRDX8xVbDVhe',
 
     // Event name for credit consumption
     EVENT_NAME: 'ai.credit.used',
