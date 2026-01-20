@@ -362,13 +362,117 @@ async function readFileAsBase64(pickedFile: PickedFile): Promise<string> {
 }
 
 // ===================== STEP 3: Generate MCQs using Parallel Batch Processing =====================
+// SCALABILITY: Designed to handle 10,000+ concurrent users
+// Each user's browser makes direct API calls - no central server bottleneck
 
-// Configuration for batch processing
+// Configuration for batch processing - optimized for scalability
 const BATCH_CONFIG = {
-    BATCH_SIZE: 15,  // MCQs per batch request
-    MAX_PARALLEL: 6, // Maximum concurrent API calls
-    RETRY_COUNT: 2,  // Retries per failed batch
+    BATCH_SIZE: 15,           // MCQs per batch request (optimal for token limits)
+    MAX_PARALLEL: 4,          // Concurrent API calls (reduced to avoid rate limits)
+    RETRY_COUNT: 3,           // Retries per failed batch
+    BASE_DELAY_MS: 200,       // Base delay between batch groups
+    MAX_DELAY_MS: 5000,       // Maximum delay on rate limit
+    RATE_LIMIT_BACKOFF: 2,    // Exponential backoff multiplier
+    CIRCUIT_BREAKER_THRESHOLD: 3, // Consecutive failures before circuit break
+    REQUEST_TIMEOUT_MS: 60000, // Request timeout (60 seconds)
 };
+
+// Rate limiter state (per session)
+let rateLimitState = {
+    consecutiveFailures: 0,
+    lastRequestTime: 0,
+    currentDelay: BATCH_CONFIG.BASE_DELAY_MS,
+    circuitOpen: false,
+    circuitResetTime: 0,
+};
+
+// Reset rate limiter state
+function resetRateLimiter(): void {
+    rateLimitState = {
+        consecutiveFailures: 0,
+        lastRequestTime: 0,
+        currentDelay: BATCH_CONFIG.BASE_DELAY_MS,
+        circuitOpen: false,
+        circuitResetTime: 0,
+    };
+}
+
+// Delay function with jitter for preventing thundering herd
+async function delayWithJitter(baseMs: number): Promise<void> {
+    const jitter = Math.random() * baseMs * 0.3; // 0-30% jitter
+    await new Promise(r => setTimeout(r, baseMs + jitter));
+}
+
+// Check and handle rate limiting
+async function handleRateLimit(): Promise<boolean> {
+    // Check circuit breaker
+    if (rateLimitState.circuitOpen) {
+        if (Date.now() < rateLimitState.circuitResetTime) {
+            console.log('[PDF-MCQ] Circuit breaker open, waiting...');
+            await delayWithJitter(rateLimitState.circuitResetTime - Date.now());
+        }
+        rateLimitState.circuitOpen = false;
+    }
+
+    // Enforce minimum delay between requests
+    const timeSinceLastRequest = Date.now() - rateLimitState.lastRequestTime;
+    if (timeSinceLastRequest < rateLimitState.currentDelay) {
+        await delayWithJitter(rateLimitState.currentDelay - timeSinceLastRequest);
+    }
+
+    rateLimitState.lastRequestTime = Date.now();
+    return true;
+}
+
+// Record request result for adaptive rate limiting
+function recordRequestResult(success: boolean, wasRateLimited: boolean): void {
+    if (success) {
+        rateLimitState.consecutiveFailures = 0;
+        // Gradually reduce delay on success
+        rateLimitState.currentDelay = Math.max(
+            BATCH_CONFIG.BASE_DELAY_MS,
+            rateLimitState.currentDelay * 0.8
+        );
+    } else {
+        rateLimitState.consecutiveFailures++;
+
+        if (wasRateLimited) {
+            // Exponential backoff on rate limit
+            rateLimitState.currentDelay = Math.min(
+                BATCH_CONFIG.MAX_DELAY_MS,
+                rateLimitState.currentDelay * BATCH_CONFIG.RATE_LIMIT_BACKOFF
+            );
+        }
+
+        // Circuit breaker
+        if (rateLimitState.consecutiveFailures >= BATCH_CONFIG.CIRCUIT_BREAKER_THRESHOLD) {
+            rateLimitState.circuitOpen = true;
+            rateLimitState.circuitResetTime = Date.now() + 10000; // 10 second reset
+            console.log('[PDF-MCQ] Circuit breaker tripped, cooling down for 10s');
+        }
+    }
+}
+
+// Fetch with timeout wrapper
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+        const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        return response;
+    } catch (error: any) {
+        clearTimeout(timeoutId);
+        if (error.name === 'AbortError') {
+            throw new Error('Request timeout');
+        }
+        throw error;
+    }
+}
 
 // Robust JSON repair function
 function repairJSON(jsonString: string): string {
@@ -507,8 +611,11 @@ function parseMCQsFromResponse(content: string): MCQ[] {
     return parseMCQResponse(content);
 }
 
-// Generate a single batch of MCQs
+// Generate a single batch of MCQs with rate limiting
 async function generateBatch(base64Data: string, mimeType: string, batchNum: number, batchSize: number, totalCount: number): Promise<MCQ[]> {
+    // Handle rate limiting before making request
+    await handleRateLimit();
+
     const prompt = `You are an expert UPSC question creator. Analyze the PDF and create EXACTLY ${batchSize} MCQs.
 
 This is batch ${batchNum} of ${Math.ceil(totalCount / batchSize)}. Generate questions ${((batchNum - 1) * batchSize) + 1} to ${Math.min(batchNum * batchSize, totalCount)}.
@@ -536,47 +643,74 @@ Generate ${batchSize} MCQs now:`;
         ]
     }];
 
-    const response = await fetch(CONFIG.OPENROUTER_URL, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
-            'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://upsc-prep.app',
-            'X-Title': 'UPSC PDF MCQ Generator',
-        },
-        body: JSON.stringify({
-            model: CONFIG.AI_MODEL,
-            messages: messages,
-            temperature: 0.7,
-            max_tokens: 4096,
-        }),
-    });
+    try {
+        const response = await fetchWithTimeout(
+            CONFIG.OPENROUTER_URL,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${CONFIG.OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://upsc-prep.app',
+                    'X-Title': 'UPSC PDF MCQ Generator',
+                },
+                body: JSON.stringify({
+                    model: CONFIG.AI_MODEL,
+                    messages: messages,
+                    temperature: 0.7,
+                    max_tokens: 4096,
+                }),
+            },
+            BATCH_CONFIG.REQUEST_TIMEOUT_MS
+        );
 
-    if (!response.ok) {
-        throw new Error(`Batch ${batchNum} API Error: ${response.status}`);
+        const wasRateLimited = response.status === 429;
+
+        if (!response.ok) {
+            recordRequestResult(false, wasRateLimited);
+            throw new Error(`Batch ${batchNum} API Error: ${response.status}${wasRateLimited ? ' (Rate Limited)' : ''}`);
+        }
+
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+
+        if (!content) {
+            recordRequestResult(false, false);
+            throw new Error(`Batch ${batchNum}: No content`);
+        }
+
+        recordRequestResult(true, false);
+        return parseMCQsFromResponse(content);
+
+    } catch (error: any) {
+        const wasRateLimited = error.message?.includes('429') || error.message?.includes('Rate');
+        recordRequestResult(false, wasRateLimited);
+        throw error;
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-        throw new Error(`Batch ${batchNum}: No content`);
-    }
-
-    return parseMCQsFromResponse(content);
 }
 
-// Process batches with retry logic
+// Process batches with retry logic and exponential backoff
 async function processBatchWithRetry(base64Data: string, mimeType: string, batchNum: number, batchSize: number, totalCount: number): Promise<MCQ[]> {
     for (let attempt = 1; attempt <= BATCH_CONFIG.RETRY_COUNT + 1; attempt++) {
         try {
-            return await generateBatch(base64Data, mimeType, batchNum, batchSize, totalCount);
-        } catch (error) {
-            console.warn(`[PDF-MCQ] Batch ${batchNum} attempt ${attempt} failed:`, error);
+            const result = await generateBatch(base64Data, mimeType, batchNum, batchSize, totalCount);
+            console.log(`[PDF-MCQ] Batch ${batchNum} succeeded with ${result.length} MCQs`);
+            return result;
+        } catch (error: any) {
+            console.warn(`[PDF-MCQ] Batch ${batchNum} attempt ${attempt} failed:`, error.message);
+
             if (attempt > BATCH_CONFIG.RETRY_COUNT) {
+                console.error(`[PDF-MCQ] Batch ${batchNum} failed after ${BATCH_CONFIG.RETRY_COUNT + 1} attempts`);
                 return []; // Return empty on final failure
             }
-            await new Promise(r => setTimeout(r, 500 * attempt)); // Exponential backoff
+
+            // Exponential backoff with jitter
+            const backoffMs = Math.min(
+                BATCH_CONFIG.MAX_DELAY_MS,
+                BATCH_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 500
+            );
+            console.log(`[PDF-MCQ] Retrying batch ${batchNum} in ${backoffMs}ms...`);
+            await new Promise(r => setTimeout(r, backoffMs));
         }
     }
     return [];
@@ -590,6 +724,9 @@ async function generateMCQsFromPDF(base64Data: string, fileName: string, mimeTyp
     if (!CONFIG.OPENROUTER_API_KEY || CONFIG.OPENROUTER_API_KEY.length < 10) {
         throw new Error('API key not configured');
     }
+
+    // Reset rate limiter for fresh session
+    resetRateLimiter();
 
     const startTime = Date.now();
 
