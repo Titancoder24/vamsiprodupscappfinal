@@ -18,7 +18,8 @@ import { getStats, checkStreakStatus } from '../utils/storage';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
-import { checkNewsMatches } from '../services/NewsMatchService'; // Import match service
+import { checkNewsMatches } from '../services/NewsMatchService';
+import CreditsBadge from '../components/CreditsBadge';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -216,14 +217,8 @@ export default function HomeScreen({ navigation }) {
             </View>
 
             <View style={styles.headerActions}>
-              {/* Credits Button */}
-              <TouchableOpacity
-                style={[styles.creditsButton, { backgroundColor: '#6366F1' }]}
-                onPress={() => navigation.navigate('Billing')}
-              >
-                <Ionicons name="flash" size={16} color="#FFD700" />
-                <Text style={styles.creditsButtonText}>Credits</Text>
-              </TouchableOpacity>
+              {/* Credits Badge - Shows actual credits */}
+              <CreditsBadge />
 
               {/* Notification Bell */}
               <TouchableOpacity

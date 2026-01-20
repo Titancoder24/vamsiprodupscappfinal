@@ -31,6 +31,7 @@ import { useTheme } from '../../Reference/theme/ThemeContext';
 // @ts-ignore
 import { useWebStyles } from '../../../components/WebContainer';
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
+import { useAIFeature, CreditInfoBanner } from '../../../hooks/useAIFeature';
 
 // ===================== CONFIGURATION =====================
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -352,6 +353,9 @@ export default function AIMCQGeneratorScreen() {
     const { horizontalPadding } = useWebStyles();
     const navigation = useNavigation<any>();
 
+    // AI Feature credit management (3 credits for MCQ generation)
+    const { canUse, credits, cost, executeWithCredits, showInsufficientCreditsAlert } = useAIFeature('mcq_generator');
+
     const [examType, setExamType] = useState<ExamType>('prelims');
     const [paperType, setPaperType] = useState<PaperType>('GS1');
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('pro');
@@ -366,23 +370,32 @@ export default function AIMCQGeneratorScreen() {
     const [error, setError] = useState('');
 
     const handleGenerate = async () => {
-        setIsLoading(true);
-        setError('');
-        setMcqs([]);
-        setSelectedAnswers({});
-        setShowResults({});
-
-        try {
-            const count = Math.min(30, Math.max(1, parseInt(questionCount) || 10));
-            const result = await generateMCQs(examType, paperType, difficulty, language, count, preferences);
-            if (!result.length) throw new Error('No MCQs generated');
-            setMcqs(result);
-        } catch (err: any) {
-            console.error('[MCQ] Generation failed:', err);
-            setError(err.message || 'Failed to generate MCQs. Please try again.');
-        } finally {
-            setIsLoading(false);
+        // Check if user has enough credits (3 credits for MCQ generation)
+        if (!canUse) {
+            showInsufficientCreditsAlert();
+            return;
         }
+
+        // Use credits when starting generation
+        await executeWithCredits(async () => {
+            setIsLoading(true);
+            setError('');
+            setMcqs([]);
+            setSelectedAnswers({});
+            setShowResults({});
+
+            try {
+                const count = Math.min(30, Math.max(1, parseInt(questionCount) || 10));
+                const result = await generateMCQs(examType, paperType, difficulty, language, count, preferences);
+                if (!result.length) throw new Error('No MCQs generated');
+                setMcqs(result);
+            } catch (err: any) {
+                console.error('[MCQ] Generation failed:', err);
+                setError(err.message || 'Failed to generate MCQs. Please try again.');
+            } finally {
+                setIsLoading(false);
+            }
+        });
     };
 
     const handleSelectAnswer = (id: number, opt: string) => {

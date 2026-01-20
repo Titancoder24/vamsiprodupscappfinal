@@ -21,6 +21,7 @@ import { useWebStyles } from '../components/WebContainer';
 import { saveEssayAttempt, getEssayAttempts } from '../utils/storage';
 import { OPENROUTER_API_KEY } from '../utils/secureKey';
 import { SmartTextInput } from '../components/SmartTextInput';
+import useCredits from '../hooks/useCredits';
 
 // OpenRouter Configuration
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -29,6 +30,7 @@ const MODEL = 'google/gemini-3-flash-preview';
 export default function EssayScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const { horizontalPadding, isWeb } = useWebStyles();
+  const { credits, hasEnoughCredits, useCredits: deductCredits } = useCredits();
 
   // State management
   const [topic, setTopic] = useState('');
@@ -63,6 +65,19 @@ export default function EssayScreen({ navigation }) {
 
   // Handle essay evaluation - Direct OpenRouter call
   const handleEvaluate = async () => {
+    // Check credits first (3 credits for essay evaluation)
+    if (!hasEnoughCredits('essay_evaluation')) {
+      Alert.alert(
+        '💳 Credits Required',
+        `Essay evaluation costs 3 credits.\n\nYou have ${credits} credits available.\n\nBuy credits to continue.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Buy Credits', onPress: () => navigation.navigate('Billing') }
+        ]
+      );
+      return;
+    }
+
     if (!topic.trim()) {
       Alert.alert('Missing Topic', 'Please enter an essay topic');
       return;
@@ -78,6 +93,10 @@ export default function EssayScreen({ navigation }) {
       Alert.alert('Essay Too Short', 'Please write at least 50 words');
       return;
     }
+
+    // Deduct credits before starting
+    const success = await deductCredits('essay_evaluation');
+    if (!success) return;
 
     setIsEvaluating(true);
     setEvaluation(null);
