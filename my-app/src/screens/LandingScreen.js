@@ -8,19 +8,20 @@ import {
     Dimensions,
     Animated,
     Platform,
-    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-// Phone Mockup Component
-const PhoneMockup = () => {
+// Phone Mockup Component - Smaller version for hero
+const PhoneMockup = ({ scale = 1 }) => {
+    const phoneWidth = 220 * scale;
+    const phoneHeight = 440 * scale;
+
     return (
-        <View style={styles.phoneMockup}>
+        <View style={[styles.phoneMockup, { width: phoneWidth, height: phoneHeight }]}>
             <View style={styles.phoneScreen}>
                 {/* Dynamic Island */}
                 <View style={styles.dynamicIsland}>
@@ -30,7 +31,7 @@ const PhoneMockup = () => {
                 {/* Quiz UI */}
                 <View style={styles.quizContent}>
                     <View style={styles.quizHeader}>
-                        <Ionicons name="chevron-back" size={16} color="#94A3B8" />
+                        <Ionicons name="chevron-back" size={14} color="#94A3B8" />
                         <Text style={styles.quizSubject}>Modern History</Text>
                         <View style={styles.quizBadge}>
                             <Text style={styles.quizBadgeText}>12/20</Text>
@@ -40,7 +41,7 @@ const PhoneMockup = () => {
                     <View style={styles.questionCard}>
                         <Text style={styles.questionLabel}>Question 13</Text>
                         <Text style={styles.questionText}>
-                            Which act introduced the principle of communal representation in India?
+                            Which act introduced communal representation in India?
                         </Text>
                     </View>
 
@@ -48,19 +49,15 @@ const PhoneMockup = () => {
                         {[
                             { id: 'A', text: 'Indian Councils Act, 1892', correct: false },
                             { id: 'B', text: 'Indian Councils Act, 1909', correct: true },
-                            { id: 'C', text: 'Government of India Act, 1919', correct: false },
-                            { id: 'D', text: 'Government of India Act, 1935', correct: false },
+                            { id: 'C', text: 'Govt. of India Act, 1919', correct: false },
                         ].map((opt, i) => (
                             <View
                                 key={i}
-                                style={[
-                                    styles.optionItem,
-                                    opt.correct && styles.optionItemCorrect
-                                ]}
+                                style={[styles.optionItem, opt.correct && styles.optionItemCorrect]}
                             >
                                 <View style={[styles.optionBadge, opt.correct && styles.optionBadgeCorrect]}>
                                     {opt.correct ? (
-                                        <Ionicons name="checkmark" size={10} color="#FFF" />
+                                        <Ionicons name="checkmark" size={8} color="#FFF" />
                                     ) : (
                                         <Text style={styles.optionBadgeText}>{opt.id}</Text>
                                     )}
@@ -78,11 +75,11 @@ const PhoneMockup = () => {
 };
 
 // Feature Card Component
-const FeatureCard = ({ icon, iconBg, title, description, large }) => {
+const FeatureCard = ({ icon, iconBg, title, description }) => {
     return (
-        <View style={[styles.featureCard, large && styles.featureCardLarge]}>
+        <View style={styles.featureCard}>
             <View style={[styles.featureIcon, { backgroundColor: iconBg }]}>
-                <Ionicons name={icon} size={24} color="#2563EB" />
+                <Ionicons name={icon} size={22} color="#2563EB" />
             </View>
             <Text style={styles.featureTitle}>{title}</Text>
             <Text style={styles.featureDescription}>{description}</Text>
@@ -90,18 +87,43 @@ const FeatureCard = ({ icon, iconBg, title, description, large }) => {
     );
 };
 
-// Floating Badge Component
-const FloatingBadge = ({ icon, iconBg, title, subtitle, style }) => {
+// Pricing Card Component
+const PricingCard = ({ plan, price, period, features, popular, onPress }) => {
     return (
-        <Animated.View style={[styles.floatingBadge, style]}>
-            <View style={[styles.floatingBadgeIcon, { backgroundColor: iconBg }]}>
-                <Ionicons name={icon} size={14} color={iconBg === '#DCFCE7' ? '#16A34A' : '#2563EB'} />
+        <View style={[styles.pricingCard, popular && styles.pricingCardPopular]}>
+            {popular && (
+                <View style={styles.popularBadge}>
+                    <Text style={styles.popularBadgeText}>MOST POPULAR</Text>
+                </View>
+            )}
+
+            <Text style={styles.pricingPlanName}>{plan}</Text>
+
+            <View style={styles.pricingPriceRow}>
+                <Text style={styles.pricingCurrency}>₹</Text>
+                <Text style={styles.pricingPrice}>{price}</Text>
+                <Text style={styles.pricingPeriod}>/{period}</Text>
             </View>
-            <View>
-                <Text style={styles.floatingBadgeTitle}>{title}</Text>
-                <Text style={styles.floatingBadgeSubtitle}>{subtitle}</Text>
+
+            <View style={styles.pricingFeatures}>
+                {features.map((feature, i) => (
+                    <View key={i} style={styles.pricingFeatureRow}>
+                        <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                        <Text style={styles.pricingFeatureText}>{feature}</Text>
+                    </View>
+                ))}
             </View>
-        </Animated.View>
+
+            <TouchableOpacity
+                style={[styles.pricingButton, popular && styles.pricingButtonPopular]}
+                onPress={onPress}
+            >
+                <Text style={[styles.pricingButtonText, popular && styles.pricingButtonTextPopular]}>
+                    Get Started
+                </Text>
+                <Ionicons name="arrow-forward" size={16} color={popular ? '#FFF' : '#0F172A'} />
+            </TouchableOpacity>
+        </View>
     );
 };
 
@@ -142,100 +164,79 @@ export default function LandingScreen({ navigation }) {
                     )}
                     scrollEventThrottle={16}
                 >
-                    {/* Hero Section */}
+                    {/* Hero Section - Updated Layout */}
                     <View style={styles.heroSection}>
                         {/* Grid Background */}
                         <View style={styles.gridBackground} />
 
-                        <View style={styles.heroContent}>
-                            {/* Badge */}
-                            <View style={styles.heroBadge}>
-                                <View style={styles.heroBadgeDot} />
-                                <Text style={styles.heroBadgeText}>NEW: Mains AI Evaluator 2.0</Text>
-                            </View>
-
-                            {/* Title */}
-                            <Text style={styles.heroTitle}>
-                                Crack UPSC{'\n'}
-                                <Text style={styles.heroTitleGradient}>Like a Machine.</Text>
-                            </Text>
-
-                            {/* Subtitle */}
-                            <Text style={styles.heroSubtitle}>
-                                The only AI-powered operating system for serious aspirants. Generate quizzes from news, get instant answer feedback, and visualize your progress.
-                            </Text>
-
-                            {/* CTA Buttons */}
-                            <View style={styles.heroButtons}>
-                                <TouchableOpacity
-                                    style={styles.primaryButton}
-                                    onPress={handleGetStarted}
-                                >
-                                    <Text style={styles.primaryButtonText}>Start Learning Free</Text>
-                                    <Ionicons name="arrow-forward" size={16} color="#FFF" />
-                                </TouchableOpacity>
-
-                                <TouchableOpacity style={styles.secondaryButton}>
-                                    <Ionicons name="play-circle-outline" size={18} color="#64748B" />
-                                    <Text style={styles.secondaryButtonText}>Watch Demo</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Social Proof */}
-                            <View style={styles.socialProof}>
-                                <View style={styles.avatarStack}>
-                                    {[1, 2, 3, 4].map((i) => (
-                                        <View key={i} style={[styles.avatar, { marginLeft: i > 1 ? -8 : 0 }]}>
-                                            <Text style={styles.avatarText}>{String.fromCharCode(64 + i)}</Text>
-                                        </View>
-                                    ))}
+                        <View style={styles.heroRow}>
+                            {/* Text Content */}
+                            <View style={styles.heroContent}>
+                                {/* Badge */}
+                                <View style={styles.heroBadge}>
+                                    <View style={styles.heroBadgeDot} />
+                                    <Text style={styles.heroBadgeText}>NEW: Mains AI Evaluator 2.0</Text>
                                 </View>
-                                <View>
-                                    <View style={styles.starsRow}>
-                                        {[1, 2, 3, 4, 5].map((i) => (
-                                            <Ionicons key={i} name="star" size={10} color="#FACC15" />
+
+                                {/* Title */}
+                                <Text style={styles.heroTitle}>
+                                    Crack UPSC{'\n'}
+                                    <Text style={styles.heroTitleGradient}>Like a Machine.</Text>
+                                </Text>
+
+                                {/* Subtitle */}
+                                <Text style={styles.heroSubtitle}>
+                                    The only AI-powered operating system for serious aspirants. Generate quizzes, get instant feedback, and track progress.
+                                </Text>
+
+                                {/* CTA Buttons */}
+                                <View style={styles.heroButtons}>
+                                    <TouchableOpacity
+                                        style={styles.primaryButton}
+                                        onPress={handleGetStarted}
+                                    >
+                                        <Text style={styles.primaryButtonText}>Start Learning Free</Text>
+                                        <Ionicons name="arrow-forward" size={16} color="#FFF" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Social Proof */}
+                                <View style={styles.socialProof}>
+                                    <View style={styles.avatarStack}>
+                                        {[1, 2, 3, 4].map((i) => (
+                                            <View key={i} style={[styles.avatar, { marginLeft: i > 1 ? -8 : 0 }]}>
+                                                <Text style={styles.avatarText}>{String.fromCharCode(64 + i)}</Text>
+                                            </View>
                                         ))}
                                     </View>
-                                    <Text style={styles.socialProofText}>
-                                        <Text style={styles.socialProofBold}>15,000+</Text> aspirants trusting us
-                                    </Text>
+                                    <View>
+                                        <View style={styles.starsRow}>
+                                            {[1, 2, 3, 4, 5].map((i) => (
+                                                <Ionicons key={i} name="star" size={10} color="#FACC15" />
+                                            ))}
+                                        </View>
+                                        <Text style={styles.socialProofText}>
+                                            <Text style={styles.socialProofBold}>15,000+</Text> aspirants trusting us
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
+
+                            {/* Phone Mockup - Positioned closer */}
+                            {isWeb && width > 768 && (
+                                <View style={styles.mockupContainer}>
+                                    <PhoneMockup scale={0.9} />
+                                </View>
+                            )}
                         </View>
-
-                        {/* Phone Mockup */}
-                        {isWeb && width > 900 && (
-                            <View style={styles.mockupContainer}>
-                                <PhoneMockup />
-
-                                {/* Floating Badges */}
-                                <FloatingBadge
-                                    icon="checkmark-circle"
-                                    iconBg="#DCFCE7"
-                                    title="Streak Maintained!"
-                                    subtitle="12 days in a row 🔥"
-                                    style={styles.floatingBadgeTop}
-                                />
-                                <FloatingBadge
-                                    icon="flash"
-                                    iconBg="#DBEAFE"
-                                    title="AI Analysis Ready"
-                                    subtitle="Evaluation complete"
-                                    style={styles.floatingBadgeBottom}
-                                />
-                            </View>
-                        )}
                     </View>
 
                     {/* Features Section */}
                     <View style={styles.featuresSection}>
                         <View style={styles.featuresHeader}>
                             <Text style={styles.featuresTitle}>
-                                A complete operating system{'\n'}
-                                <Text style={styles.featuresTitleLight}>for your preparation.</Text>
-                            </Text>
-                            <Text style={styles.featuresSubtitle}>
-                                We combined the best study tools into one cohesive platform. No more switching between apps.
+                                Everything you need{'\n'}
+                                <Text style={styles.featuresTitleLight}>to crack the exam.</Text>
                             </Text>
                         </View>
 
@@ -243,49 +244,96 @@ export default function LandingScreen({ navigation }) {
                             <FeatureCard
                                 icon="hardware-chip-outline"
                                 iconBg="#DBEAFE"
-                                title="Adaptive Question Engine"
-                                description="Our AI parses The Hindu, Indian Express, and NCERTs to generate exam-ready MCQs."
-                                large
+                                title="AI Question Engine"
+                                description="Auto-generate MCQs from daily news and NCERTs."
                             />
                             <FeatureCard
                                 icon="create-outline"
                                 iconBg="#E0F2FE"
                                 title="Mains Evaluator"
-                                description="Get feedback on structure, vocabulary, and relevance in seconds."
+                                description="Get instant AI feedback on your answer writing."
                             />
                             <FeatureCard
                                 icon="flash-outline"
                                 iconBg="#FEF3C7"
                                 title="Smart News Feed"
-                                description="Auto-tagged current affairs filtered for syllabus relevance."
+                                description="Current affairs auto-tagged for UPSC relevance."
                             />
                             <FeatureCard
                                 icon="map-outline"
                                 iconBg="#D1FAE5"
                                 title="Dynamic Roadmap"
-                                description="Missed a day? Our scheduler automatically adjusts your plan."
+                                description="Personalized study plan that adapts to you."
                             />
                         </View>
+                    </View>
+
+                    {/* Pricing Section */}
+                    <View style={styles.pricingSection} id="pricing">
+                        <View style={styles.pricingHeader}>
+                            <Text style={styles.pricingHeaderTitle}>
+                                Simple, transparent pricing
+                            </Text>
+                            <Text style={styles.pricingHeaderSubtitle}>
+                                Choose the plan that works for you. Upgrade anytime.
+                            </Text>
+                        </View>
+
+                        <View style={styles.pricingCards}>
+                            {/* Starter Plan */}
+                            <PricingCard
+                                plan="Starter"
+                                price="399"
+                                period="month"
+                                features={[
+                                    '50 AI Credits / month',
+                                    'AI MCQ Generator',
+                                    'PDF to MCQ Converter',
+                                    'Access to News Articles',
+                                    'Basic Progress Tracking',
+                                ]}
+                                popular={false}
+                                onPress={handleGetStarted}
+                            />
+
+                            {/* Pro Plan */}
+                            <PricingCard
+                                plan="Pro"
+                                price="599"
+                                period="month"
+                                features={[
+                                    '150 AI Credits / month',
+                                    'Everything in Starter',
+                                    'AI Mains Answer Evaluator',
+                                    'AI Mind Map Generator',
+                                    'Priority Support',
+                                    'Early Access to Features',
+                                ]}
+                                popular={true}
+                                onPress={handleGetStarted}
+                            />
+                        </View>
+
+                        <Text style={styles.pricingNote}>
+                            Free trial includes 10 AI credits • No credit card required
+                        </Text>
                     </View>
 
                     {/* CTA Section */}
                     <View style={styles.ctaSection}>
                         <View style={styles.ctaCard}>
-                            <Text style={styles.ctaTitle}>Ready to streamline your prep?</Text>
+                            <Text style={styles.ctaTitle}>Start your UPSC journey today</Text>
                             <Text style={styles.ctaSubtitle}>
-                                Join thousands of serious aspirants using AI to clear the toughest exam in the world.
+                                Join thousands of aspirants already using AI to prepare smarter.
                             </Text>
 
-                            <View style={styles.ctaButtons}>
-                                <TouchableOpacity
-                                    style={styles.ctaPrimaryButton}
-                                    onPress={handleGetStarted}
-                                >
-                                    <Text style={styles.ctaPrimaryButtonText}>Get Started Free</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            <Text style={styles.ctaNote}>No credit card required • 14-day free trial</Text>
+                            <TouchableOpacity
+                                style={styles.ctaPrimaryButton}
+                                onPress={handleGetStarted}
+                            >
+                                <Text style={styles.ctaPrimaryButtonText}>Create Free Account</Text>
+                                <Ionicons name="arrow-forward" size={16} color="#0F172A" />
+                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -378,27 +426,29 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        height: height * 0.6,
+        height: height * 0.5,
         backgroundColor: '#FAFAFA',
         opacity: 0.5,
     },
 
     // Hero Section
     heroSection: {
-        flexDirection: isWeb && width > 900 ? 'row' : 'column',
-        alignItems: 'center',
-        justifyContent: 'space-between',
         paddingHorizontal: 24,
-        paddingTop: 40,
-        paddingBottom: 60,
-        maxWidth: 1200,
+        paddingTop: 20,
+        paddingBottom: 40,
+        maxWidth: 1100,
         alignSelf: 'center',
         width: '100%',
     },
+    heroRow: {
+        flexDirection: isWeb && width > 768 ? 'row' : 'column',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 40,
+    },
     heroContent: {
         flex: 1,
-        maxWidth: 560,
-        paddingRight: isWeb && width > 900 ? 40 : 0,
+        maxWidth: 520,
     },
     heroBadge: {
         flexDirection: 'row',
@@ -410,7 +460,7 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
         borderWidth: 1,
         borderColor: '#BFDBFE',
-        marginBottom: 24,
+        marginBottom: 20,
     },
     heroBadgeDot: {
         width: 6,
@@ -427,26 +477,26 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     heroTitle: {
-        fontSize: isWeb ? 56 : 42,
+        fontSize: isWeb ? 48 : 38,
         fontWeight: '800',
         color: '#0F172A',
-        lineHeight: isWeb ? 64 : 50,
+        lineHeight: isWeb ? 56 : 46,
         letterSpacing: -1.5,
-        marginBottom: 20,
+        marginBottom: 16,
     },
     heroTitleGradient: {
         color: '#2563EB',
     },
     heroSubtitle: {
-        fontSize: 17,
+        fontSize: 16,
         color: '#64748B',
-        lineHeight: 28,
-        marginBottom: 32,
+        lineHeight: 26,
+        marginBottom: 28,
     },
     heroButtons: {
-        flexDirection: isWeb ? 'row' : 'column',
+        flexDirection: 'row',
         gap: 12,
-        marginBottom: 32,
+        marginBottom: 28,
     },
     primaryButton: {
         backgroundColor: '#0F172A',
@@ -454,8 +504,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 10,
-        paddingVertical: 16,
-        paddingHorizontal: 28,
+        paddingVertical: 14,
+        paddingHorizontal: 24,
         borderRadius: 50,
     },
     primaryButtonText: {
@@ -463,35 +513,18 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
     },
-    secondaryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        paddingVertical: 16,
-        paddingHorizontal: 28,
-        borderRadius: 50,
-        borderWidth: 1,
-        borderColor: '#E5E7EB',
-        backgroundColor: '#FFFFFF',
-    },
-    secondaryButtonText: {
-        color: '#64748B',
-        fontSize: 14,
-        fontWeight: '600',
-    },
     socialProof: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 16,
+        gap: 14,
     },
     avatarStack: {
         flexDirection: 'row',
     },
     avatar: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
         backgroundColor: '#E2E8F0',
         borderWidth: 2,
         borderColor: '#FFFFFF',
@@ -499,7 +532,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     avatarText: {
-        fontSize: 10,
+        fontSize: 9,
         fontWeight: '700',
         color: '#64748B',
     },
@@ -509,7 +542,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     socialProofText: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#64748B',
     },
     socialProofBold: {
@@ -517,124 +550,121 @@ const styles = StyleSheet.create({
         color: '#0F172A',
     },
 
-    // Mockup
+    // Mockup Container
     mockupContainer: {
-        position: 'relative',
         alignItems: 'center',
         justifyContent: 'center',
     },
     phoneMockup: {
-        width: 260,
-        height: 520,
         backgroundColor: '#000',
-        borderRadius: 42,
-        padding: 8,
+        borderRadius: 36,
+        padding: 6,
         ...Platform.select({
             web: {
-                boxShadow: '0 50px 100px -20px rgba(50, 50, 93, 0.3)',
+                boxShadow: '0 30px 60px -15px rgba(0, 0, 0, 0.3)',
             },
             default: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 25 },
-                shadowOpacity: 0.3,
-                shadowRadius: 50,
-                elevation: 20,
+                shadowOffset: { width: 0, height: 20 },
+                shadowOpacity: 0.25,
+                shadowRadius: 40,
+                elevation: 15,
             },
         }),
     },
     phoneScreen: {
         flex: 1,
         backgroundColor: '#FFFFFF',
-        borderRadius: 34,
+        borderRadius: 30,
         overflow: 'hidden',
     },
     dynamicIsland: {
         alignItems: 'center',
-        paddingTop: 8,
+        paddingTop: 6,
     },
     dynamicIslandPill: {
-        width: 90,
-        height: 24,
+        width: 70,
+        height: 20,
         backgroundColor: '#000',
-        borderRadius: 12,
+        borderRadius: 10,
     },
     quizContent: {
         flex: 1,
-        paddingTop: 40,
+        paddingTop: 30,
     },
     quizHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingBottom: 12,
+        paddingHorizontal: 12,
+        paddingBottom: 10,
         borderBottomWidth: 1,
         borderBottomColor: '#F1F5F9',
     },
     quizSubject: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: '700',
         color: '#0F172A',
     },
     quizBadge: {
         backgroundColor: '#EFF6FF',
-        paddingHorizontal: 8,
+        paddingHorizontal: 6,
         paddingVertical: 2,
-        borderRadius: 10,
+        borderRadius: 8,
     },
     quizBadgeText: {
-        fontSize: 9,
+        fontSize: 8,
         fontWeight: '700',
         color: '#2563EB',
     },
     questionCard: {
         backgroundColor: '#FFFFFF',
-        margin: 16,
-        padding: 16,
-        borderRadius: 16,
+        margin: 12,
+        padding: 12,
+        borderRadius: 12,
         borderWidth: 1,
         borderColor: '#F1F5F9',
         ...Platform.select({
             web: {
-                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
             },
         }),
     },
     questionLabel: {
-        fontSize: 9,
+        fontSize: 8,
         fontWeight: '700',
         color: '#94A3B8',
         textTransform: 'uppercase',
-        marginBottom: 6,
+        marginBottom: 4,
     },
     questionText: {
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '600',
         color: '#0F172A',
-        lineHeight: 18,
+        lineHeight: 15,
     },
     optionsContainer: {
-        paddingHorizontal: 16,
-        gap: 6,
+        paddingHorizontal: 12,
+        gap: 5,
     },
     optionItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
+        gap: 8,
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        borderRadius: 12,
-        padding: 10,
+        borderRadius: 10,
+        padding: 8,
     },
     optionItemCorrect: {
         backgroundColor: '#ECFDF5',
         borderColor: '#A7F3D0',
     },
     optionBadge: {
-        width: 20,
-        height: 20,
-        borderRadius: 10,
+        width: 16,
+        height: 16,
+        borderRadius: 8,
         backgroundColor: '#F8FAFC',
         borderWidth: 1,
         borderColor: '#E5E7EB',
@@ -646,12 +676,12 @@ const styles = StyleSheet.create({
         borderColor: '#10B981',
     },
     optionBadgeText: {
-        fontSize: 8,
+        fontSize: 7,
         fontWeight: '700',
         color: '#64748B',
     },
     optionText: {
-        fontSize: 10,
+        fontSize: 9,
         color: '#475569',
         flex: 1,
     },
@@ -660,80 +690,31 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    // Floating Badges
-    floatingBadge: {
-        position: 'absolute',
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-        backgroundColor: '#FFFFFF',
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        ...Platform.select({
-            web: {
-                boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-            },
-        }),
-    },
-    floatingBadgeTop: {
-        top: 80,
-        right: -60,
-    },
-    floatingBadgeBottom: {
-        bottom: 100,
-        left: -60,
-    },
-    floatingBadgeIcon: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    floatingBadgeTitle: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#0F172A',
-    },
-    floatingBadgeSubtitle: {
-        fontSize: 9,
-        color: '#64748B',
-    },
-
     // Features Section
     featuresSection: {
         paddingHorizontal: 24,
-        paddingVertical: 80,
+        paddingVertical: 60,
         backgroundColor: '#FFFFFF',
-        maxWidth: 1200,
+        maxWidth: 1100,
         alignSelf: 'center',
         width: '100%',
     },
     featuresHeader: {
-        marginBottom: 48,
-        maxWidth: 600,
+        marginBottom: 40,
+        maxWidth: 500,
     },
     featuresTitle: {
-        fontSize: isWeb ? 40 : 32,
+        fontSize: isWeb ? 36 : 28,
         fontWeight: '800',
         color: '#0F172A',
-        lineHeight: isWeb ? 48 : 40,
-        marginBottom: 16,
+        lineHeight: isWeb ? 44 : 36,
         letterSpacing: -1,
     },
     featuresTitleLight: {
         color: '#94A3B8',
     },
-    featuresSubtitle: {
-        fontSize: 16,
-        color: '#64748B',
-        lineHeight: 26,
-    },
     featuresGrid: {
-        flexDirection: isWeb && width > 700 ? 'row' : 'column',
+        flexDirection: isWeb && width > 600 ? 'row' : 'column',
         flexWrap: 'wrap',
         gap: 16,
     },
@@ -741,74 +722,205 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
         borderColor: '#E5E7EB',
-        borderRadius: 24,
-        padding: 28,
-        flex: isWeb && width > 700 ? 1 : undefined,
-        minWidth: isWeb && width > 700 ? 280 : undefined,
-    },
-    featureCardLarge: {
-        flex: isWeb && width > 700 ? 2 : undefined,
+        borderRadius: 20,
+        padding: 24,
+        flex: isWeb && width > 600 ? 1 : undefined,
+        minWidth: isWeb && width > 600 ? 240 : undefined,
+        maxWidth: isWeb && width > 600 ? '48%' : undefined,
     },
     featureIcon: {
-        width: 48,
-        height: 48,
+        width: 44,
+        height: 44,
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 20,
+        marginBottom: 16,
     },
     featureTitle: {
-        fontSize: 20,
+        fontSize: 17,
         fontWeight: '700',
         color: '#0F172A',
-        marginBottom: 8,
+        marginBottom: 6,
     },
     featureDescription: {
+        fontSize: 13,
+        color: '#64748B',
+        lineHeight: 20,
+    },
+
+    // Pricing Section
+    pricingSection: {
+        paddingHorizontal: 24,
+        paddingVertical: 80,
+        backgroundColor: '#F8FAFC',
+    },
+    pricingHeader: {
+        alignItems: 'center',
+        marginBottom: 48,
+        maxWidth: 500,
+        alignSelf: 'center',
+    },
+    pricingHeaderTitle: {
+        fontSize: isWeb ? 36 : 28,
+        fontWeight: '800',
+        color: '#0F172A',
+        textAlign: 'center',
+        marginBottom: 12,
+        letterSpacing: -1,
+    },
+    pricingHeaderSubtitle: {
+        fontSize: 15,
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: 24,
+    },
+    pricingCards: {
+        flexDirection: isWeb && width > 700 ? 'row' : 'column',
+        justifyContent: 'center',
+        alignItems: 'stretch',
+        gap: 20,
+        maxWidth: 800,
+        alignSelf: 'center',
+        width: '100%',
+    },
+    pricingCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 32,
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#E5E7EB',
+        maxWidth: isWeb && width > 700 ? 380 : undefined,
+    },
+    pricingCardPopular: {
+        borderColor: '#2563EB',
+        borderWidth: 2,
+        ...Platform.select({
+            web: {
+                boxShadow: '0 20px 50px -10px rgba(37, 99, 235, 0.2)',
+            },
+        }),
+    },
+    popularBadge: {
+        position: 'absolute',
+        top: -12,
+        right: 24,
+        backgroundColor: '#2563EB',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    popularBadgeText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: 0.5,
+    },
+    pricingPlanName: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#0F172A',
+        marginBottom: 16,
+    },
+    pricingPriceRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        marginBottom: 24,
+    },
+    pricingCurrency: {
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#0F172A',
+    },
+    pricingPrice: {
+        fontSize: 48,
+        fontWeight: '800',
+        color: '#0F172A',
+        letterSpacing: -2,
+    },
+    pricingPeriod: {
         fontSize: 14,
         color: '#64748B',
-        lineHeight: 22,
+        marginLeft: 4,
+    },
+    pricingFeatures: {
+        gap: 14,
+        marginBottom: 28,
+    },
+    pricingFeatureRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    pricingFeatureText: {
+        fontSize: 14,
+        color: '#475569',
+        flex: 1,
+    },
+    pricingButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#F1F5F9',
+        paddingVertical: 14,
+        borderRadius: 12,
+    },
+    pricingButtonPopular: {
+        backgroundColor: '#0F172A',
+    },
+    pricingButtonText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#0F172A',
+    },
+    pricingButtonTextPopular: {
+        color: '#FFFFFF',
+    },
+    pricingNote: {
+        fontSize: 13,
+        color: '#64748B',
+        textAlign: 'center',
+        marginTop: 32,
     },
 
     // CTA Section
     ctaSection: {
         paddingHorizontal: 24,
-        paddingVertical: 80,
+        paddingVertical: 60,
     },
     ctaCard: {
         backgroundColor: '#0F172A',
-        borderRadius: 40,
-        padding: isWeb ? 60 : 40,
+        borderRadius: 32,
+        padding: isWeb ? 50 : 36,
         alignItems: 'center',
-        maxWidth: 900,
+        maxWidth: 700,
         alignSelf: 'center',
         width: '100%',
-        overflow: 'hidden',
     },
     ctaTitle: {
-        fontSize: isWeb ? 40 : 28,
+        fontSize: isWeb ? 32 : 24,
         fontWeight: '800',
         color: '#FFFFFF',
         textAlign: 'center',
-        marginBottom: 16,
-        letterSpacing: -1,
+        marginBottom: 12,
+        letterSpacing: -0.5,
     },
     ctaSubtitle: {
-        fontSize: 16,
+        fontSize: 15,
         color: '#94A3B8',
         textAlign: 'center',
-        lineHeight: 26,
-        marginBottom: 32,
-        maxWidth: 480,
-    },
-    ctaButtons: {
-        flexDirection: isWeb ? 'row' : 'column',
-        gap: 16,
-        marginBottom: 24,
+        lineHeight: 24,
+        marginBottom: 28,
     },
     ctaPrimaryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
         backgroundColor: '#FFFFFF',
-        paddingHorizontal: 40,
-        paddingVertical: 16,
+        paddingHorizontal: 32,
+        paddingVertical: 14,
         borderRadius: 50,
     },
     ctaPrimaryButtonText: {
@@ -816,27 +928,23 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '700',
     },
-    ctaNote: {
-        fontSize: 12,
-        color: '#64748B',
-    },
 
     // Footer
     footer: {
         borderTopWidth: 1,
         borderTopColor: '#E5E7EB',
         backgroundColor: '#FAFAFA',
-        paddingVertical: 40,
+        paddingVertical: 32,
         paddingHorizontal: 24,
     },
     footerContent: {
-        maxWidth: 1200,
+        maxWidth: 1100,
         alignSelf: 'center',
         width: '100%',
-        flexDirection: isWeb && width > 600 ? 'row' : 'column',
+        flexDirection: isWeb && width > 500 ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: 20,
+        gap: 16,
     },
     footerLogo: {
         fontSize: 14,
@@ -845,7 +953,7 @@ const styles = StyleSheet.create({
     },
     footerLinks: {
         flexDirection: 'row',
-        gap: 24,
+        gap: 20,
     },
     footerLink: {
         fontSize: 12,
