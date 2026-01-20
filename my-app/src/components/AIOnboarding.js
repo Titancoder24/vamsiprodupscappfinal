@@ -9,9 +9,34 @@ import {
     Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 const { width, height } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
+
+// Figma-style Cursor SVG Component
+const FigmaCursor = ({ color }) => (
+    <Svg width="24" height="36" viewBox="0 0 24 36" fill="none">
+        <Defs>
+            <LinearGradient id="cursorGrad" x1="0" y1="0" x2="24" y2="36">
+                <Stop offset="0%" stopColor={color} stopOpacity="1" />
+                <Stop offset="100%" stopColor={color} stopOpacity="0.8" />
+            </LinearGradient>
+        </Defs>
+        {/* Mouse pointer shape */}
+        <Path
+            d="M5.65376 12.4563L0.161133 0.5L15.8391 12.4563H5.65376Z"
+            fill={color}
+            stroke="#FFFFFF"
+            strokeWidth="1"
+        />
+        {/* Extended tail for Figma look */}
+        <Path
+            d="M5.65376 12.4563L8.5 24L11.5 12.4563H5.65376Z"
+            fill={color}
+        />
+    </Svg>
+);
 
 // Animated AI Cursor that points at elements
 const AICursor = ({ name, color, position, message, onComplete, isLast }) => {
@@ -20,35 +45,54 @@ const AICursor = ({ name, color, position, message, onComplete, isLast }) => {
     const bounce = useRef(new Animated.Value(0)).current;
     const clickScale = useRef(new Animated.Value(1)).current;
     const messageOpacity = useRef(new Animated.Value(0)).current;
-    const [showClick, setShowClick] = useState(false);
+    const clickRippleScale = useRef(new Animated.Value(0)).current;
+    const clickRippleOpacity = useRef(new Animated.Value(0)).current;
+    const [showMessage, setShowMessage] = useState(false);
 
     useEffect(() => {
         // Animate cursor moving to target
         Animated.sequence([
-            // Move to target
+            // Move to target with smooth spring
             Animated.parallel([
-                Animated.spring(cursorX, { toValue: position.endX, friction: 6, useNativeDriver: true }),
-                Animated.spring(cursorY, { toValue: position.endY, friction: 6, useNativeDriver: true }),
+                Animated.spring(cursorX, {
+                    toValue: position.endX,
+                    friction: 8,
+                    tension: 40,
+                    useNativeDriver: true
+                }),
+                Animated.spring(cursorY, {
+                    toValue: position.endY,
+                    friction: 8,
+                    tension: 40,
+                    useNativeDriver: true
+                }),
             ]),
-            // Wait a moment
-            Animated.delay(300),
-            // Show click animation
-            Animated.parallel([
-                Animated.sequence([
-                    Animated.timing(clickScale, { toValue: 0.8, duration: 100, useNativeDriver: true }),
-                    Animated.timing(clickScale, { toValue: 1, duration: 100, useNativeDriver: true }),
-                ]),
+            // Pause briefly
+            Animated.delay(200),
+            // Click animation - scale down and up
+            Animated.sequence([
+                Animated.timing(clickScale, { toValue: 0.85, duration: 80, useNativeDriver: true }),
+                Animated.timing(clickScale, { toValue: 1, duration: 80, useNativeDriver: true }),
             ]),
         ]).start(() => {
-            setShowClick(true);
-            // Show message after click
-            Animated.timing(messageOpacity, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+            // Show ripple effect
+            Animated.parallel([
+                Animated.timing(clickRippleScale, { toValue: 1.5, duration: 400, useNativeDriver: true }),
+                Animated.sequence([
+                    Animated.timing(clickRippleOpacity, { toValue: 0.6, duration: 100, useNativeDriver: true }),
+                    Animated.timing(clickRippleOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+                ]),
+            ]).start();
 
-            // Start bounce
+            setShowMessage(true);
+            // Show message after click
+            Animated.timing(messageOpacity, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+
+            // Gentle floating animation
             Animated.loop(
                 Animated.sequence([
-                    Animated.timing(bounce, { toValue: -5, duration: 600, useNativeDriver: true }),
-                    Animated.timing(bounce, { toValue: 0, duration: 600, useNativeDriver: true }),
+                    Animated.timing(bounce, { toValue: -4, duration: 800, useNativeDriver: true }),
+                    Animated.timing(bounce, { toValue: 0, duration: 800, useNativeDriver: true }),
                 ])
             ).start();
         });
@@ -56,6 +100,20 @@ const AICursor = ({ name, color, position, message, onComplete, isLast }) => {
 
     return (
         <View style={styles.cursorOverlay}>
+            {/* Click Ripple Effect */}
+            <Animated.View
+                style={[
+                    styles.clickRipple,
+                    {
+                        left: position.endX - 20,
+                        top: position.endY - 20,
+                        backgroundColor: color,
+                        transform: [{ scale: clickRippleScale }],
+                        opacity: clickRippleOpacity,
+                    },
+                ]}
+            />
+
             {/* Animated Cursor */}
             <Animated.View
                 style={[
@@ -70,56 +128,48 @@ const AICursor = ({ name, color, position, message, onComplete, isLast }) => {
                     },
                 ]}
             >
-                {/* Cursor Arrow SVG-like shape */}
-                <View style={[styles.cursorArrow, { borderTopColor: color }]} />
+                {/* Figma-style Cursor */}
+                <View style={styles.cursorPointer}>
+                    <FigmaCursor color={color} />
+                </View>
 
-                {/* Name Tag */}
+                {/* Name Tag - positioned like Figma */}
                 <View style={[styles.cursorTag, { backgroundColor: color }]}>
                     <Text style={styles.cursorName}>{name}</Text>
                 </View>
             </Animated.View>
 
-            {/* Click Ripple Effect */}
-            {showClick && (
+            {/* Message Bubble */}
+            {showMessage && (
                 <Animated.View
                     style={[
-                        styles.clickRipple,
+                        styles.messageBubble,
                         {
-                            left: position.endX + 5,
-                            top: position.endY + 5,
-                            borderColor: color,
+                            opacity: messageOpacity,
+                            left: Math.min(Math.max(position.endX - 100, 20), width - 300),
+                            top: position.endY + 60,
                         },
                     ]}
-                />
+                >
+                    {/* Speech bubble arrow */}
+                    <View style={[styles.bubbleArrow, { borderBottomColor: '#FFF' }]} />
+
+                    <Text style={styles.messageText}>{message}</Text>
+
+                    <View style={styles.buttonRow}>
+                        <TouchableOpacity style={styles.skipBtn} onPress={onComplete}>
+                            <Text style={styles.skipBtnText}>Skip</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.gotItBtn, { backgroundColor: color }]}
+                            onPress={onComplete}
+                        >
+                            <Text style={styles.gotItBtnText}>{isLast ? "Got it!" : "Next"}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
             )}
-
-            {/* Message Bubble */}
-            <Animated.View
-                style={[
-                    styles.messageBubble,
-                    {
-                        opacity: messageOpacity,
-                        left: Math.min(position.endX + 30, width - 280),
-                        top: Math.max(position.endY + 40, 60),
-                        borderColor: color,
-                    },
-                ]}
-            >
-                <Text style={styles.messageText}>{message}</Text>
-
-                <View style={styles.buttonRow}>
-                    <TouchableOpacity style={styles.skipBtn} onPress={onComplete}>
-                        <Text style={styles.skipBtnText}>Skip</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={[styles.gotItBtn, { backgroundColor: color }]}
-                        onPress={onComplete}
-                    >
-                        <Text style={styles.gotItBtnText}>{isLast ? "Got it!" : "Next"}</Text>
-                    </TouchableOpacity>
-                </View>
-            </Animated.View>
         </View>
     );
 };
@@ -135,10 +185,10 @@ export default function AIOnboarding({ visible, onComplete, onNavigateToBilling,
             color: '#2563EB',
             message: "👋 Hey! I'm Arjun. See this credits badge? Tap it to buy AI credits and unlock all premium features!",
             position: {
-                startX: isWeb ? width * 0.3 : 50,
-                startY: isWeb ? 200 : 100,
-                endX: creditsPosition?.x || (isWeb ? width - 150 : width - 80),
-                endY: creditsPosition?.y || (isWeb ? 80 : 50),
+                startX: isWeb ? width * 0.2 : 30,
+                startY: isWeb ? 300 : 200,
+                endX: creditsPosition?.x || (isWeb ? width - 150 : width - 70),
+                endY: creditsPosition?.y || (isWeb ? 60 : 45),
             },
         },
         {
@@ -146,10 +196,10 @@ export default function AIOnboarding({ visible, onComplete, onNavigateToBilling,
             color: '#8B5CF6',
             message: "💎 I recommend the Pro plan at ₹599/month - you get 400 credits, enough for 100+ AI sessions. Best value for serious aspirants!",
             position: {
-                startX: isWeb ? width * 0.6 : width - 50,
-                startY: isWeb ? 250 : 150,
-                endX: creditsPosition?.x || (isWeb ? width - 150 : width - 80),
-                endY: creditsPosition?.y || (isWeb ? 80 : 50),
+                startX: isWeb ? width * 0.7 : width - 30,
+                startY: isWeb ? 350 : 250,
+                endX: creditsPosition?.x || (isWeb ? width - 150 : width - 70),
+                endY: creditsPosition?.y || (isWeb ? 60 : 45),
             },
         },
     ];
@@ -183,8 +233,8 @@ export default function AIOnboarding({ visible, onComplete, onNavigateToBilling,
                 style={[
                     styles.spotlight,
                     {
-                        left: (creditsPosition?.x || (isWeb ? width - 150 : width - 80)) - 30,
-                        top: (creditsPosition?.y || (isWeb ? 80 : 50)) - 15,
+                        left: (creditsPosition?.x || (isWeb ? width - 150 : width - 70)) - 40,
+                        top: (creditsPosition?.y || (isWeb ? 60 : 45)) - 20,
                     },
                 ]}
             />
@@ -243,19 +293,19 @@ const styles = StyleSheet.create({
     },
     overlay: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
     },
     spotlight: {
         position: 'absolute',
-        width: 80,
-        height: 45,
+        width: 100,
+        height: 50,
         backgroundColor: 'transparent',
         borderRadius: 25,
-        borderWidth: 3,
-        borderColor: '#FFF',
+        borderWidth: 2,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
         ...Platform.select({
             web: {
-                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.6), 0 0 20px 5px rgba(255, 255, 255, 0.3)',
+                boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.65), 0 0 30px 10px rgba(255, 255, 255, 0.15)',
             },
         }),
     },
@@ -265,93 +315,107 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         bottom: 0,
+        pointerEvents: 'box-none',
     },
     cursor: {
         position: 'absolute',
         zIndex: 100,
     },
-    cursorArrow: {
-        width: 0,
-        height: 0,
-        borderLeftWidth: 8,
-        borderRightWidth: 8,
-        borderTopWidth: 20,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        transform: [{ rotate: '-45deg' }],
+    cursorPointer: {
+        // The SVG cursor
     },
     cursorTag: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
+        position: 'absolute',
+        left: 16,
+        top: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
         borderRadius: 4,
-        marginLeft: 12,
-        marginTop: -5,
+        ...Platform.select({
+            web: {
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
+            },
+            default: {
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 4,
+            },
+        }),
     },
     cursorName: {
         color: '#FFF',
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: '700',
+        letterSpacing: 0.3,
     },
     clickRipple: {
         position: 'absolute',
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        borderWidth: 2,
-        ...Platform.select({
-            web: {
-                animation: 'pulse 1s infinite',
-            },
-        }),
+        width: 40,
+        height: 40,
+        borderRadius: 20,
     },
     messageBubble: {
         position: 'absolute',
         backgroundColor: '#FFF',
         borderRadius: 16,
-        borderWidth: 2,
-        padding: 16,
-        maxWidth: 260,
+        padding: 18,
+        maxWidth: 280,
+        minWidth: 240,
         ...Platform.select({
             web: {
-                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)',
+                boxShadow: '0 12px 40px rgba(0, 0, 0, 0.25)',
             },
             default: {
                 shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.3,
-                shadowRadius: 10,
-                elevation: 10,
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.25,
+                shadowRadius: 16,
+                elevation: 12,
             },
         }),
     },
+    bubbleArrow: {
+        position: 'absolute',
+        top: -10,
+        left: 30,
+        width: 0,
+        height: 0,
+        borderLeftWidth: 10,
+        borderRightWidth: 10,
+        borderBottomWidth: 10,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+    },
     messageText: {
-        fontSize: 14,
+        fontSize: 15,
         color: '#1F2937',
-        lineHeight: 22,
-        marginBottom: 14,
+        lineHeight: 24,
+        marginBottom: 16,
     },
     buttonRow: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: 10,
+        gap: 12,
     },
     skipBtn: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingVertical: 10,
+        paddingHorizontal: 18,
     },
     skipBtnText: {
         color: '#6B7280',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '600',
     },
     gotItBtn: {
-        paddingVertical: 8,
-        paddingHorizontal: 20,
-        borderRadius: 20,
+        paddingVertical: 10,
+        paddingHorizontal: 22,
+        borderRadius: 22,
     },
     gotItBtnText: {
         color: '#FFF',
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: '700',
     },
 });
