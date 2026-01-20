@@ -337,9 +337,6 @@ export default function LandingScreen({ navigation }) {
               {isWeb && width > 768 && (
                 <View style={styles.mockupWrapper}>
                   <PhoneMockup />
-
-                  {/* Sparkles Strip Below Phone */}
-                  <SparklesStrip />
                 </View>
               )}
             </View>
