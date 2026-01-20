@@ -39,6 +39,8 @@ if (Platform.OS !== 'web') {
 }
 
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
+import { savePDFMCQSession, getAllPDFMCQSessions, PDFMCQSession } from '../utils/pdfMCQStorage';
+import useCredits from '../../../hooks/useCredits';
 
 // ===================== CONFIGURATION =====================
 const CONFIG = {
@@ -649,6 +651,9 @@ export default function PDFGeneratorScreen() {
     const { horizontalPadding } = useWebStyles();
     const navigation = useNavigation<any>();
 
+    // Credit checking (5 credits for PDF MCQ)
+    const { credits, hasEnoughCredits, useCredits: deductCredits } = useCredits();
+
     // State
     const [stage, setStage] = useState<ProcessStage>('idle');
     const [statusMessage, setStatusMessage] = useState('');
@@ -659,6 +664,7 @@ export default function PDFGeneratorScreen() {
     const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
     const [showResults, setShowResults] = useState<Record<number, boolean>>({});
     const [errorMessage, setErrorMessage] = useState('');
+    const [currentSession, setCurrentSession] = useState<PDFMCQSession | null>(null);
 
     // Timer
     const timerRef = useRef<any>(null);
@@ -682,10 +688,27 @@ export default function PDFGeneratorScreen() {
 
     // ===================== MAIN PROCESS =====================
     const startProcess = async () => {
+        // Check credits first (5 credits for PDF MCQ)
+        if (!hasEnoughCredits('pdf_mcq')) {
+            Alert.alert(
+                '💳 Credits Required',
+                `PDF MCQ generation costs 5 credits.\n\nYou have ${credits} credits available.\n\nBuy credits to continue.`,
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Buy Credits', onPress: () => navigation.navigate('Billing') }
+                ]
+            );
+            return;
+        }
+
         const count = Math.min(200, Math.max(1, parseInt(mcqCount) || 10));
         const estimatedTime = Math.max(20, count * 2);
 
         try {
+            // Deduct credits before starting
+            const success = await deductCredits('pdf_mcq');
+            if (!success) return;
+
             // Reset state
             setMcqs([]);
             setSelectedAnswers({});
@@ -764,9 +787,29 @@ export default function PDFGeneratorScreen() {
             setStage('complete');
             setStatusMessage(`✅ Generated ${generatedMcqs.length} MCQs in ${elapsedSeconds}s`);
 
+            // Save to local storage
+            try {
+                const session = await savePDFMCQSession(
+                    pickedFile.name,
+                    generatedMcqs.map((mcq, idx) => ({
+                        question: mcq.question,
+                        optionA: mcq.optionA,
+                        optionB: mcq.optionB,
+                        optionC: mcq.optionC,
+                        optionD: mcq.optionD,
+                        correctAnswer: mcq.correctAnswer,
+                        explanation: mcq.explanation,
+                    }))
+                );
+                setCurrentSession(session);
+                console.log('[PDF-MCQ] Session saved locally:', session.id);
+            } catch (saveError) {
+                console.warn('[PDF-MCQ] Failed to save to local storage:', saveError);
+            }
+
             Alert.alert(
                 '🎉 Success!',
-                `Generated ${generatedMcqs.length} MCQs in ${elapsedSeconds} seconds!\n\nStart practicing now.`
+                `Generated ${generatedMcqs.length} MCQs in ${elapsedSeconds} seconds!\n\nAll data is saved locally on your device.`
             );
 
         } catch (error: any) {
@@ -897,6 +940,14 @@ export default function PDFGeneratorScreen() {
                 contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding || 20 }]}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Local Storage Info Banner */}
+                <View style={[styles.storageBanner, { backgroundColor: isDark ? '#1A2F1A' : '#D1FAE5', borderColor: '#10B981' }]}>
+                    <Ionicons name="phone-portrait-outline" size={18} color="#10B981" />
+                    <Text style={[styles.storageBannerText, { color: isDark ? '#A7F3D0' : '#065F46' }]}>
+                        📱 All generated MCQs are stored locally on your device. Nothing is uploaded to any server.
+                    </Text>
+                </View>
+
                 {/* Upload Card (when no MCQs) */}
                 {mcqs.length === 0 && (
                     <View style={[styles.uploadCard, { backgroundColor: theme.colors.surface }]}>
@@ -1560,5 +1611,21 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 13,
         fontWeight: '600',
+    },
+
+    // Local storage banner
+    storageBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        padding: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+        marginBottom: 16
+    },
+    storageBannerText: {
+        flex: 1,
+        fontSize: 12,
+        lineHeight: 18
     },
 });

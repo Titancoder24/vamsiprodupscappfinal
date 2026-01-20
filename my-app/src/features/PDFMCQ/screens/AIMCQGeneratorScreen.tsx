@@ -32,6 +32,13 @@ import { useTheme } from '../../Reference/theme/ThemeContext';
 import { useWebStyles } from '../../../components/WebContainer';
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { useAIFeature, CreditInfoBanner } from '../../../hooks/useAIFeature';
+import {
+    createMCQSession,
+    saveMCQSession,
+    updateSessionAnswer,
+    getStorageInfo,
+    AIMCQSession
+} from '../utils/aiMCQStorage';
 
 // ===================== CONFIGURATION =====================
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -368,6 +375,10 @@ export default function AIMCQGeneratorScreen() {
     const [showResults, setShowResults] = useState<Record<number, boolean>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [currentSession, setCurrentSession] = useState<AIMCQSession | null>(null);
+
+    // Get storage info for display
+    const storageInfo = getStorageInfo();
 
     const handleGenerate = async () => {
         // Check if user has enough credits (3 credits for MCQ generation)
@@ -383,12 +394,20 @@ export default function AIMCQGeneratorScreen() {
             setMcqs([]);
             setSelectedAnswers({});
             setShowResults({});
+            setCurrentSession(null);
 
             try {
                 const count = Math.min(30, Math.max(1, parseInt(questionCount) || 10));
                 const result = await generateMCQs(examType, paperType, difficulty, language, count, preferences);
                 if (!result.length) throw new Error('No MCQs generated');
                 setMcqs(result);
+
+                // Save to local storage
+                const title = `${paperType} ${examType.toUpperCase()} - ${difficulty}`;
+                const session = createMCQSession(title, examType, paperType, difficulty, language, result);
+                await saveMCQSession(session);
+                setCurrentSession(session);
+                console.log('[MCQ] Session saved locally:', session.id);
             } catch (err: any) {
                 console.error('[MCQ] Generation failed:', err);
                 setError(err.message || 'Failed to generate MCQs. Please try again.');
@@ -398,10 +417,17 @@ export default function AIMCQGeneratorScreen() {
         });
     };
 
-    const handleSelectAnswer = (id: number, opt: string) => {
+    const handleSelectAnswer = async (id: number, opt: string) => {
         if (showResults[id]) return;
         setSelectedAnswers(p => ({ ...p, [id]: opt }));
         setShowResults(p => ({ ...p, [id]: true }));
+
+        // Update session in local storage
+        if (currentSession) {
+            const updated = updateSessionAnswer(currentSession, id - 1, opt);
+            await saveMCQSession(updated);
+            setCurrentSession(updated);
+        }
     };
 
     const handleReset = () => {
@@ -409,6 +435,7 @@ export default function AIMCQGeneratorScreen() {
         setSelectedAnswers({});
         setShowResults({});
         setError('');
+        setCurrentSession(null);
     };
 
     const getScore = () => {
@@ -438,6 +465,14 @@ export default function AIMCQGeneratorScreen() {
                 contentContainerStyle={[styles.content, { paddingHorizontal: horizontalPadding || 20 }]}
                 showsVerticalScrollIndicator={false}
             >
+                {/* Local Storage Info Banner */}
+                <View style={[styles.storageBanner, { backgroundColor: isDark ? '#1A2F1A' : '#D1FAE5', borderColor: isDark ? '#10B981' : '#10B981' }]}>
+                    <Ionicons name="phone-portrait-outline" size={18} color="#10B981" />
+                    <Text style={[styles.storageBannerText, { color: isDark ? '#A7F3D0' : '#065F46' }]}>
+                        {storageInfo.message}
+                    </Text>
+                </View>
+
                 {/* Form */}
                 {mcqs.length === 0 && !isLoading && (
                     <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
@@ -758,4 +793,8 @@ const styles = StyleSheet.create({
 
     moreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, padding: 18, borderRadius: 14, borderWidth: 2, borderStyle: 'dashed', marginTop: 8 },
     moreBtnText: { fontSize: 16, fontWeight: '600' },
+
+    // Local storage banner
+    storageBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 16 },
+    storageBannerText: { flex: 1, fontSize: 12, lineHeight: 18 },
 });
