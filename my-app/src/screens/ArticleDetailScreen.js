@@ -17,8 +17,7 @@ import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-
-import { getMobileApiEndpoint } from '../config/api';
+import { supabase } from '../lib/supabase';
 
 export default function ArticleDetailScreen({ route, navigation }) {
   const { articleId } = route.params;
@@ -44,14 +43,34 @@ export default function ArticleDetailScreen({ route, navigation }) {
   const fetchArticle = async () => {
     try {
       setLoading(true);
-      const endpoint = getMobileApiEndpoint(`/articles/${articleId}`);
-      const response = await fetch(endpoint);
-      const data = await response.json();
+      console.log('Fetching article from Supabase:', articleId);
 
-      if (data.error) {
-        setError(data.error);
+      const { data, error: fetchError } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('id', articleId)
+        .single();
+
+      if (fetchError) {
+        console.error('Supabase error:', fetchError);
+        setError(fetchError.message);
       } else {
-        setArticle(data.article);
+        // Transform field names from snake_case to camelCase for compatibility
+        const transformedArticle = {
+          ...data,
+          sourceUrl: data.source_url,
+          gsPaper: data.gs_paper,
+          publishedDate: data.published_date,
+          createdAt: data.created_at,
+          updatedAt: data.updated_at,
+          isPublished: data.is_published,
+          metaDescription: data.meta_description,
+          // Parse tags if it's a string
+          tags: typeof data.tags === 'string' ? JSON.parse(data.tags) : data.tags,
+          // Parse content if it's a string
+          content: typeof data.content === 'string' ? JSON.parse(data.content) : data.content,
+        };
+        setArticle(transformedArticle);
         setError(null);
       }
     } catch (err) {
@@ -82,25 +101,34 @@ export default function ArticleDetailScreen({ route, navigation }) {
   const fetchMCQs = async () => {
     try {
       setMcqsLoading(true);
-      console.log('[ArticleDetailScreen] Fetching MCQs for article:', articleId);
-      const endpoint = getMobileApiEndpoint(`/articles/${articleId}/mcqs`);
-      console.log('[ArticleDetailScreen] API URL:', endpoint);
+      console.log('[ArticleDetailScreen] Fetching MCQs from Supabase for article:', articleId);
 
-      const response = await fetch(endpoint);
-      console.log('[ArticleDetailScreen] MCQs response status:', response.status);
+      const { data, error: fetchError } = await supabase
+        .from('article_mcqs')
+        .select('*')
+        .eq('article_id', articleId)
+        .order('id', { ascending: true });
 
-      const data = await response.json();
-      console.log('[ArticleDetailScreen] MCQs response data:', data);
-
-      if (data.mcqs) {
-        console.log('[ArticleDetailScreen] Setting MCQs:', data.mcqs.length);
-        setMcqs(data.mcqs);
-      } else if (data.error) {
-        console.error('[ArticleDetailScreen] MCQs fetch error:', data.error);
+      if (fetchError) {
+        console.error('[ArticleDetailScreen] Supabase MCQs error:', fetchError);
+      } else if (data && data.length > 0) {
+        console.log('[ArticleDetailScreen] Setting MCQs:', data.length);
+        // Transform field names from snake_case to camelCase
+        const transformedMcqs = data.map(mcq => ({
+          ...mcq,
+          optionA: mcq.option_a,
+          optionB: mcq.option_b,
+          optionC: mcq.option_c,
+          optionD: mcq.option_d,
+          correctAnswer: mcq.correct_answer,
+          articleId: mcq.article_id,
+        }));
+        setMcqs(transformedMcqs);
+      } else {
+        console.log('[ArticleDetailScreen] No MCQs found for this article');
       }
     } catch (err) {
       console.error('[ArticleDetailScreen] Fetch MCQs error:', err);
-      console.error('[ArticleDetailScreen] Error details:', err.message);
     } finally {
       setMcqsLoading(false);
     }

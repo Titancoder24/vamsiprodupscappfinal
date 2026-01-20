@@ -4,12 +4,13 @@ import {
   Text,
   View,
   TouchableOpacity,
-  ScrollView,
   FlatList,
   ActivityIndicator,
   RefreshControl,
   Platform,
   Image,
+  Linking,
+  ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,11 +18,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
 import { SmartTextInput } from '../components/SmartTextInput';
-
-import { MOBILE_API_URL } from '../config/api';
+import { supabase } from '../lib/supabase';
 
 const FILTERS = {
-  sources: ['TH', 'ET', 'PIB'],
+  sources: ['The Hindu', 'The Economic Times', 'Press Information Bureau'],
+  sourceShort: {
+    'The Hindu': 'TH',
+    'The Economic Times': 'ET',
+    'Press Information Bureau': 'PIB'
+  },
   subjects: [
     'All',
     'Polity',
@@ -35,6 +40,9 @@ const FILTERS = {
 };
 
 const SOURCE_LOGOS = {
+  'The Hindu': require('../../assets/logos/the_hindu.png'),
+  'The Economic Times': require('../../assets/logos/economic_times.png'),
+  'Press Information Bureau': require('../../assets/logos/pib.png'),
   'TH': require('../../assets/logos/the_hindu.png'),
   'ET': require('../../assets/logos/economic_times.png'),
   'PIB': require('../../assets/logos/pib.png'),
@@ -47,12 +55,9 @@ export default function ArticlesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
   const [selectedSource, setSelectedSource] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-
   const [selectedDate, setSelectedDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -68,35 +73,51 @@ export default function ArticlesScreen({ navigation }) {
     setSelectedDate(null);
   };
 
-  const fetchArticles = useCallback(async (pageNum = 1, refresh = false) => {
+  const fetchArticles = useCallback(async (refresh = false) => {
     try {
       if (refresh) {
         setRefreshing(true);
       } else {
         setLoading(true);
       }
-
-      let url = `${MOBILE_API_URL}/articles?page=${pageNum}&limit=20`;
-      if (selectedSource) {
-        url += `&source=${encodeURIComponent(selectedSource)}`;
-      }
-      if (selectedSubject !== 'All') {
-        url += `&subject=${encodeURIComponent(selectedSubject)}`;
-      }
-
-      console.log('Fetching articles URL:', url);
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (pageNum === 1) {
-        setArticles(data.articles || []);
-      } else {
-        setArticles(prev => [...prev, ...(data.articles || [])]);
-      }
-
-      setHasMore(pageNum < (data.pagination?.totalPages || 1));
       setError(null);
+
+      console.log('Fetching articles from Supabase...');
+
+      // Build query
+      let query = supabase
+        .from('articles')
+        .select('*')
+        .eq('is_published', true)
+        .order('published_date', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false });
+
+      // Apply filters
+      if (selectedSource) {
+        query = query.eq('gs_paper', selectedSource);
+      }
+      if (selectedSubject && selectedSubject !== 'All') {
+        query = query.eq('subject', selectedSubject);
+      }
+      if (selectedDate) {
+        // Filter by date  
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.gte('published_date', startOfDay.toISOString())
+          .lte('published_date', endOfDay.toISOString());
+      }
+
+      const { data, error: fetchError } = await query.limit(50);
+
+      if (fetchError) {
+        console.error('Supabase error:', fetchError);
+        throw fetchError;
+      }
+
+      console.log(`Fetched ${data?.length || 0} articles`);
+      setArticles(data || []);
     } catch (err) {
       setError('Failed to load articles. Please try again.');
       console.error('Fetch articles error:', err);
@@ -104,32 +125,24 @@ export default function ArticlesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedSource, selectedSubject]);
+  }, [selectedSource, selectedSubject, selectedDate]);
 
   useEffect(() => {
-    setPage(1);
-    fetchArticles(1);
-  }, [selectedSource, selectedSubject]);
+    fetchArticles();
+  }, [fetchArticles]);
 
   const handleRefresh = () => {
-    setPage(1);
-    fetchArticles(1, true);
+    fetchArticles(true);
   };
 
-  const handleLoadMore = () => {
-    if (!loading && hasMore) {
-      const nextPage = page + 1;
-      setPage(nextPage);
-      fetchArticles(nextPage);
-    }
-  };
-
+  // Filter by search query
   const filteredArticles = articles.filter(article => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
       article.title?.toLowerCase().includes(query) ||
-      article.summary?.toLowerCase().includes(query)
+      article.summary?.toLowerCase().includes(query) ||
+      article.subject?.toLowerCase().includes(query)
     );
   });
 
@@ -143,6 +156,13 @@ export default function ArticlesScreen({ navigation }) {
     });
   };
 
+  const getSourceShort = (source) => {
+    if (source === 'The Hindu') return 'TH';
+    if (source === 'The Economic Times') return 'ET';
+    if (source === 'Press Information Bureau') return 'PIB';
+    return source;
+  };
+
   const renderArticleCard = ({ item }) => (
     <TouchableOpacity
       style={[styles.articleCard, { backgroundColor: theme.colors.surface }]}
@@ -150,11 +170,12 @@ export default function ArticlesScreen({ navigation }) {
       onPress={() => navigation.navigate('ArticleDetail', { articleId: item.id })}
     >
       <View style={styles.articleContent}>
+        {/* Header badges */}
         <View style={styles.articleHeader}>
-          {item.gsPaper && (
+          {item.gs_paper && (
             <View style={[styles.paperBadge, { backgroundColor: theme.colors.primary + '20' }]}>
               <Text style={[styles.paperBadgeText, { color: theme.colors.primary }]}>
-                {item.gsPaper}
+                {getSourceShort(item.gs_paper)}
               </Text>
             </View>
           )}
@@ -167,16 +188,19 @@ export default function ArticlesScreen({ navigation }) {
           )}
         </View>
 
+        {/* Title */}
         <Text style={[styles.articleTitle, { color: theme.colors.text }]} numberOfLines={2}>
           {item.title}
         </Text>
 
+        {/* Summary */}
         {item.summary && (
           <Text style={[styles.articleSummary, { color: theme.colors.textSecondary }]} numberOfLines={3}>
             {item.summary}
           </Text>
         )}
 
+        {/* Footer */}
         <View style={styles.articleFooter}>
           {item.author && (
             <View style={styles.authorInfo}>
@@ -187,79 +211,83 @@ export default function ArticlesScreen({ navigation }) {
             </View>
           )}
           <Text style={[styles.dateText, { color: theme.colors.textSecondary }]}>
-            {formatDate(item.createdAt)}
+            {formatDate(item.published_date || item.created_at)}
           </Text>
         </View>
 
+        {/* Tags */}
         {item.tags && item.tags.length > 0 && (
           <View style={styles.tagsContainer}>
-            {item.tags.slice(0, 3).map((tag, index) => (
+            {(typeof item.tags === 'string' ? JSON.parse(item.tags) : item.tags).slice(0, 3).map((tag, index) => (
               <View key={index} style={[styles.tag, { backgroundColor: isDark ? '#3A3A3C' : '#F2F2F7' }]}>
                 <Text style={[styles.tagText, { color: theme.colors.textSecondary }]}>
                   {tag}
                 </Text>
               </View>
             ))}
-            {item.tags.length > 3 && (
-              <Text style={[styles.moreTagsText, { color: theme.colors.textSecondary }]}>
-                +{item.tags.length - 3}
-              </Text>
-            )}
           </View>
         )}
-      </View>
-
-      <View style={styles.articleArrow}>
-        <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
       </View>
     </TouchableOpacity>
   );
 
-  const renderEmpty = () => (
+  const renderSourceCard = (source) => {
+    const isSelected = selectedSource === source;
+    const logo = SOURCE_LOGOS[source];
+
+    return (
+      <TouchableOpacity
+        key={source}
+        style={[
+          styles.sourceCard,
+          { backgroundColor: theme.colors.surface },
+          isSelected && { borderColor: theme.colors.primary, borderWidth: 2 }
+        ]}
+        onPress={() => setSelectedSource(isSelected ? null : source)}
+      >
+        {logo && <Image source={logo} style={styles.sourceLogo} resizeMode="contain" />}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
       <Ionicons name="newspaper-outline" size={64} color={theme.colors.textSecondary} />
       <Text style={[styles.emptyTitle, { color: theme.colors.text }]}>No Articles Found</Text>
-      <Text style={[styles.emptySubtitle, { color: theme.colors.textSecondary }]}>
-        {error || 'Check back later for new content'}
+      <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
+        {error || 'Try adjusting your filters or check back later.'}
       </Text>
-      {error && (
-        <TouchableOpacity
-          style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
-          onPress={handleRefresh}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={[styles.retryButton, { backgroundColor: theme.colors.primary }]}
+        onPress={handleRefresh}
+      >
+        <Text style={styles.retryButtonText}>Retry</Text>
+      </TouchableOpacity>
     </View>
   );
-
-  const renderFooter = () => {
-    if (!hasMore || !loading) return null;
-    return (
-      <View style={styles.footerLoader}>
-        <ActivityIndicator size="small" color={theme.colors.primary} />
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Header */}
       <View style={[styles.header, { paddingHorizontal: horizontalPadding || 20 }]}>
-        <TouchableOpacity
-          style={[styles.backButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
         <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Articles</Text>
-        <View style={{ width: 44 }} />
+        <View style={{ width: 40 }} />
       </View>
 
-      {/* Search Bar */}
-      <View style={[styles.searchContainer, { paddingHorizontal: horizontalPadding || 20 }]}>
-        <View style={[styles.searchBar, { backgroundColor: theme.colors.surface }]}>
-          <Ionicons name="search-outline" size={20} color={theme.colors.textSecondary} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={{ paddingHorizontal: horizontalPadding || 20 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Search */}
+        <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface }]}>
+          <Ionicons name="search" size={20} color={theme.colors.textSecondary} />
           <SmartTextInput
             style={[styles.searchInput, { color: theme.colors.text }]}
             placeholder="Search articles..."
@@ -267,179 +295,94 @@ export default function ArticlesScreen({ navigation }) {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery.length > 0 && (
+          {searchQuery ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
               <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
-      </View>
 
-      {/* Source Buttons */}
-      <View style={[styles.sourceButtonsContainer, { paddingHorizontal: horizontalPadding || 20 }]}>
-        {FILTERS.sources.map((source) => (
-          <TouchableOpacity
-            key={source}
-            style={[
-              styles.sourceButtonItem,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: selectedSource === source ? theme.colors.primary : 'transparent',
-                borderWidth: selectedSource === source ? 2 : 0,
-              },
-            ]}
-            onPress={() => setSelectedSource(selectedSource === source ? null : source)}
-          >
-            <Image
-              source={SOURCE_LOGOS[source]}
-              style={[
-                styles.sourceLogo,
-                source === 'ET' && styles.sourceLogoET,
-                { opacity: selectedSource === source ? 1 : 0.6 }
-              ]}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        ))}
-      </View>
+        {/* Source Filters */}
+        <View style={styles.sourceFilters}>
+          {FILTERS.sources.map(source => renderSourceCard(source))}
+        </View>
 
-      {/* Date Filter - Dropdown Style */}
-      <View style={[styles.dateFilterContainer, { paddingHorizontal: horizontalPadding || 20 }]}>
+        {/* Date Filter */}
         <View style={styles.dateFilterRow}>
-          {Platform.OS === 'web' ? (
-            <View style={[styles.dateDropdownButton, { backgroundColor: theme.colors.surface, paddingVertical: 8 }]}>
-              <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} style={{ marginRight: 8 }} />
-              {React.createElement('input', {
-                type: 'date',
-                value: selectedDate || '',
-                onChange: (e) => {
-                  const dateStr = e.target.value;
-                  // e.target.value is YYYY-MM-DD
-                  if (dateStr) {
-                    setSelectedDate(dateStr);
-                  } else {
-                    setSelectedDate(null);
-                  }
-                },
-                style: {
-                  border: 'none',
-                  background: 'transparent',
-                  color: theme.colors.text,
-                  fontSize: 15,
-                  fontWeight: '500',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  flex: 1,
-                  appearance: 'none', // Remove default web appearance if possible
-                  minWidth: 120, // Ensure it has width
-                  height: '100%',
-                },
-                placeholder: 'Select Date'
-              })}
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={[styles.dateDropdownButton, { backgroundColor: theme.colors.surface }]}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={20} color={theme.colors.primary} />
-              <Text style={[styles.dateDropdownText, { color: theme.colors.text }]}>
-                {selectedDate ? formatDate(selectedDate) : 'Select Date'}
-              </Text>
-              <Ionicons name="chevron-down" size={16} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
-          )}
-
+          <TouchableOpacity
+            style={[styles.dateButton, { backgroundColor: theme.colors.surface }]}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
+            <Text style={[styles.dateButtonText, { color: theme.colors.text }]}>
+              {selectedDate || 'dd/mm/yyyy'}
+            </Text>
+          </TouchableOpacity>
           {selectedDate && (
-            <TouchableOpacity
-              onPress={clearDateFilter}
-              style={[styles.clearDateButton, { backgroundColor: theme.colors.surface }]}
-            >
-              <Ionicons name="close-circle" size={20} color={theme.colors.textSecondary} />
+            <TouchableOpacity style={styles.clearDateBtn} onPress={clearDateFilter}>
+              <Ionicons name="close-circle" size={20} color={theme.colors.error} />
             </TouchableOpacity>
           )}
         </View>
 
-        {Platform.OS !== 'web' && showDatePicker && (
+        {showDatePicker && (
           <DateTimePicker
-            testID="dateTimePicker"
             value={selectedDate ? new Date(selectedDate) : new Date()}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             onChange={handleDateChange}
-            maximumDate={new Date()} // Cannot select future dates
+            maximumDate={new Date()}
           />
         )}
-      </View>
 
-      {/* Subject Filters */}
-      <View style={styles.filtersContainer}>
+        {/* Subject Filters */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[styles.filterScroll, { paddingHorizontal: horizontalPadding || 20 }]}
+          style={styles.subjectFilters}
+          contentContainerStyle={styles.subjectFiltersContent}
         >
-          {FILTERS.subjects.map((subject) => (
+          {FILTERS.subjects.map(subject => (
             <TouchableOpacity
               key={subject}
               style={[
-                styles.filterChip,
-                styles.subjectFilterChip,
-                {
-                  backgroundColor: selectedSubject === subject
-                    ? (isDark ? '#4A4A52' : '#E5E5EA')
-                    : 'transparent',
-                  borderColor: isDark ? '#4A4A52' : '#E5E5EA',
-                },
+                styles.subjectChip,
+                { backgroundColor: selectedSubject === subject ? theme.colors.primary : theme.colors.surface },
               ]}
               onPress={() => setSelectedSubject(subject)}
             >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  { color: selectedSubject === subject ? theme.colors.text : theme.colors.textSecondary },
-                ]}
-              >
+              <Text style={[
+                styles.subjectChipText,
+                { color: selectedSubject === subject ? '#FFF' : theme.colors.text }
+              ]}>
                 {subject}
               </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
 
-      {/* Articles List */}
-      {loading && page === 1 ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={theme.colors.primary} />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-            Loading articles...
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={filteredArticles}
-          renderItem={renderArticleCard}
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={[
-            styles.listContainer,
-            { paddingHorizontal: horizontalPadding || 20 },
-            filteredArticles.length === 0 && styles.emptyList,
-          ]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              tintColor={theme.colors.primary}
-            />
-          }
-          onEndReached={handleLoadMore}
-          onEndReachedThreshold={0.5}
-          ListEmptyComponent={renderEmpty}
-          ListFooterComponent={renderFooter}
-        />
-      )}
+        {/* Articles List */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+              Loading articles...
+            </Text>
+          </View>
+        ) : filteredArticles.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <View style={styles.articlesList}>
+            {filteredArticles.map(article => (
+              <View key={article.id}>
+                {renderArticleCard({ item: article })}
+              </View>
+            ))}
+          </View>
+        )}
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -448,144 +391,105 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+  backBtn: {
+    padding: 8,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    letterSpacing: -0.4,
   },
   searchContainer: {
-    paddingVertical: 12,
-  },
-  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
+    marginBottom: 16,
     gap: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '400',
+    padding: 0,
   },
-  sourceButtonsContainer: {
+  sourceFilters: {
     flexDirection: 'row',
     gap: 12,
-    paddingVertical: 12,
+    marginBottom: 16,
   },
-  sourceButtonItem: {
+  sourceCard: {
     flex: 1,
     height: 60,
     borderRadius: 12,
-    alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
-    padding: 2,
+    alignItems: 'center',
+    padding: 8,
   },
   sourceLogo: {
-    width: '95%',
-    height: '90%',
-  },
-  sourceLogoET: {
-    width: '100%',
-    height: '100%',
-  },
-  filtersContainer: {
-    paddingVertical: 6,
-  },
-  filterScroll: {
-    gap: 8,
-  },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  subjectFilterChip: {
-    borderWidth: 1,
-  },
-  filterChipText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  dateFilterContainer: {
-    paddingVertical: 8,
+    width: '80%',
+    height: 40,
   },
   dateFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
+    marginBottom: 16,
   },
-  dateDropdownButton: {
+  dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    gap: 8,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 12,
-    gap: 10,
-    // flex: 1, // Removed to fix width
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderRadius: 10,
   },
-  dateDropdownText: {
-    // flex: 1, // Removed
-    fontSize: 15,
+  dateButtonText: {
+    fontSize: 14,
+  },
+  clearDateBtn: {
+    padding: 4,
+  },
+  subjectFilters: {
+    marginBottom: 16,
+  },
+  subjectFiltersContent: {
+    gap: 8,
+  },
+  subjectChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  subjectChipText: {
+    fontSize: 14,
     fontWeight: '500',
   },
-  clearDateButton: {
-    padding: 10,
-    borderRadius: 12,
+  loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    paddingVertical: 60,
   },
-  listContainer: {
-    paddingTop: 8,
-    paddingBottom: 24,
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
   },
-  emptyList: {
-    flex: 1,
+  articlesList: {
+    gap: 16,
   },
   articleCard: {
-    flexDirection: 'row',
     borderRadius: 16,
-    marginBottom: 12,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    marginBottom: 12,
   },
   articleContent: {
     flex: 1,
@@ -594,12 +498,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: 10,
   },
   paperBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   paperBadgeText: {
     fontSize: 12,
@@ -608,7 +512,7 @@ const styles = StyleSheet.create({
   subjectBadge: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   subjectBadgeText: {
     fontSize: 12,
@@ -616,22 +520,19 @@ const styles = StyleSheet.create({
   },
   articleTitle: {
     fontSize: 17,
-    fontWeight: '600',
-    lineHeight: 22,
-    marginBottom: 6,
-    letterSpacing: -0.3,
+    fontWeight: '700',
+    lineHeight: 24,
+    marginBottom: 8,
   },
   articleSummary: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 10,
-    letterSpacing: -0.2,
+    marginBottom: 12,
   },
   articleFooter: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
   },
   authorInfo: {
     flexDirection: 'row',
@@ -639,77 +540,50 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   authorText: {
-    fontSize: 13,
-    fontWeight: '400',
+    fontSize: 12,
   },
   dateText: {
-    fontSize: 13,
-    fontWeight: '400',
+    fontSize: 12,
   },
   tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    alignItems: 'center',
+    marginTop: 10,
   },
   tag: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
+    paddingVertical: 4,
+    borderRadius: 6,
   },
   tagText: {
     fontSize: 11,
-    fontWeight: '500',
-  },
-  moreTagsText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  articleArrow: {
-    justifyContent: 'center',
-    paddingLeft: 8,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-    fontWeight: '400',
   },
   emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 60,
-    gap: 12,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '600',
-    marginTop: 8,
+    marginTop: 16,
   },
-  emptySubtitle: {
-    fontSize: 15,
-    fontWeight: '400',
+  emptyText: {
+    fontSize: 14,
     textAlign: 'center',
+    marginTop: 8,
     paddingHorizontal: 40,
   },
   retryButton: {
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 16,
+    borderRadius: 12,
+    marginTop: 20,
   },
   retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#FFF',
+    fontSize: 14,
     fontWeight: '600',
-  },
-  footerLoader: {
-    paddingVertical: 20,
-    alignItems: 'center',
   },
 });
