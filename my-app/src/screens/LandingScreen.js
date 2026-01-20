@@ -286,7 +286,7 @@ export default function LandingScreen({ navigation }) {
                                 price="399"
                                 period="month"
                                 features={[
-                                    '50 AI Credits / month',
+                                    '200 AI Credits / month',
                                     'AI MCQ Generator',
                                     'PDF to MCQ Converter',
                                     'Access to News Articles',
@@ -302,7 +302,7 @@ export default function LandingScreen({ navigation }) {
                                 price="599"
                                 period="month"
                                 features={[
-                                    '150 AI Credits / month',
+                                    '400 AI Credits / month',
                                     'Everything in Starter',
                                     'AI Mains Answer Evaluator',
                                     'AI Mind Map Generator',
