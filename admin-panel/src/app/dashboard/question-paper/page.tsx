@@ -25,7 +25,7 @@ export default function QuestionSetsPage() {
 
     const fetchSets = async () => {
         try {
-            const res = await fetch('/admin/api/question-sets');
+            const res = await fetch('/api/question-sets');
             const data = await res.json();
             if (Array.isArray(data)) {
                 setSets(data);
@@ -41,7 +41,7 @@ export default function QuestionSetsPage() {
         e.preventDefault();
         setCreating(true);
         try {
-            const res = await fetch('/admin/api/question-sets', {
+            const res = await fetch('/api/question-sets', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newSet)

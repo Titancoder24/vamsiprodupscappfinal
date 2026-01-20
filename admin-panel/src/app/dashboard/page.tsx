@@ -33,10 +33,10 @@ export default function DashboardPage() {
         console.log('Fetching dashboard data with token:', token ? 'Token present' : 'No token');
         try {
             const [statsRes, activityRes] = await Promise.all([
-                fetch('/admin/api/dashboard/stats', {
+                fetch('/api/dashboard/stats', {
                     headers: { Authorization: `Bearer ${token}` },
                 }),
-                fetch('/admin/api/dashboard/activity?limit=10', {
+                fetch('/api/dashboard/activity?limit=10', {
                     headers: { Authorization: `Bearer ${token}` },
                 }),
             ]);

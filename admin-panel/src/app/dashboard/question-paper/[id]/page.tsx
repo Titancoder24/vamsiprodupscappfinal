@@ -23,7 +23,7 @@ export default function QuestionPaperPage({ params }: { params: { id: string } }
         setStatus(null);
 
         try {
-            const response = await fetch('/admin/api/questions', {
+            const response = await fetch('/api/questions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

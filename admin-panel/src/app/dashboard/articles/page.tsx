@@ -86,7 +86,7 @@ export default function ArticlesPage() {
                 subject: subjectFilter,
                 status: statusFilter,
             });
-            const res = await fetch(`/admin/api/articles?${params}`, {
+            const res = await fetch(`/api/articles?${params}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -109,7 +109,7 @@ export default function ArticlesPage() {
         console.log('Scraping article with token:', token ? 'Token present' : 'No token');
 
         try {
-            const res = await fetch('/admin/api/articles/scrape', {
+            const res = await fetch('/api/articles/scrape', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -157,7 +157,7 @@ export default function ArticlesPage() {
                 tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
             };
 
-            const url = editingArticle ? `/admin/api/articles/${editingArticle.id}` : '/admin/api/articles';
+            const url = editingArticle ? `/api/articles/${editingArticle.id}` : '/api/articles';
             const method = editingArticle ? 'PUT' : 'POST';
 
             const res = await fetch(url, {
@@ -185,7 +185,7 @@ export default function ArticlesPage() {
         const token = localStorage.getItem('sb-access-token');
 
         try {
-            await fetch(`/admin/api/articles/${id}`, {
+            await fetch(`/api/articles/${id}`, {
                 method: 'DELETE',
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -198,7 +198,7 @@ export default function ArticlesPage() {
     const handleTogglePublish = async (id: number) => {
         const token = localStorage.getItem('sb-access-token');
         try {
-            const res = await fetch(`/admin/api/articles/${id}/toggle-publish`, {
+            const res = await fetch(`/api/articles/${id}/toggle-publish`, {
                 method: 'PATCH',
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -218,7 +218,7 @@ export default function ArticlesPage() {
     const openEdit = async (article: Article) => {
         const token = localStorage.getItem('sb-access-token');
         try {
-            const res = await fetch(`/admin/api/articles/${article.id}`, {
+            const res = await fetch(`/api/articles/${article.id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -249,7 +249,7 @@ export default function ArticlesPage() {
         setViewMode('preview');
         const token = localStorage.getItem('sb-access-token');
         try {
-            const res = await fetch(`/admin/api/articles/${articleId}`, {
+            const res = await fetch(`/api/articles/${articleId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             if (res.ok) {
@@ -269,7 +269,7 @@ export default function ArticlesPage() {
         setGeneratingMCQs(true);
         const token = localStorage.getItem('sb-access-token');
         try {
-            const res = await fetch(`/admin/api/articles/${articleId}/mcqs/generate`, {
+            const res = await fetch(`/api/articles/${articleId}/mcqs/generate`, {
                 method: 'POST',
                 headers: { Authorization: `Bearer ${token}` },
             });
