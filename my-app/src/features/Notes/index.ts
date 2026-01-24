@@ -3,6 +3,7 @@ export { UPSCNotesScreen } from './screens/UPSCNotesScreen';
 export { WebClipperScreen } from './screens/WebClipperScreen';
 export { CreateNoteScreen } from './screens/CreateNoteScreen';
 export { NoteDetailScreen } from './screens/NoteDetailScreen';
+export { AINotesMakerScreen } from './screens/AINotesMakerScreen';
 
 // Legacy Screens (keeping for backward compatibility)
 export { NoteEditorScreen } from './screens/NoteEditorScreen';
@@ -26,6 +27,21 @@ export * from './services/notesApi';
 export * from './services/localNotesStorage';
 export * from './services/webScraper';
 export * from './services/aiSummarizer';
+
+// AI Notes Service (named exports to avoid conflicts)
+export {
+    generateAISummary,
+    getAllSummaries,
+    getSummaryById,
+    deleteSummary,
+    exportSummaryAsText,
+    getNotesByMultipleTags,
+    extractHashtags,
+    findRelatedNotesByHashtags,
+    groupNotesBySource,
+    getTagBasedAlerts,
+} from './services/aiNotesService';
+export type { AISummary, SummaryRequest } from './services/aiNotesService';
 
 // Types
 export * from './types';

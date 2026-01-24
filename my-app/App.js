@@ -59,6 +59,7 @@ import {
   WebClipperScreen,
   CreateNoteScreen,
   NoteDetailScreen,
+  AINotesMakerScreen,
 } from './src/features/Notes';
 
 // PDF MCQ Screens
@@ -143,6 +144,7 @@ const MainNavigator = () => (
     <Stack.Screen name="NoteDetailScreen" component={NoteDetailScreen} />
     <Stack.Screen name="NoteEditor" component={NoteEditorScreen} />
     <Stack.Screen name="NotePreview" component={NotePreviewScreen} />
+    <Stack.Screen name="AINotesMaker" component={AINotesMakerScreen} />
     {/* PDF MCQ Generator */}
     <Stack.Screen name="PDFMCQGenerator" component={PDFGeneratorScreen} />
     <Stack.Screen name="PDFMCQList" component={PDFMCQListScreen} />
@@ -200,6 +202,7 @@ const linking = {
           WebClipperScreen: 'clip',
           CreateNoteScreen: 'create-note',
           NoteDetailScreen: 'note/:noteId',
+          AINotesMaker: 'ai-notes-maker',
           Roadmap: 'roadmap',
           QuestionSetList: 'questions',
           Essay: 'essay',
