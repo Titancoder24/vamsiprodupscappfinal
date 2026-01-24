@@ -293,22 +293,40 @@ export default function LandingScreen({ navigation }) {
               <View style={styles.heroContent}>
                 <View style={styles.heroBadge}>
                   <View style={styles.heroBadgeDot} />
-                  <Text style={styles.heroBadgeText}>NEW: Mains AI Evaluator 2.0</Text>
+                  <Text style={styles.heroBadgeText}>🚀 AI-Powered UPSC Preparation</Text>
                 </View>
 
                 <Text style={styles.heroTitle}>
-                  Crack UPSC{'\n'}
-                  <Text style={styles.heroTitleGradient}>Like a Machine.</Text>
+                  Crack UPSC Smarter{'\n'}
+                  <Text style={styles.heroTitleGradient}>With AI Powered Learning</Text>
                 </Text>
 
                 <Text style={styles.heroSubtitle}>
-                  The only AI-powered operating system for serious aspirants.
+                  Personalized practice, writing evaluations, and daily updates built for serious learners.
                 </Text>
+
+                <View style={styles.heroFeatures}>
+                  <View style={styles.heroFeatureItem}>
+                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                    <Text style={styles.heroFeatureText}>AI MCQ Generator</Text>
+                  </View>
+                  <View style={styles.heroFeatureItem}>
+                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                    <Text style={styles.heroFeatureText}>Mains Answer Evaluator</Text>
+                  </View>
+                  <View style={styles.heroFeatureItem}>
+                    <Ionicons name="checkmark-circle" size={18} color="#10B981" />
+                    <Text style={styles.heroFeatureText}>Daily Current Affairs</Text>
+                  </View>
+                </View>
 
                 <View style={styles.heroButtons}>
                   <TouchableOpacity style={styles.primaryButton} onPress={handleGetStarted}>
                     <Text style={styles.primaryButtonText}>Start Learning Free</Text>
                     <Ionicons name="arrow-forward" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.secondaryButton} onPress={() => navigation.navigate('Pricing')}>
+                    <Text style={styles.secondaryButtonText}>View Pricing</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -504,15 +522,20 @@ const styles = StyleSheet.create({
   heroSection: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40, maxWidth: 1100, alignSelf: 'center', width: '100%', position: 'relative' },
   heroRow: { flexDirection: isWeb && width > 768 ? 'row' : 'column', alignItems: 'center', gap: 30, zIndex: 10 },
   heroContent: { flex: 1, maxWidth: 460 },
-  heroBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 50, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#BFDBFE', marginBottom: 16 },
-  heroBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#2563EB', marginRight: 6 },
-  heroBadgeText: { fontSize: 9, fontWeight: '700', color: '#1D4ED8', textTransform: 'uppercase' },
-  heroTitle: { fontSize: isWeb ? 44 : 34, fontWeight: '800', color: '#0F172A', lineHeight: isWeb ? 52 : 42, letterSpacing: -1.5, marginBottom: 12 },
-  heroTitleGradient: { color: '#2563EB' },
-  heroSubtitle: { fontSize: 14, color: '#64748B', lineHeight: 22, marginBottom: 20 },
-  heroButtons: { flexDirection: 'row', marginBottom: 24 },
-  primaryButton: { backgroundColor: '#0F172A', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 50 },
-  primaryButtonText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
+  heroBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 50, alignSelf: 'flex-start', borderWidth: 1, borderColor: '#BFDBFE', marginBottom: 20 },
+  heroBadgeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#10B981', marginRight: 8 },
+  heroBadgeText: { fontSize: 11, fontWeight: '600', color: '#1D4ED8' },
+  heroTitle: { fontSize: isWeb ? 52 : 36, fontWeight: '800', color: '#0F172A', lineHeight: isWeb ? 60 : 44, letterSpacing: -2, marginBottom: 16 },
+  heroTitleGradient: { color: '#3B82F6' },
+  heroSubtitle: { fontSize: 16, color: '#64748B', lineHeight: 26, marginBottom: 24, maxWidth: 480 },
+  heroFeatures: { flexDirection: isWeb ? 'row' : 'column', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
+  heroFeatureItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroFeatureText: { fontSize: 14, fontWeight: '600', color: '#334155' },
+  heroButtons: { flexDirection: 'row', gap: 12, marginBottom: 28 },
+  primaryButton: { backgroundColor: '#3B82F6', flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12 },
+  primaryButtonText: { color: '#FFF', fontSize: 15, fontWeight: '700' },
+  secondaryButton: { backgroundColor: '#F1F5F9', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  secondaryButtonText: { fontSize: 15, fontWeight: '600', color: '#0F172A' },
   socialProof: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   avatarStack: { flexDirection: 'row' },
   starsRow: { flexDirection: 'row', gap: 1, marginBottom: 2 },
