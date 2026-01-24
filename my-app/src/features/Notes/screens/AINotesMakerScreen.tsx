@@ -187,17 +187,32 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
 
     const handleScrapeArticle = async () => {
-        if (!articleUrl.trim()) {
-            Alert.alert('Error', 'Please enter a valid URL');
+        const url = articleUrl.trim();
+
+        if (!url) {
+            Alert.alert('Missing URL', 'Please paste a website URL to scrape.');
+            return;
+        }
+
+        // Basic URL validation
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
             return;
         }
 
         setScraping(true);
         try {
-            const article = await smartScrape(articleUrl);
+            console.log('[AINotes] Starting scrape for:', url);
+            const article = await smartScrape(url);
 
+            // Check for errors
             if (article.error) {
                 throw new Error(article.error);
+            }
+
+            // Validate content was extracted
+            if (!article.content || article.content.length < 50) {
+                throw new Error('Could not extract meaningful content from this page. Try a different article.');
             }
 
             // Get selected tags to associate
@@ -206,23 +221,39 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             // Convert blocks
             const blocks = contentBlocksToNoteBlocks(article.contentBlocks);
 
-            await createNote({
+            // Create note
+            const savedNote = await createNote({
                 notebookId: currentNotebook ? currentNotebook.id : undefined,
-                title: article.title,
+                title: article.title || 'Scraped Article',
                 content: article.content,
                 blocks: blocks,
                 sourceType: 'scraped',
-                sourceUrl: article.url,
+                sourceUrl: url,
                 tags: tagsToUse
             });
 
-            Alert.alert('Success', 'Article saved successfully! It will be used in your summary.');
+            console.log('[AINotes] Article saved:', savedNote?.id);
+
+            Alert.alert(
+                '✓ Article Saved!',
+                `"${article.title}" has been added to your sources.\n\nContent: ${article.content.length} characters extracted.`
+            );
+
             setArticleUrl('');
             setShowAddLink(false);
-            loadData(); // Refresh notes list
+            await loadData(); // Refresh notes list
+
         } catch (error: any) {
-            console.error('Scraping error:', error);
-            Alert.alert('Error', error.message || 'Failed to scrape article');
+            console.error('[AINotes] Scraping error:', error);
+
+            let errorMsg = error.message || 'Failed to scrape article';
+
+            // Provide helpful suggestions
+            if (errorMsg.includes('proxy') || errorMsg.includes('blocked')) {
+                errorMsg += '\n\nTip: Some websites block automated access. Try copying the text manually instead.';
+            }
+
+            Alert.alert('Scraping Failed', errorMsg);
         } finally {
             setScraping(false);
         }
@@ -1517,59 +1548,6 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    sourcesSection: {
-        marginBottom: 24,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    sectionTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748B',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    sourcesScroll: {
-        marginBottom: 16,
-    },
-    sourceCard: {
-        width: 140,
-        height: 80,
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        borderRadius: 12,
-        padding: 12,
-        marginRight: 12,
-        justifyContent: 'space-between',
-    },
-    sourceCardTitle: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: '#334155',
-        marginTop: 8,
-    },
-    editorContainer: {
-        backgroundColor: '#FFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        padding: 16,
-        minHeight: 300,
-        marginBottom: 24,
-    },
-    editorInput: {
-        fontSize: 16,
-        color: '#0F172A',
-        lineHeight: 24,
-        marginTop: 12,
-        minHeight: 250,
-        textAlignVertical: 'top',
     },
     summaryHeader: {
         flexDirection: 'row',
