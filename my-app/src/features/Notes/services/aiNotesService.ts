@@ -11,12 +11,23 @@ const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
 // Storage keys
 const STORAGE_KEYS = {
     SUMMARIES: '@upsc_ai_summaries',
+    NOTEBOOKS: '@upsc_ai_notebooks',
     SUMMARY_COUNTER: '@upsc_summary_counter',
 };
 
 // Types
+export interface AINotebook {
+    id: string;
+    title: string;
+    description?: string;
+    createdAt: string;
+    updatedAt: string;
+    noteCount: number;
+}
+
 export interface AISummary {
     id: number;
+    notebookId?: string; // Optional link to a specific notebook
     title: string;
     summary: string;
     sources: {
@@ -32,6 +43,7 @@ export interface AISummary {
 }
 
 export interface SummaryRequest {
+    notebookId?: string;
     tagIds: number[];
     includeCurrentAffairs: boolean;
     includeSavedArticles: boolean;
@@ -44,6 +56,52 @@ const generateId = async (): Promise<number> => {
     const next = (parseInt(current || '0') || 0) + 1;
     await AsyncStorage.setItem(STORAGE_KEYS.SUMMARY_COUNTER, String(next));
     return next;
+};
+
+/**
+ * Create a new AI Notebook (Project)
+ */
+export const createNotebook = async (title: string, description?: string): Promise<AINotebook> => {
+    try {
+        const id = Math.random().toString(36).substr(2, 9);
+        const newNotebook: AINotebook = {
+            id,
+            title,
+            description,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            noteCount: 0
+        };
+
+        const notebooks = await getAllNotebooks();
+        notebooks.unshift(newNotebook);
+        await AsyncStorage.setItem(STORAGE_KEYS.NOTEBOOKS, JSON.stringify(notebooks));
+        return newNotebook;
+    } catch (error) {
+        console.error('Error creating notebook:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get all AI Notebooks
+ */
+export const getAllNotebooks = async (): Promise<AINotebook[]> => {
+    try {
+        const data = await AsyncStorage.getItem(STORAGE_KEYS.NOTEBOOKS);
+        return data ? JSON.parse(data) : [];
+    } catch (error) {
+        return [];
+    }
+};
+
+/**
+ * Delete a notebook
+ */
+export const deleteNotebook = async (id: string): Promise<void> => {
+    const notebooks = await getAllNotebooks();
+    const filtered = notebooks.filter(n => n.id !== id);
+    await AsyncStorage.setItem(STORAGE_KEYS.NOTEBOOKS, JSON.stringify(filtered));
 };
 
 /**
@@ -255,6 +313,7 @@ Generate a well-structured summary that:
         const summaryId = await generateId();
         const summary: AISummary = {
             id: summaryId,
+            notebookId: request.notebookId,
             title: `${tagNames} - Summary`,
             summary: summaryContent,
             sources: filteredNotes.map(n => ({
@@ -481,4 +540,7 @@ export default {
     findRelatedNotesByHashtags,
     groupNotesBySource,
     getTagBasedAlerts,
+    createNotebook,
+    getAllNotebooks,
+    deleteNotebook,
 };

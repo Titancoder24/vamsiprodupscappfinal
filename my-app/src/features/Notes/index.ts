@@ -41,8 +41,11 @@ export {
     findRelatedNotesByHashtags,
     groupNotesBySource,
     getTagBasedAlerts,
+    createNotebook,
+    getAllNotebooks,
+    deleteNotebook,
 } from './services/aiNotesService';
-export type { AISummary, SummaryRequest } from './services/aiNotesService';
+export type { AISummary, SummaryRequest, AINotebook } from './services/aiNotesService';
 
 // Types
 export * from './types';

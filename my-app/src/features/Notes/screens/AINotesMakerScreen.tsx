@@ -33,8 +33,12 @@ import {
     deleteSummary,
     exportSummaryAsText,
     getTagBasedAlerts,
+    createNotebook,
+    getAllNotebooks,
+    deleteNotebook,
     AISummary,
     SummaryRequest,
+    AINotebook,
 } from '../services/aiNotesService';
 
 const { width } = Dimensions.get('window');
@@ -50,6 +54,13 @@ const SOURCE_LABELS: Record<string, { label: string; color: string; icon: string
 };
 
 export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+    // View Mode State
+    const [viewMode, setViewMode] = useState<'list' | 'detail'>('list');
+    const [currentNotebook, setCurrentNotebook] = useState<AINotebook | null>(null);
+    const [notebooks, setNotebooks] = useState<AINotebook[]>([]);
+    const [newNotebookTitle, setNewNotebookTitle] = useState('');
+    const [showCreateNotebook, setShowCreateNotebook] = useState(false);
+
     const [tags, setTags] = useState<LocalTag[]>([]);
     const [notes, setNotes] = useState<LocalNote[]>([]);
     const [summaries, setSummaries] = useState<AISummary[]>([]);
@@ -73,26 +84,67 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     useFocusEffect(
         useCallback(() => {
             loadData();
-        }, [])
+        }, [currentNotebook])
     );
 
     const loadData = async () => {
         setLoading(true);
         try {
-            const [allTags, allNotes, allSummaries, tagAlerts] = await Promise.all([
+            const [allTags, allNotes, allSummaries, tagAlerts, allNotebooks] = await Promise.all([
                 getAllTags(),
                 getAllNotes(),
                 getAllSummaries(),
                 getTagBasedAlerts(),
+                getAllNotebooks(),
             ]);
             setTags(allTags);
             setNotes(allNotes);
-            setSummaries(allSummaries);
+
+            if (currentNotebook) {
+                setSummaries(allSummaries.filter(s => s.notebookId === currentNotebook.id));
+            } else {
+                // If in list view, maybe we don't show any summaries, or show all? 
+                // Let's show all for now or maybe filter out those belonging to notebooks?
+                // For "Mind Map" style, typically we only see folders first.
+                // But for backward compatibility let's show all
+                setSummaries(allSummaries);
+            }
+
             setAlerts(tagAlerts);
+            setNotebooks(allNotebooks);
         } catch (error) {
             console.error('[AINotesMaker] Load error:', error);
         }
         setLoading(false);
+    };
+
+    const handleCreateNotebook = async () => {
+        if (!newNotebookTitle.trim()) return;
+        try {
+            const nb = await createNotebook(newNotebookTitle.trim());
+            setNotebooks([nb, ...notebooks]);
+            setNewNotebookTitle('');
+            setShowCreateNotebook(false);
+            // Auto enter
+            setCurrentNotebook(nb);
+            setViewMode('detail');
+        } catch (error) {
+            Alert.alert('Error', 'Failed to create notebook');
+        }
+    };
+
+    const deleteNotebookHandler = async (id: string) => {
+        Alert.alert('Delete Notebook', 'Are you sure? This will hide linked summaries.', [
+            { text: 'Cancel', style: 'cancel' },
+            {
+                text: 'Delete',
+                style: 'destructive',
+                onPress: async () => {
+                    await deleteNotebook(id);
+                    setNotebooks(prev => prev.filter(n => n.id !== id));
+                }
+            }
+        ]);
     };
 
     const toggleTag = (tagId: number) => {
@@ -289,15 +341,105 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const topicTags = tags.filter(t => t.category === 'topic');
     const sourceTags = tags.filter(t => t.category === 'source');
 
-    return (
+    const renderNotebookList = () => (
         <SafeAreaView style={styles.container}>
-            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                     <Ionicons name="chevron-back" size={24} color="#0F172A" />
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
-                    <Text style={styles.pageTitle}>AI Notes Maker</Text>
+                    <Text style={styles.pageTitle}>AI Notebooks</Text>
+                    <Text style={styles.pageSubtitle}>Organize your AI summaries</Text>
+                </View>
+                <TouchableOpacity
+                    style={styles.refreshBtn}
+                    onPress={() => setShowCreateNotebook(true)}
+                >
+                    <Ionicons name="add" size={24} color="#3B82F6" />
+                </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.content}>
+                {/* Create Notebook Input */}
+                {showCreateNotebook && (
+                    <View style={styles.createNotebookContainer}>
+                        <TextInput
+                            style={styles.createNotebookInput}
+                            placeholder="Notebook Title (e.g. Medieval History)"
+                            value={newNotebookTitle}
+                            onChangeText={setNewNotebookTitle}
+                            autoFocus
+                        />
+                        <View style={styles.createActions}>
+                            <TouchableOpacity onPress={() => setShowCreateNotebook(false)}>
+                                <Text style={styles.cancelCreateText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={handleCreateNotebook}>
+                                <Text style={styles.confirmCreateText}>Create</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
+
+                <View style={styles.notebookGrid}>
+                    {notebooks.map(nb => (
+                        <TouchableOpacity
+                            key={nb.id}
+                            style={styles.notebookCard}
+                            onPress={() => {
+                                setCurrentNotebook(nb);
+                                setViewMode('detail');
+                            }}
+                        >
+                            <View style={styles.notebookIcon}>
+                                <Ionicons name="folder-open" size={32} color="#3B82F6" />
+                            </View>
+                            <Text style={styles.notebookTitle}>{nb.title}</Text>
+                            <Text style={styles.notebookMeta}>
+                                {new Date(nb.createdAt).toLocaleDateString()}
+                            </Text>
+                            <TouchableOpacity
+                                style={styles.deleteNotebookBtn}
+                                onPress={() => deleteNotebookHandler(nb.id)}
+                            >
+                                <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                            </TouchableOpacity>
+                        </TouchableOpacity>
+                    ))}
+                    {notebooks.length === 0 && !showCreateNotebook && (
+                        <View style={styles.emptyState}>
+                            <Ionicons name="albums-outline" size={48} color="#CBD5E1" />
+                            <Text style={styles.emptyStateText}>No notebooks yet</Text>
+                            <Text style={styles.emptyStateSubtext}>Create one to start generating AI notes</Text>
+                            <TouchableOpacity
+                                style={styles.createFirstBtn}
+                                onPress={() => setShowCreateNotebook(true)}
+                            >
+                                <Text style={styles.createFirstBtnText}>Create Notebook</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
+
+    if (viewMode === 'list') {
+        return renderNotebookList();
+    }
+
+    return (
+        <SafeAreaView style={styles.container}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => {
+                    setViewMode('list');
+                    setCurrentNotebook(null);
+                }} style={styles.backBtn}>
+                    <Ionicons name="chevron-back" size={24} color="#0F172A" />
+                </TouchableOpacity>
+                <View style={styles.headerCenter}>
+                    <Text style={styles.pageTitle}>{currentNotebook?.title || 'AI Notes'}</Text>
                     <Text style={styles.pageSubtitle}>Summarize notes by topic tags</Text>
                 </View>
                 <TouchableOpacity onPress={loadData} style={styles.refreshBtn}>
@@ -1276,6 +1418,124 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 14,
         fontWeight: '600',
+    },
+    content: {
+        flex: 1,
+        padding: 16,
+    },
+    emptyState: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 48,
+        width: '100%',
+    },
+    emptyStateText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#64748B',
+        marginTop: 16,
+    },
+    emptyStateSubtext: {
+        fontSize: 14,
+        color: '#94A3B8',
+        marginTop: 8,
+    },
+    createNotebookContainer: {
+        padding: 16,
+        backgroundColor: '#F8FAFC',
+        marginBottom: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    createNotebookInput: {
+        height: 48,
+        backgroundColor: '#FFF',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        marginBottom: 12,
+    },
+    createActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 16,
+    },
+    cancelCreateText: {
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    confirmCreateText: {
+        color: '#3B82F6',
+        fontWeight: '600',
+    },
+    notebookGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 16,
+        padding: 8,
+    },
+    notebookCard: {
+        width: (width - 64) / 2,
+        backgroundColor: '#FFF',
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
+        position: 'relative',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
+        marginBottom: 8,
+    },
+    notebookIcon: {
+        width: 64,
+        height: 64,
+        backgroundColor: '#EFF6FF',
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+    notebookTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#0F172A',
+        textAlign: 'center',
+        marginBottom: 4,
+    },
+    notebookMeta: {
+        fontSize: 12,
+        color: '#64748B',
+    },
+    deleteNotebookBtn: {
+        position: 'absolute',
+        top: 8,
+        right: 8,
+        padding: 8,
+    },
+    createFirstBtn: {
+        marginTop: 16,
+        backgroundColor: '#3B82F6',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+    },
+    createFirstBtnText: {
+        color: '#FFF',
+        fontWeight: '600',
+    },
+    addNotebookBtn: {
+        width: 40,
+        height: 40,
+        backgroundColor: '#3B82F6',
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     createTagSection: {
         flexDirection: 'row',
