@@ -12,6 +12,7 @@ import { WebLayout } from './src/components/WebContainer';
 // Auth Screens
 import LandingScreen from './src/screens/LandingScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import PricingScreen from './src/screens/PricingScreen';
 
 // Main App Screens
 import HomeScreen from './src/screens/HomeScreen';
@@ -90,6 +91,7 @@ const AuthNavigator = () => {
     >
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Pricing" component={PricingScreen} />
     </Stack.Navigator>
   );
 };
@@ -213,6 +215,7 @@ const linking = {
         screens: {
           Landing: 'upsc',
           Login: 'login',
+          Pricing: 'pricing',
         },
       },
     },
