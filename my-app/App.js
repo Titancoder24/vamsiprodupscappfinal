@@ -211,7 +211,7 @@ const linking = {
       },
       Auth: {
         screens: {
-          Welcome: 'welcome',
+          Landing: 'upsc',
           Login: 'login',
         },
       },

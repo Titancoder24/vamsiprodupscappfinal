@@ -286,6 +286,102 @@ export const NoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </TouchableOpacity>
             </View>
 
+            {/* Tag Filters - Show user-created tags */}
+            {tags.length > 0 && (
+                <View style={styles.tagFilterSection}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.tagFilterScroll}
+                    >
+                        {/* All button */}
+                        <TouchableOpacity
+                            style={[
+                                styles.tagFilterPill,
+                                selectedTagIds.length === 0 && styles.tagFilterPillActive,
+                            ]}
+                            onPress={() => setSelectedTagIds([])}
+                        >
+                            <Text style={[
+                                styles.tagFilterText,
+                                selectedTagIds.length === 0 && styles.tagFilterTextActive,
+                            ]}>
+                                All
+                            </Text>
+                        </TouchableOpacity>
+
+                        {/* Custom tags first */}
+                        {tags.filter(t => t.category === 'custom').map(tag => {
+                            const isSelected = selectedTagIds.includes(tag.id);
+                            return (
+                                <TouchableOpacity
+                                    key={tag.id}
+                                    style={[
+                                        styles.tagFilterPill,
+                                        isSelected && { backgroundColor: tag.color, borderColor: tag.color },
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedTagIds(ids =>
+                                            ids.includes(tag.id)
+                                                ? ids.filter(id => id !== tag.id)
+                                                : [...ids, tag.id]
+                                        );
+                                    }}
+                                >
+                                    <View style={[styles.tagFilterDot, { backgroundColor: isSelected ? '#fff' : tag.color }]} />
+                                    <Text style={[styles.tagFilterText, isSelected && { color: '#fff' }]}>
+                                        {tag.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+
+                        {/* Separator if there are both custom and default tags */}
+                        {tags.filter(t => t.category === 'custom').length > 0 &&
+                            tags.filter(t => t.category !== 'custom').length > 0 && (
+                                <View style={styles.tagFilterSeparator} />
+                            )}
+
+                        {/* Default/built-in tags */}
+                        {tags.filter(t => t.category !== 'custom').slice(0, 5).map(tag => {
+                            const isSelected = selectedTagIds.includes(tag.id);
+                            return (
+                                <TouchableOpacity
+                                    key={tag.id}
+                                    style={[
+                                        styles.tagFilterPill,
+                                        isSelected && { backgroundColor: tag.color, borderColor: tag.color },
+                                    ]}
+                                    onPress={() => {
+                                        setSelectedTagIds(ids =>
+                                            ids.includes(tag.id)
+                                                ? ids.filter(id => id !== tag.id)
+                                                : [...ids, tag.id]
+                                        );
+                                    }}
+                                >
+                                    <View style={[styles.tagFilterDot, { backgroundColor: isSelected ? '#fff' : tag.color }]} />
+                                    <Text style={[styles.tagFilterText, isSelected && { color: '#fff' }]}>
+                                        {tag.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+
+                    {/* Clear filters */}
+                    {selectedTagIds.length > 0 && (
+                        <TouchableOpacity
+                            style={styles.clearFiltersBtn}
+                            onPress={() => setSelectedTagIds([])}
+                        >
+                            <Ionicons name="close-circle" size={16} color="#6366F1" />
+                            <Text style={styles.clearFiltersText}>Clear</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            )}
+
             {/* Notes */}
             {loading ? (
                 <View style={styles.loadingState}>
@@ -541,6 +637,71 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#fff',
     },
+    tagFilterSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#fff',
+        borderBottomWidth: 1,
+        borderBottomColor: '#F3F4F6',
+    },
+    tagFilterScroll: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingRight: 60,
+        gap: 8,
+    },
+    tagFilterPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 14,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
+        borderWidth: 1.5,
+        borderColor: '#E5E7EB',
+        gap: 6,
+    },
+    tagFilterPillActive: {
+        backgroundColor: '#111827',
+        borderColor: '#111827',
+    },
+    tagFilterDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    tagFilterText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#374151',
+    },
+    tagFilterTextActive: {
+        color: '#fff',
+    },
+    tagFilterSeparator: {
+        width: 1,
+        height: 20,
+        backgroundColor: '#E5E7EB',
+        marginHorizontal: 4,
+    },
+    clearFiltersBtn: {
+        position: 'absolute',
+        right: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 14,
+        gap: 4,
+    },
+    clearFiltersText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#6366F1',
+    },
     loadingState: {
         flex: 1,
         alignItems: 'center',
@@ -616,7 +777,7 @@ const styles = StyleSheet.create({
         marginHorizontal: -6,
     },
     noteCard: {
-        width: isWeb ? 'calc(33.33% - 12px)' : 'calc(50% - 12px)',
+        width: isWeb ? '31%' : '48%',
         margin: 6,
         borderRadius: 20,
         padding: 16,
