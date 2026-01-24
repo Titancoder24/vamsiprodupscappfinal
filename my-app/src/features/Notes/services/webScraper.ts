@@ -104,6 +104,19 @@ function parseHtmlToBlocks(html: string): Array<{ type: string; content: string;
 
 // Extract main content from HTML
 function extractMainContent(html: string): string {
+    // 1. Prioritize specific content containers
+    const contentClasses = ['entry-content', 'article-content', 'post-content', 'main-content', 'post_content'];
+    for (const cls of contentClasses) {
+        // Find div with this class
+        const regex = new RegExp(`<div[^>]*class=["'][^"']*\\b${cls}\\b[^"']*["'][^>]*>`, 'i');
+        const match = html.match(regex);
+        if (match && match.index !== undefined) {
+            // Return substring from this div onwards (Regex parsing below will find paragraphs inside)
+            // This avoids sidebars/headers that usually come BEFORE the content.
+            return html.substring(match.index);
+        }
+    }
+
     let content = html;
 
     const removePatterns = [

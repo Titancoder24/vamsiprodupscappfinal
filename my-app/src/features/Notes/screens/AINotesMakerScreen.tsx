@@ -67,6 +67,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [notebookManualNote, setNotebookManualNote] = useState<LocalNote | null>(null);
     const [notebookManualContent, setNotebookManualContent] = useState('');
     const [notebookSources, setNotebookSources] = useState<LocalNote[]>([]);
+    const [selectedArticle, setSelectedArticle] = useState<LocalNote | null>(null);
 
     const [tags, setTags] = useState<LocalTag[]>([]);
     const [notes, setNotes] = useState<LocalNote[]>([]);
@@ -125,6 +126,14 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
                     const sources = nbNotes.filter(n => n.sourceType === 'scraped');
                     setNotebookSources(sources);
+                    if (sources.length > 0) {
+                        setSelectedArticle(prev => {
+                            if (prev && sources.find(s => s.id === prev.id)) return prev;
+                            return sources[0];
+                        });
+                    } else {
+                        setSelectedArticle(null);
+                    }
                 } catch (e) {
                     console.error('Error loading notebook notes:', e);
                 }
@@ -521,7 +530,11 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
                                 <ScrollView horizontal style={styles.sourcesScroll} showsHorizontalScrollIndicator={false}>
                                     {notebookSources.map((source) => (
-                                        <TouchableOpacity key={source.id} style={styles.sourceCard} onPress={() => Alert.alert(source.title, source.content.substring(0, 300) + '...')}>
+                                        <TouchableOpacity
+                                            key={source.id}
+                                            style={[styles.sourceCard, selectedArticle?.id === source.id && { borderColor: '#3B82F6', borderWidth: 2 }]}
+                                            onPress={() => setSelectedArticle(source)}
+                                        >
                                             <Ionicons name="globe-outline" size={20} color="#64748B" />
                                             <Text style={styles.sourceCardTitle} numberOfLines={2}>{source.title}</Text>
                                             <View style={{ position: 'absolute', top: 8, right: 8 }}>
@@ -552,6 +565,24 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                                     </View>
                                 )}
                             </View>
+
+                            {/* Article Viewer */}
+                            {selectedArticle && (
+                                <View style={styles.articleViewer}>
+                                    <View style={[styles.sectionHeader, { borderBottomWidth: 1, borderBottomColor: '#F1F5F9', paddingBottom: 8, marginBottom: 8 }]}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.sectionTitle} numberOfLines={1}>{selectedArticle.title}</Text>
+                                            <Text style={{ fontSize: 10, color: '#94A3B8' }}>{selectedArticle.sourceUrl || 'Source'}</Text>
+                                        </View>
+                                        <TouchableOpacity onPress={() => setSelectedArticle(null)} style={{ padding: 4 }}>
+                                            <Ionicons name="close-circle-outline" size={20} color="#64748B" />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <ScrollView style={styles.articleContentScroll} nestedScrollEnabled>
+                                        <Text style={styles.articleText}>{selectedArticle.content}</Text>
+                                    </ScrollView>
+                                </View>
+                            )}
 
                             {/* Editor */}
                             <View style={styles.editorContainer}>
@@ -1573,6 +1604,28 @@ const styles = StyleSheet.create({
         color: '#3B82F6',
         fontSize: 13,
         fontWeight: '600',
+    },
+    articleViewer: {
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        padding: 16,
+        marginBottom: 24,
+        maxHeight: 300,
+        elevation: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+    },
+    articleContentScroll: {
+        maxHeight: 250,
+    },
+    articleText: {
+        fontSize: 15,
+        lineHeight: 24,
+        color: '#334155',
     },
     createTagSection: {
         flexDirection: 'row',
