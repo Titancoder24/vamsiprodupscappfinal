@@ -35,6 +35,7 @@ export {
     getSummaryById,
     deleteSummary,
     exportSummaryAsText,
+    exportSummaryAsPDFHtml,
     getNotesByMultipleTags,
     extractHashtags,
     findRelatedNotesByHashtags,

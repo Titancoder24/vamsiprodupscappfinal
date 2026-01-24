@@ -142,7 +142,16 @@ export default function HomeScreen({ navigation }) {
       gradient: ['#6366F1', '#8B5CF6'],
       screen: 'Notes',
     },
-    // 7. Question Paper
+    // 7. AI Notes Maker
+    {
+      id: 'ainotesmaker',
+      icon: 'sparkles-outline',
+      title: 'AI Notes Maker',
+      desc: 'Summarize by tags',
+      gradient: ['#10B981', '#059669'],
+      screen: 'AINotesMaker',
+    },
+    // 8. Question Paper
     {
       id: 'questionpaper',
       icon: 'documents-outline',

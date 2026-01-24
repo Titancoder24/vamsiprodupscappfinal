@@ -143,27 +143,89 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         ]);
     };
 
-    const handleExport = async (summary: AISummary) => {
-        const textContent = exportSummaryAsText(summary);
-        const fileName = `UPSC_Notes_${summary.title.replace(/[^a-z0-9]/gi, '_')}.txt`;
+    const [newTagName, setNewTagName] = useState('');
+    const [creatingTag, setCreatingTag] = useState(false);
 
-        if (Platform.OS === 'web') {
-            // Web download
-            const blob = new Blob([textContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-        } else {
-            // Mobile share - use Share API
-            try {
-                await Share.share({ message: textContent, title: summary.title });
-            } catch (error) {
-                console.error('Share error:', error);
-            }
+    const handleCreateTag = async () => {
+        if (!newTagName.trim()) return;
+
+        setCreatingTag(true);
+        try {
+            // Import dynamically to avoid circular dependency issues if any
+            const { createTag } = require('../services/localNotesStorage');
+            const newTag = await createTag(newTagName.trim(), '#3B82F6', 'custom');
+            setTags(prev => [...prev, newTag]);
+            setSelectedTagIds(prev => [...prev, newTag.id]);
+            setNewTagName('');
+            Alert.alert('Success', 'Tag created successfully!');
+        } catch (error) {
+            console.error('Error creating tag:', error);
+            Alert.alert('Error', 'Failed to create tag');
         }
+        setCreatingTag(false);
+    };
+
+    const handleExport = async (summary: AISummary) => {
+        Alert.alert('Download Options', 'Choose format', [
+            {
+                text: 'Text File (.txt)',
+                onPress: async () => {
+                    const textContent = exportSummaryAsText(summary);
+                    const fileName = `UPSC_Notes_${summary.title.replace(/[^a-z0-9]/gi, '_')}.txt`;
+
+                    if (Platform.OS === 'web') {
+                        // Web download
+                        const blob = new Blob([textContent], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    } else {
+                        // Mobile share - use Share API
+                        try {
+                            await Share.share({ message: textContent, title: summary.title });
+                        } catch (error) {
+                            console.error('Share error:', error);
+                        }
+                    }
+                }
+            },
+            {
+                text: 'PDF Document (.pdf)',
+                onPress: async () => {
+                    const { exportSummaryAsPDFHtml } = require('../services/aiNotesService');
+                    const htmlContent = exportSummaryAsPDFHtml(summary);
+                    const fileName = `UPSC_Notes_${summary.title.replace(/[^a-z0-9]/gi, '_')}.pdf`;
+
+                    if (Platform.OS === 'web') {
+                        // For web, open in new window for printing
+                        const printWindow = window.open('', '_blank');
+                        if (printWindow) {
+                            printWindow.document.write(htmlContent);
+                            printWindow.document.close();
+                            printWindow.focus();
+                            setTimeout(() => {
+                                printWindow.print();
+                                printWindow.close();
+                            }, 250);
+                        }
+                    } else {
+                        // Import Print dynamically
+                        try {
+                            const Print = require('expo-print');
+                            await Print.printAsync({
+                                html: htmlContent
+                            });
+                        } catch (error) {
+                            Alert.alert('Error', 'PDF generation is not available');
+                        }
+                    }
+                }
+            },
+            { text: 'Cancel', style: 'cancel' }
+        ]);
     };
 
     const getNotesCountByTag = (tagId: number) => {
@@ -407,6 +469,28 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                         <Text style={styles.modalTitle}>Select Topic Tags</Text>
                         <TouchableOpacity onPress={() => setShowTagPicker(false)}>
                             <Text style={styles.modalDone}>Done</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Create Tag Section */}
+                    <View style={styles.createTagSection}>
+                        <TextInput
+                            style={styles.createTagInput}
+                            placeholder="Create new tag (e.g. #Mughals)"
+                            value={newTagName}
+                            onChangeText={setNewTagName}
+                            placeholderTextColor="#94A3B8"
+                        />
+                        <TouchableOpacity
+                            style={[styles.createTagBtn, !newTagName.trim() && styles.createTagBtnDisabled]}
+                            onPress={handleCreateTag}
+                            disabled={!newTagName.trim() || creatingTag}
+                        >
+                            {creatingTag ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <Ionicons name="add" size={24} color="#FFF" />
+                            )}
                         </TouchableOpacity>
                     </View>
 
@@ -1066,6 +1150,37 @@ const styles = StyleSheet.create({
     sourceType: {
         fontSize: 11,
         fontWeight: '600',
+    },
+    createTagSection: {
+        flexDirection: 'row',
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        gap: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    createTagInput: {
+        flex: 1,
+        height: 44,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        fontSize: 15,
+        color: '#0F172A',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    createTagBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: '#3B82F6',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    createTagBtnDisabled: {
+        backgroundColor: '#94A3B8',
+        opacity: 0.7,
     },
     summaryContent: {
         backgroundColor: '#FFF',
