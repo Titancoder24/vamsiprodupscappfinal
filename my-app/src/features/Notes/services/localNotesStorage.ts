@@ -38,6 +38,7 @@ export interface ScrapedLink {
 
 export interface LocalNote {
     id: number;
+    notebookId?: string; // Link to AI Notebook
     title: string;
     content: string; // Plain text / markdown content
     blocks: NoteBlock[]; // Notion-like blocks
@@ -172,7 +173,7 @@ export const updateNote = async (noteId: number, updates: Partial<LocalNote>): P
     try {
         const notes = await getAllNotes();
         const index = notes.findIndex(note => note.id === noteId);
-        
+
         if (index === -1) {
             console.error('[LocalNotesStorage] Note not found:', noteId);
             return null;
@@ -186,7 +187,7 @@ export const updateNote = async (noteId: number, updates: Partial<LocalNote>): P
 
         notes[index] = updatedNote;
         await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
-        
+
         console.log('[LocalNotesStorage] Updated note:', noteId);
         return updatedNote;
     } catch (error) {
@@ -199,7 +200,7 @@ export const deleteNote = async (noteId: number): Promise<boolean> => {
     try {
         const notes = await getAllNotes();
         const filteredNotes = notes.filter(note => note.id !== noteId);
-        
+
         if (filteredNotes.length === notes.length) {
             console.error('[LocalNotesStorage] Note not found:', noteId);
             return false;
@@ -221,7 +222,7 @@ export const searchNotes = async (query: string, tagIds?: number[]): Promise<Loc
 
         return notes.filter(note => {
             // Filter by search query
-            const matchesQuery = !query || 
+            const matchesQuery = !query ||
                 note.title.toLowerCase().includes(lowerQuery) ||
                 note.content.toLowerCase().includes(lowerQuery) ||
                 note.summary?.toLowerCase().includes(lowerQuery);
@@ -234,6 +235,16 @@ export const searchNotes = async (query: string, tagIds?: number[]): Promise<Loc
         });
     } catch (error) {
         console.error('[LocalNotesStorage] Error searching notes:', error);
+        return [];
+    }
+};
+
+export const getNotesByNotebook = async (notebookId: string): Promise<LocalNote[]> => {
+    try {
+        const notes = await getAllNotes();
+        return notes.filter(note => note.notebookId === notebookId && !note.isArchived);
+    } catch (error) {
+        console.error('[LocalNotesStorage] Error getting notes by notebook:', error);
         return [];
     }
 };
@@ -264,12 +275,12 @@ export const getAllTags = async (): Promise<LocalTag[]> => {
     try {
         const tagsJson = await AsyncStorage.getItem(STORAGE_KEYS.TAGS);
         let tags: LocalTag[] = tagsJson ? JSON.parse(tagsJson) : [];
-        
+
         // Initialize default tags if empty
         if (tags.length === 0) {
             tags = await initializeDefaultTags();
         }
-        
+
         return tags.sort((a, b) => b.usageCount - a.usageCount);
     } catch (error) {
         console.error('[LocalNotesStorage] Error getting tags:', error);
@@ -305,7 +316,7 @@ export const initializeDefaultTags = async (): Promise<LocalTag[]> => {
 export const createTag = async (name: string, color?: string, category?: LocalTag['category']): Promise<LocalTag> => {
     try {
         const tags = await getAllTags();
-        
+
         // Check if tag already exists
         const existingTag = tags.find(tag => tag.name.toLowerCase() === name.toLowerCase());
         if (existingTag) {
@@ -327,7 +338,7 @@ export const createTag = async (name: string, color?: string, category?: LocalTa
 
         tags.push(newTag);
         await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
-        
+
         console.log('[LocalNotesStorage] Created tag:', newTag.name);
         return newTag;
     } catch (error) {
@@ -340,7 +351,7 @@ export const incrementTagUsage = async (tagId: number): Promise<void> => {
     try {
         const tagsJson = await AsyncStorage.getItem(STORAGE_KEYS.TAGS);
         const tags: LocalTag[] = tagsJson ? JSON.parse(tagsJson) : [];
-        
+
         const index = tags.findIndex(tag => tag.id === tagId);
         if (index !== -1) {
             tags[index].usageCount++;
@@ -356,13 +367,13 @@ export const deleteTag = async (tagId: number): Promise<boolean> => {
     try {
         const tags = await getAllTags();
         const filteredTags = tags.filter(tag => tag.id !== tagId);
-        
+
         if (filteredTags.length === tags.length) {
             return false;
         }
 
         await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(filteredTags));
-        
+
         // Remove tag from all notes
         const notes = await getAllNotes();
         for (const note of notes) {
@@ -386,7 +397,7 @@ export const saveScrapedLink = async (linkData: Omit<ScrapedLink, 'id' | 'scrape
     try {
         const linksJson = await AsyncStorage.getItem(STORAGE_KEYS.LINKS);
         const links: ScrapedLink[] = linksJson ? JSON.parse(linksJson) : [];
-        
+
         // Check if link already exists
         const existingLink = links.find(link => link.url === linkData.url);
         if (existingLink) {
@@ -402,7 +413,7 @@ export const saveScrapedLink = async (linkData: Omit<ScrapedLink, 'id' | 'scrape
 
         links.push(newLink);
         await AsyncStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(links));
-        
+
         console.log('[LocalNotesStorage] Saved scraped link:', linkData.url);
         return newLink;
     } catch (error) {
@@ -470,6 +481,7 @@ export default {
     deleteNote,
     searchNotes,
     getNotesByTag,
+    getNotesByNotebook,
     getNotesBySource,
     getAllTags,
     createTag,

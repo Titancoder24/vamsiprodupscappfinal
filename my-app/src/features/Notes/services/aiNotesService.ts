@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LocalNote, LocalTag, getAllNotes, getAllTags, getNotesByTag } from './localNotesStorage';
+import { LocalNote, LocalTag, getAllNotes, getAllTags, getNotesByTag, getNotesByNotebook } from './localNotesStorage';
 
 const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
 
@@ -222,11 +222,16 @@ export const generateAISummary = async (
         const allTags = await getAllTags();
         const selectedTags = allTags.filter(t => request.tagIds.includes(t.id));
 
-        // Get notes by selected tags
-        const notes = await getNotesByMultipleTags(request.tagIds);
+        // Get notes source
+        let notes: LocalNote[] = [];
+        if (request.notebookId) {
+            notes = await getNotesByNotebook(request.notebookId);
+        } else {
+            notes = await getNotesByMultipleTags(request.tagIds);
+        }
 
         if (notes.length === 0) {
-            throw new Error('No notes found with the selected tags. Please add notes first.');
+            throw new Error('No notes found. Please add manual notes or web articles first.');
         }
 
         // Filter by source type if needed

@@ -23,6 +23,8 @@ import {
     getAllNotes,
     createNote,
     createTag,
+    getNotesByNotebook,
+    updateNote,
     LocalTag,
     LocalNote,
 } from '../services/localNotesStorage';
@@ -60,6 +62,11 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [notebooks, setNotebooks] = useState<AINotebook[]>([]);
     const [newNotebookTitle, setNewNotebookTitle] = useState('');
     const [showCreateNotebook, setShowCreateNotebook] = useState(false);
+
+    // Notebook Detail State
+    const [notebookManualNote, setNotebookManualNote] = useState<LocalNote | null>(null);
+    const [notebookManualContent, setNotebookManualContent] = useState('');
+    const [notebookSources, setNotebookSources] = useState<LocalNote[]>([]);
 
     const [tags, setTags] = useState<LocalTag[]>([]);
     const [notes, setNotes] = useState<LocalNote[]>([]);
@@ -102,11 +109,26 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
             if (currentNotebook) {
                 setSummaries(allSummaries.filter(s => s.notebookId === currentNotebook.id));
+
+                // Load Notebook Contents
+                try {
+                    const nbNotes = await getNotesByNotebook(currentNotebook.id);
+
+                    const manual = nbNotes.find(n => n.sourceType === 'manual');
+                    if (manual) {
+                        setNotebookManualNote(manual);
+                        setNotebookManualContent(manual.content);
+                    } else {
+                        setNotebookManualNote(null);
+                        setNotebookManualContent('');
+                    }
+
+                    const sources = nbNotes.filter(n => n.sourceType === 'scraped');
+                    setNotebookSources(sources);
+                } catch (e) {
+                    console.error('Error loading notebook notes:', e);
+                }
             } else {
-                // If in list view, maybe we don't show any summaries, or show all? 
-                // Let's show all for now or maybe filter out those belonging to notebooks?
-                // For "Mind Map" style, typically we only see folders first.
-                // But for backward compatibility let's show all
                 setSummaries(allSummaries);
             }
 
@@ -176,6 +198,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             const blocks = contentBlocksToNoteBlocks(article.contentBlocks);
 
             await createNote({
+                notebookId: currentNotebook ? currentNotebook.id : undefined,
                 title: article.title,
                 content: article.content,
                 blocks: blocks,
@@ -196,8 +219,32 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         }
     };
 
+    const saveManualNote = async () => {
+        if (!currentNotebook) return;
+
+        try {
+            if (notebookManualNote) {
+                await updateNote(notebookManualNote.id, {
+                    content: notebookManualContent,
+                    updatedAt: new Date().toISOString()
+                });
+            } else if (notebookManualContent.trim()) {
+                const newNote = await createNote({
+                    notebookId: currentNotebook.id,
+                    title: 'My Notes',
+                    content: notebookManualContent,
+                    sourceType: 'manual',
+                    tags: []
+                });
+                setNotebookManualNote(newNote);
+            }
+        } catch (error) {
+            console.error('Error saving note:', error);
+        }
+    };
+
     const handleGenerateSummary = async () => {
-        if (selectedTagIds.length === 0) {
+        if (!currentNotebook && selectedTagIds.length === 0) {
             Alert.alert('Select Tags', 'Please select at least one tag to generate a summary.');
             return;
         }
@@ -207,6 +254,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
         try {
             const request: SummaryRequest = {
+                notebookId: currentNotebook ? currentNotebook.id : undefined,
                 tagIds: selectedTagIds,
                 includeCurrentAffairs,
                 includeSavedArticles,
@@ -440,7 +488,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                 </TouchableOpacity>
                 <View style={styles.headerCenter}>
                     <Text style={styles.pageTitle}>{currentNotebook?.title || 'AI Notes'}</Text>
-                    <Text style={styles.pageSubtitle}>Summarize notes by topic tags</Text>
+                    {currentNotebook ? <Text style={{ fontSize: 12, color: '#64748B' }}>Notebook Mode</Text> : null}
                 </View>
                 <TouchableOpacity onPress={loadData} style={styles.refreshBtn}>
                     <Ionicons name="refresh" size={20} color="#64748B" />
@@ -453,232 +501,134 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                     <Text style={styles.loadingText}>Loading...</Text>
                 </View>
             ) : (
-                <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-                    {/* Alerts Section */}
-                    {alerts.length > 0 && (
-                        <View style={styles.alertsSection}>
-                            <View style={styles.alertsHeader}>
-                                <Ionicons name="notifications" size={20} color="#F59E0B" />
-                                <Text style={styles.alertsTitle}>New Updates for Your Topics</Text>
-                            </View>
-                            {alerts.slice(0, 3).map((alert, i) => (
-                                <TouchableOpacity
-                                    key={i}
-                                    style={styles.alertCard}
-                                    onPress={() => {
-                                        setSelectedTagIds([alert.tag.id]);
-                                        setShowTagPicker(false);
-                                    }}
-                                >
-                                    <View style={[styles.alertDot, { backgroundColor: alert.tag.color }]} />
-                                    <View style={styles.alertContent}>
-                                        <Text style={styles.alertTagName}>#{alert.tag.name}</Text>
-                                        <Text style={styles.alertCount}>
-                                            {alert.newArticles.length} new article{alert.newArticles.length > 1 ? 's' : ''}
-                                        </Text>
+                <ScrollView style={styles.content}>
+                    {/* NOTEBOOK MODE UI */}
+                    {currentNotebook ? (
+                        <>
+                            {/* Sources Section */}
+                            <View style={styles.sourcesSection}>
+                                <View style={styles.sectionHeader}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Text style={styles.sectionTitle}>Sources ({notebookSources.length})</Text>
+                                        <View style={{ backgroundColor: '#E2E8F0', paddingHorizontal: 6, borderRadius: 4 }}>
+                                            <Text style={{ fontSize: 10, fontWeight: '700', color: '#64748B' }}>WEB</Text>
+                                        </View>
                                     </View>
-                                    <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
-
-                    {/* Create Summary Section */}
-                    <View style={styles.createSection}>
-                        <Text style={styles.sectionTitle}>Create AI Summary</Text>
-                        <Text style={styles.sectionSubtitle}>
-                            Select tags to combine notes from all sources
-                        </Text>
-
-                        {/* Selected Tags */}
-                        <View style={styles.selectedTagsContainer}>
-                            {selectedTags.length === 0 ? (
-                                <TouchableOpacity
-                                    style={styles.addTagPrompt}
-                                    onPress={() => setShowTagPicker(true)}
-                                >
-                                    <Ionicons name="add-circle-outline" size={24} color="#94A3B8" />
-                                    <Text style={styles.addTagPromptText}>
-                                        Tap to select topic tags
-                                    </Text>
-                                </TouchableOpacity>
-                            ) : (
-                                <View style={styles.selectedTagsRow}>
-                                    {selectedTags.map(tag => (
-                                        <TouchableOpacity
-                                            key={tag.id}
-                                            style={[styles.selectedTag, { backgroundColor: tag.color + '20', borderColor: tag.color }]}
-                                            onPress={() => toggleTag(tag.id)}
-                                        >
-                                            <Text style={[styles.selectedTagText, { color: tag.color }]}>
-                                                #{tag.name}
-                                            </Text>
-                                            <Ionicons name="close" size={14} color={tag.color} />
-                                        </TouchableOpacity>
-                                    ))}
-                                    <TouchableOpacity
-                                        style={styles.addMoreBtn}
-                                        onPress={() => setShowTagPicker(true)}
-                                    >
-                                        <Ionicons name="add" size={18} color="#3B82F6" />
+                                    <TouchableOpacity onPress={() => setShowAddLink(!showAddLink)}>
+                                        <Text style={{ color: '#3B82F6', fontWeight: '600', fontSize: 14 }}>+ Add Link</Text>
                                     </TouchableOpacity>
                                 </View>
-                            )}
-                        </View>
 
-                        {/* Source Options */}
-                        <View style={styles.sourceOptions}>
-                            <TouchableOpacity
-                                style={[styles.sourceOption, includeCurrentAffairs && styles.sourceOptionActive]}
-                                onPress={() => setIncludeCurrentAffairs(!includeCurrentAffairs)}
-                            >
-                                <Ionicons
-                                    name={includeCurrentAffairs ? 'checkbox' : 'square-outline'}
-                                    size={20}
-                                    color={includeCurrentAffairs ? '#10B981' : '#94A3B8'}
-                                />
-                                <Text style={styles.sourceOptionText}>Current Affairs</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.sourceOption, includeSavedArticles && styles.sourceOptionActive]}
-                                onPress={() => setIncludeSavedArticles(!includeSavedArticles)}
-                            >
-                                <Ionicons
-                                    name={includeSavedArticles ? 'checkbox' : 'square-outline'}
-                                    size={20}
-                                    color={includeSavedArticles ? '#8B5CF6' : '#94A3B8'}
-                                />
-                                <Text style={styles.sourceOptionText}>Saved Articles</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Add Web Article */}
-                        <TouchableOpacity
-                            style={styles.addLinkToggle}
-                            onPress={() => setShowAddLink(!showAddLink)}
-                        >
-                            <Ionicons name={showAddLink ? "chevron-up" : "add"} size={20} color="#3B82F6" />
-                            <Text style={styles.addLinkToggleText}>Add Web Article (Vision IAS, etc.)</Text>
-                        </TouchableOpacity>
-
-                        {showAddLink && (
-                            <View style={styles.linkInputContainer}>
-                                <TextInput
-                                    style={styles.linkInput}
-                                    placeholder="Paste URL (e.g. visionias.in/...)"
-                                    value={articleUrl}
-                                    onChangeText={setArticleUrl}
-                                    placeholderTextColor="#94A3B8"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
-                                <TouchableOpacity
-                                    style={[styles.scrapeBtn, scraping && styles.scrapeBtnDisabled]}
-                                    onPress={handleScrapeArticle}
-                                    disabled={scraping}
-                                >
-                                    {scraping ? (
-                                        <ActivityIndicator size="small" color="#FFF" />
-                                    ) : (
-                                        <Text style={styles.scrapeBtnText}>Save</Text>
-                                    )}
-                                </TouchableOpacity>
-                            </View>
-                        )}
-
-                        {/* Custom Prompt */}
-                        <TextInput
-                            style={styles.customPromptInput}
-                            placeholder="Optional: Add specific focus (e.g., 'Focus on Mughal architecture')"
-                            placeholderTextColor="#94A3B8"
-                            value={customPrompt}
-                            onChangeText={setCustomPrompt}
-                            multiline
-                        />
-
-                        {/* Generate Button */}
-                        <TouchableOpacity
-                            style={[styles.generateBtn, generating && styles.generateBtnDisabled]}
-                            onPress={handleGenerateSummary}
-                            disabled={generating || selectedTagIds.length === 0}
-                        >
-                            {generating ? (
-                                <>
-                                    <ActivityIndicator size="small" color="#FFF" />
-                                    <Text style={styles.generateBtnText}>{generatingStatus}</Text>
-                                </>
-                            ) : (
-                                <>
-                                    <Ionicons name="sparkles" size={20} color="#FFF" />
-                                    <Text style={styles.generateBtnText}>Generate AI Summary</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Previous Summaries */}
-                    {summaries.length > 0 && (
-                        <View style={styles.summariesSection}>
-                            <Text style={styles.sectionTitle}>Previous Summaries</Text>
-                            {summaries.map(summary => (
-                                <TouchableOpacity
-                                    key={summary.id}
-                                    style={styles.summaryCard}
-                                    onPress={() => setShowSummaryDetail(summary)}
-                                >
-                                    <View style={styles.summaryHeader}>
-                                        <Text style={styles.summaryTitle} numberOfLines={1}>
-                                            {summary.title}
-                                        </Text>
-                                        <Text style={styles.summaryDate}>
-                                            {new Date(summary.createdAt).toLocaleDateString('en-IN', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                            })}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.summaryTags}>
-                                        {summary.tags.slice(0, 3).map(tag => (
-                                            <View
-                                                key={tag.id}
-                                                style={[styles.miniTag, { backgroundColor: tag.color + '20' }]}
-                                            >
-                                                <Text style={[styles.miniTagText, { color: tag.color }]}>
-                                                    #{tag.name}
-                                                </Text>
+                                <ScrollView horizontal style={styles.sourcesScroll} showsHorizontalScrollIndicator={false}>
+                                    {notebookSources.map((source) => (
+                                        <TouchableOpacity key={source.id} style={styles.sourceCard} onPress={() => Alert.alert(source.title, source.content.substring(0, 300) + '...')}>
+                                            <Ionicons name="globe-outline" size={20} color="#64748B" />
+                                            <Text style={styles.sourceCardTitle} numberOfLines={2}>{source.title}</Text>
+                                            <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                                                <Ionicons name="checkmark-circle" size={14} color="#10B981" />
                                             </View>
-                                        ))}
+                                        </TouchableOpacity>
+                                    ))}
+                                    {notebookSources.length === 0 && (
+                                        <View style={{ padding: 12, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8 }}>
+                                            <Text style={{ color: '#94A3B8', fontSize: 13, fontStyle: 'italic' }}>No articles added yet. Click "+ Add Link".</Text>
+                                        </View>
+                                    )}
+                                </ScrollView>
+
+                                {showAddLink && (
+                                    <View style={styles.linkInputContainer}>
+                                        <TextInput
+                                            style={styles.linkInput}
+                                            placeholder="Paste Vision IAS / Article URL..."
+                                            value={articleUrl}
+                                            onChangeText={setArticleUrl}
+                                            autoCapitalize="none"
+                                            selectTextOnFocus
+                                        />
+                                        <TouchableOpacity style={[styles.scrapeBtn, scraping && styles.scrapeBtnDisabled]} onPress={handleScrapeArticle} disabled={scraping}>
+                                            {scraping ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.scrapeBtnText}>Add</Text>}
+                                        </TouchableOpacity>
                                     </View>
-                                    <View style={styles.summaryMeta}>
-                                        <Text style={styles.summaryMetaText}>
-                                            {summary.sources.length} sources • {summary.wordCount} words
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
+                                )}
+                            </View>
+
+                            {/* Editor */}
+                            <View style={styles.editorContainer}>
+                                <View style={styles.sectionHeader}>
+                                    <Text style={styles.sectionTitle}>My Notes (Editor)</Text>
+                                    <TouchableOpacity onPress={saveManualNote} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                        <Ionicons name="save-outline" size={16} color="#10B981" />
+                                        <Text style={{ color: '#10B981', fontWeight: '600' }}>Save</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                <TextInput
+                                    style={styles.editorInput}
+                                    multiline
+                                    placeholder="Start typing your notes here..."
+                                    value={notebookManualContent}
+                                    onChangeText={setNotebookManualContent}
+                                    onEndEditing={saveManualNote}
+                                    textAlignVertical="top"
+                                />
+                            </View>
+                        </>
+                    ) : (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                            <Text style={{ color: '#64748B' }}>Select a notebook to edit notes.</Text>
                         </View>
                     )}
 
-                    {/* Stats */}
-                    <View style={styles.statsSection}>
-                        <View style={styles.statCard}>
-                            <Ionicons name="document-text" size={24} color="#3B82F6" />
-                            <Text style={styles.statNumber}>{notes.length}</Text>
-                            <Text style={styles.statLabel}>Total Notes</Text>
-                        </View>
-                        <View style={styles.statCard}>
-                            <Ionicons name="pricetags" size={24} color="#10B981" />
-                            <Text style={styles.statNumber}>{tags.length}</Text>
-                            <Text style={styles.statLabel}>Tags</Text>
-                        </View>
-                        <View style={styles.statCard}>
-                            <Ionicons name="sparkles" size={24} color="#8B5CF6" />
-                            <Text style={styles.statNumber}>{summaries.length}</Text>
-                            <Text style={styles.statLabel}>Summaries</Text>
-                        </View>
-                    </View>
+                    {/* Generate Button */}
+                    <TouchableOpacity
+                        style={[styles.generateBtn, (generating || (!currentNotebook && selectedTagIds.length === 0)) && styles.generateBtnDisabled]}
+                        onPress={handleGenerateSummary}
+                        disabled={generating || (!currentNotebook && selectedTagIds.length === 0)}
+                    >
+                        {generating ? (
+                            <>
+                                <ActivityIndicator color="#FFF" />
+                                <Text style={styles.generateBtnText}>{generatingStatus}</Text>
+                            </>
+                        ) : (
+                            <>
+                                <Ionicons name="sparkles" size={20} color="#FFF" />
+                                <Text style={styles.generateBtnText}>Generate AI Summary</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
 
-                    <View style={{ height: 100 }} />
+                    {/* Summaries */}
+                    {summaries.length > 0 && (
+                        <View style={{ marginTop: 24 }}>
+                            <Text style={[styles.sectionTitle, { marginBottom: 12 }]}>Generated Summaries</Text>
+                            {summaries.map((summary) => (
+                                <View key={summary.id} style={styles.summaryCard}>
+                                    <View style={styles.summaryHeader}>
+                                        <View>
+                                            <Text style={styles.summaryTitle}>{summary.title}</Text>
+                                            <Text style={styles.summaryDate}>{new Date(summary.createdAt).toLocaleDateString()}</Text>
+                                        </View>
+                                        <View style={styles.summaryActions}>
+                                            <TouchableOpacity onPress={() => handleExport(summary)} style={styles.actionBtn}>
+                                                <Ionicons name="download-outline" size={18} color="#64748B" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => handleDeleteSummary(summary.id)} style={styles.actionBtn}>
+                                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                    <Text numberOfLines={3} style={styles.summaryPreview}>{summary.summary}</Text>
+                                    <TouchableOpacity
+                                        style={styles.readMoreBtn}
+                                        onPress={() => setShowSummaryDetail(summary)}
+                                    >
+                                        <Text style={styles.readMoreText}>Read Full Summary</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+                    )}
                 </ScrollView>
             )}
 
@@ -1536,6 +1486,93 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    sourcesSection: {
+        marginBottom: 24,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748B',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    sourcesScroll: {
+        marginBottom: 16,
+    },
+    sourceCard: {
+        width: 140,
+        height: 80,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        padding: 12,
+        marginRight: 12,
+        justifyContent: 'space-between',
+    },
+    sourceCardTitle: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#334155',
+        marginTop: 8,
+    },
+    editorContainer: {
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        padding: 16,
+        minHeight: 300,
+        marginBottom: 24,
+    },
+    editorInput: {
+        fontSize: 16,
+        color: '#0F172A',
+        lineHeight: 24,
+        marginTop: 12,
+        minHeight: 250,
+        textAlignVertical: 'top',
+    },
+    summaryHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        marginBottom: 8,
+    },
+    summaryActions: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    actionBtn: {
+        padding: 4,
+    },
+    summaryDate: {
+        fontSize: 12,
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    summaryPreview: {
+        fontSize: 14,
+        color: '#64748B',
+        marginBottom: 12,
+        lineHeight: 20,
+    },
+    readMoreBtn: {
+        alignSelf: 'flex-start',
+        borderBottomWidth: 1,
+        borderBottomColor: '#3B82F6',
+    },
+    readMoreText: {
+        color: '#3B82F6',
+        fontSize: 13,
+        fontWeight: '600',
     },
     createTagSection: {
         flexDirection: 'row',
