@@ -21,9 +21,12 @@ import * as Sharing from 'expo-sharing';
 import {
     getAllTags,
     getAllNotes,
+    createNote,
+    createTag,
     LocalTag,
     LocalNote,
 } from '../services/localNotesStorage';
+import { smartScrape, contentBlocksToNoteBlocks } from '../services/webScraper';
 import {
     generateAISummary,
     getAllSummaries,
@@ -62,6 +65,11 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [includeCurrentAffairs, setIncludeCurrentAffairs] = useState(true);
     const [includeSavedArticles, setIncludeSavedArticles] = useState(true);
 
+    // Web Scraping State
+    const [articleUrl, setArticleUrl] = useState('');
+    const [scraping, setScraping] = useState(false);
+    const [showAddLink, setShowAddLink] = useState(false);
+
     useFocusEffect(
         useCallback(() => {
             loadData();
@@ -93,6 +101,47 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                 ? prev.filter(id => id !== tagId)
                 : [...prev, tagId]
         );
+    };
+
+    const handleScrapeArticle = async () => {
+        if (!articleUrl.trim()) {
+            Alert.alert('Error', 'Please enter a valid URL');
+            return;
+        }
+
+        setScraping(true);
+        try {
+            const article = await smartScrape(articleUrl);
+
+            if (article.error) {
+                throw new Error(article.error);
+            }
+
+            // Get selected tags to associate
+            const tagsToUse = tags.filter(t => selectedTagIds.includes(t.id));
+
+            // Convert blocks
+            const blocks = contentBlocksToNoteBlocks(article.contentBlocks);
+
+            await createNote({
+                title: article.title,
+                content: article.content,
+                blocks: blocks,
+                sourceType: 'scraped',
+                sourceUrl: article.url,
+                tags: tagsToUse
+            });
+
+            Alert.alert('Success', 'Article saved successfully! It will be used in your summary.');
+            setArticleUrl('');
+            setShowAddLink(false);
+            loadData(); // Refresh notes list
+        } catch (error: any) {
+            console.error('Scraping error:', error);
+            Alert.alert('Error', error.message || 'Failed to scrape article');
+        } finally {
+            setScraping(false);
+        }
     };
 
     const handleGenerateSummary = async () => {
@@ -360,6 +409,40 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                                 <Text style={styles.sourceOptionText}>Saved Articles</Text>
                             </TouchableOpacity>
                         </View>
+
+                        {/* Add Web Article */}
+                        <TouchableOpacity
+                            style={styles.addLinkToggle}
+                            onPress={() => setShowAddLink(!showAddLink)}
+                        >
+                            <Ionicons name={showAddLink ? "chevron-up" : "add"} size={20} color="#3B82F6" />
+                            <Text style={styles.addLinkToggleText}>Add Web Article (Vision IAS, etc.)</Text>
+                        </TouchableOpacity>
+
+                        {showAddLink && (
+                            <View style={styles.linkInputContainer}>
+                                <TextInput
+                                    style={styles.linkInput}
+                                    placeholder="Paste URL (e.g. visionias.in/...)"
+                                    value={articleUrl}
+                                    onChangeText={setArticleUrl}
+                                    placeholderTextColor="#94A3B8"
+                                    autoCapitalize="none"
+                                    autoCorrect={false}
+                                />
+                                <TouchableOpacity
+                                    style={[styles.scrapeBtn, scraping && styles.scrapeBtnDisabled]}
+                                    onPress={handleScrapeArticle}
+                                    disabled={scraping}
+                                >
+                                    {scraping ? (
+                                        <ActivityIndicator size="small" color="#FFF" />
+                                    ) : (
+                                        <Text style={styles.scrapeBtnText}>Save</Text>
+                                    )}
+                                </TouchableOpacity>
+                            </View>
+                        )}
 
                         {/* Custom Prompt */}
                         <TextInput
@@ -1149,6 +1232,49 @@ const styles = StyleSheet.create({
     },
     sourceType: {
         fontSize: 11,
+        fontWeight: '600',
+    },
+    addLinkToggle: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 16,
+    },
+    addLinkToggleText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#3B82F6',
+    },
+    linkInputContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16,
+    },
+    linkInput: {
+        flex: 1,
+        height: 48,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        fontSize: 14,
+        color: '#0F172A',
+        backgroundColor: '#F8FAFC',
+    },
+    scrapeBtn: {
+        width: 80,
+        backgroundColor: '#3B82F6',
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    scrapeBtnDisabled: {
+        backgroundColor: '#94A3B8',
+        opacity: 0.8,
+    },
+    scrapeBtnText: {
+        color: '#FFF',
+        fontSize: 14,
         fontWeight: '600',
     },
     createTagSection: {
