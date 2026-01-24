@@ -261,7 +261,7 @@ export default function LandingScreen({ navigation }) {
             {/* Nav Links */}
             {isWeb && (
               <View style={styles.navLinks}>
-                <TouchableOpacity onPress={scrollToPricing}>
+                <TouchableOpacity onPress={() => navigation.navigate('Pricing')}>
                   <Text style={styles.navLink}>Pricing</Text>
                 </TouchableOpacity>
               </View>
@@ -349,40 +349,49 @@ export default function LandingScreen({ navigation }) {
               <Text style={styles.featuresTitleLight}>to crack the exam.</Text>
             </Text>
             <View style={styles.featuresGrid}>
-              <FeatureCard icon="hardware-chip-outline" iconBg="#DBEAFE" title="AI Question Engine" description="Auto-generate MCQs from news." />
-              <FeatureCard icon="create-outline" iconBg="#E0F2FE" title="Mains Evaluator" description="Get AI feedback on answers." />
-              <FeatureCard icon="flash-outline" iconBg="#FEF3C7" title="Smart News Feed" description="Tagged current affairs." />
-              <FeatureCard icon="map-outline" iconBg="#D1FAE5" title="Dynamic Roadmap" description="Personalized study plan." />
+              <FeatureCard icon="hardware-chip-outline" iconBg="#DBEAFE" title="AI Question Engine" description="Auto-generate MCQs from any topic or current affairs." />
+              <FeatureCard icon="create-outline" iconBg="#E0F2FE" title="Mains Evaluator" description="Get AI-powered feedback on your answers instantly." />
+              <FeatureCard icon="flash-outline" iconBg="#FEF3C7" title="Smart News Feed" description="Tagged current affairs with MCQ practice." />
+              <FeatureCard icon="map-outline" iconBg="#D1FAE5" title="Dynamic Roadmap" description="Personalized study plan based on your progress." />
+              <FeatureCard icon="document-text-outline" iconBg="#FCE7F3" title="PDF to MCQ" description="Extract MCQs from any PDF document using AI." />
+              <FeatureCard icon="git-network-outline" iconBg="#E0E7FF" title="Mind Maps" description="Visual learning with interactive mind maps." />
             </View>
           </View>
 
-          {/* Pricing */}
-          <View
-            style={styles.pricingSection}
-            onLayout={(e) => setPricingY(e.nativeEvent.layout.y)}
-          >
-            <Text style={styles.pricingHeaderTitle}>Simple, transparent pricing</Text>
-            <Text style={styles.pricingHeaderSubtitle}>Choose the plan that works for you.</Text>
-
-            <View style={styles.pricingCards}>
-              <PricingCard
-                plan="Starter"
-                price="399"
-                period="month"
-                features={['200 AI Credits / month', 'AI MCQ Generator', 'PDF to MCQ Converter', 'News Articles', 'Progress Tracking']}
-                popular={false}
-                onPress={handleGetStarted}
-              />
-              <PricingCard
-                plan="Pro"
-                price="599"
-                period="month"
-                features={['400 AI Credits / month', 'Everything in Starter', 'Mains Answer Evaluator', 'Mind Map Generator', 'Priority Support']}
-                popular={true}
-                onPress={handleGetStarted}
-              />
+          {/* Why Choose Us */}
+          <View style={styles.whySection}>
+            <Text style={styles.whyTitle}>Why aspirants love PrepAssist</Text>
+            <View style={styles.whyGrid}>
+              <View style={styles.whyStat}>
+                <Text style={styles.whyNumber}>15K+</Text>
+                <Text style={styles.whyLabel}>Active Users</Text>
+              </View>
+              <View style={styles.whyStat}>
+                <Text style={styles.whyNumber}>50K+</Text>
+                <Text style={styles.whyLabel}>MCQs Solved</Text>
+              </View>
+              <View style={styles.whyStat}>
+                <Text style={styles.whyNumber}>4.9</Text>
+                <Text style={styles.whyLabel}>App Rating</Text>
+              </View>
+              <View style={styles.whyStat}>
+                <Text style={styles.whyNumber}>24/7</Text>
+                <Text style={styles.whyLabel}>AI Support</Text>
+              </View>
             </View>
-            <Text style={styles.pricingNote}>Free trial • No credit card required</Text>
+          </View>
+
+          {/* Pricing CTA */}
+          <View style={styles.pricingCTA}>
+            <Text style={styles.pricingCTATitle}>Ready to start your UPSC journey?</Text>
+            <Text style={styles.pricingCTASubtitle}>Choose from our affordable plans starting at just ₹399/month</Text>
+            <TouchableOpacity
+              style={styles.pricingCTAButton}
+              onPress={() => navigation.navigate('Pricing')}
+            >
+              <Text style={styles.pricingCTAButtonText}>View Pricing Plans</Text>
+              <Ionicons name="arrow-forward" size={18} color="#FFF" />
+            </TouchableOpacity>
           </View>
 
           {/* CTA */}
@@ -538,33 +547,25 @@ const styles = StyleSheet.create({
   featuresTitle: { fontSize: isWeb ? 32 : 26, fontWeight: '800', color: '#0F172A', marginBottom: 32 },
   featuresTitleLight: { color: '#94A3B8' },
   featuresGrid: { flexDirection: isWeb && width > 600 ? 'row' : 'column', flexWrap: 'wrap', gap: 14 },
-  featureCard: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 18, padding: 20, flex: isWeb && width > 600 ? 1 : undefined, minWidth: isWeb && width > 600 ? 220 : undefined, maxWidth: isWeb && width > 600 ? '48%' : undefined },
+  featureCard: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 18, padding: 20, flex: isWeb && width > 600 ? 1 : undefined, minWidth: isWeb && width > 600 ? 220 : undefined, maxWidth: isWeb && width > 600 ? '31%' : undefined },
   featureIcon: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
   featureTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 4 },
   featureDescription: { fontSize: 12, color: '#64748B', lineHeight: 18 },
 
-  // Pricing
-  pricingSection: { paddingHorizontal: 24, paddingVertical: 60, backgroundColor: '#F8FAFC' },
-  pricingHeaderTitle: { fontSize: isWeb ? 32 : 26, fontWeight: '800', color: '#0F172A', textAlign: 'center', marginBottom: 8 },
-  pricingHeaderSubtitle: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 40 },
-  pricingCards: { flexDirection: isWeb && width > 700 ? 'row' : 'column', justifyContent: 'center', gap: 16, maxWidth: 750, alignSelf: 'center', width: '100%' },
-  pricingCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 28, flex: 1, borderWidth: 1, borderColor: '#E5E7EB' },
-  pricingCardPopular: { borderColor: '#2563EB', borderWidth: 2 },
-  popularBadge: { position: 'absolute', top: -10, right: 20, backgroundColor: '#2563EB', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16 },
-  popularBadgeText: { fontSize: 9, fontWeight: '700', color: '#FFF' },
-  pricingPlanName: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 12 },
-  pricingPriceRow: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 20 },
-  pricingCurrency: { fontSize: 18, fontWeight: '600', color: '#0F172A' },
-  pricingPrice: { fontSize: 42, fontWeight: '800', color: '#0F172A', letterSpacing: -2 },
-  pricingPeriod: { fontSize: 13, color: '#64748B', marginLeft: 2 },
-  pricingFeatures: { gap: 12, marginBottom: 24 },
-  pricingFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pricingFeatureText: { fontSize: 13, color: '#475569', flex: 1 },
-  pricingButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#F1F5F9', paddingVertical: 12, borderRadius: 10 },
-  pricingButtonPopular: { backgroundColor: '#0F172A' },
-  pricingButtonText: { fontSize: 13, fontWeight: '700', color: '#0F172A' },
-  pricingButtonTextPopular: { color: '#FFF' },
-  pricingNote: { fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 28 },
+  // Why Section
+  whySection: { paddingHorizontal: 24, paddingVertical: 60, backgroundColor: '#0F172A' },
+  whyTitle: { fontSize: isWeb ? 32 : 26, fontWeight: '800', color: '#FFF', textAlign: 'center', marginBottom: 40 },
+  whyGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 32 },
+  whyStat: { alignItems: 'center', minWidth: 120 },
+  whyNumber: { fontSize: isWeb ? 48 : 36, fontWeight: '800', color: '#FFF', marginBottom: 4 },
+  whyLabel: { fontSize: 14, color: '#94A3B8', fontWeight: '600' },
+
+  // Pricing CTA
+  pricingCTA: { paddingHorizontal: 24, paddingVertical: 60, backgroundColor: '#F8FAFC', alignItems: 'center' },
+  pricingCTATitle: { fontSize: isWeb ? 32 : 26, fontWeight: '800', color: '#0F172A', textAlign: 'center', marginBottom: 12 },
+  pricingCTASubtitle: { fontSize: 16, color: '#64748B', textAlign: 'center', marginBottom: 32, maxWidth: 500 },
+  pricingCTAButton: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#3B82F6', paddingHorizontal: 32, paddingVertical: 16, borderRadius: 14 },
+  pricingCTAButtonText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
 
   // CTA
   ctaSection: { paddingHorizontal: 24, paddingVertical: 50 },

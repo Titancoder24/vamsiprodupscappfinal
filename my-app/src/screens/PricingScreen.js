@@ -14,72 +14,56 @@ import { Ionicons } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
 
-// Pricing plans data
+// Updated Pricing plans - only 2 monthly plans
 const PLANS = [
     {
-        id: 'free',
-        name: 'Free',
-        description: 'Perfect for getting started',
-        price: 0,
-        period: 'forever',
-        features: [
-            { text: 'Access to 50+ MCQs daily', included: true },
-            { text: 'Basic Current Affairs', included: true },
-            { text: 'Limited Notes (10 notes)', included: true },
-            { text: 'Community Support', included: true },
-            { text: 'AI MCQ Generator', included: false },
-            { text: 'PDF MCQ Extraction', included: false },
-            { text: 'Advanced Analytics', included: false },
-            { text: 'Priority Support', included: false },
-        ],
-        popular: false,
-        buttonText: 'Get Started Free',
-        buttonStyle: 'outline',
-    },
-    {
-        id: 'pro',
-        name: 'Pro',
-        description: 'Most popular for serious aspirants',
-        price: 299,
-        originalPrice: 499,
+        id: 'basic',
+        name: 'Basic',
+        description: 'Great for getting started with UPSC prep',
+        price: 399,
         period: 'month',
         features: [
-            { text: 'Unlimited MCQs', included: true },
-            { text: 'Full Current Affairs Access', included: true },
+            { text: 'Unlimited MCQs Practice', included: true },
+            { text: 'Current Affairs Updates', included: true },
             { text: 'Unlimited Notes & Tags', included: true },
             { text: 'AI MCQ Generator', included: true },
             { text: 'PDF MCQ Extraction', included: true },
             { text: 'Essay Practice Mode', included: true },
-            { text: 'Detailed Analytics', included: true },
+            { text: 'Basic Analytics', included: true },
             { text: 'Email Support', included: true },
+            { text: 'Personalized Study Roadmap', included: false },
+            { text: 'Mind Map Builder', included: false },
+            { text: 'Visual Reference Library', included: false },
+            { text: 'Priority Support 24/7', included: false },
         ],
-        popular: true,
-        buttonText: 'Start Pro Trial',
-        buttonStyle: 'primary',
-        badge: 'Most Popular',
+        popular: false,
+        buttonText: 'Get Basic Plan',
+        buttonStyle: 'outline',
     },
     {
         id: 'premium',
         name: 'Premium',
-        description: 'For dedicated UPSC preparation',
-        price: 1999,
-        originalPrice: 3999,
-        period: 'year',
+        description: 'Complete UPSC preparation toolkit',
+        price: 599,
+        period: 'month',
         features: [
-            { text: 'Everything in Pro', included: true },
+            { text: 'Everything in Basic', included: true },
             { text: 'Personalized Study Roadmap', included: true },
             { text: 'Mind Map Builder', included: true },
             { text: 'Visual Reference Library', included: true },
             { text: 'Offline Access', included: true },
             { text: 'Mock Test Series', included: true },
+            { text: 'Advanced Analytics', included: true },
             { text: 'Priority Support 24/7', included: true },
             { text: 'Early Access to Features', included: true },
+            { text: 'Personalized Guidance', included: true },
+            { text: 'Interview Prep Material', included: true },
+            { text: 'Weekly Study Reports', included: true },
         ],
-        popular: false,
-        buttonText: 'Go Premium',
-        buttonStyle: 'dark',
-        badge: 'Best Value',
-        savings: 'Save ₹1,589/year',
+        popular: true,
+        buttonText: 'Get Premium Plan',
+        buttonStyle: 'primary',
+        badge: 'Recommended',
     },
 ];
 
@@ -90,7 +74,7 @@ const FAQ_DATA = [
     },
     {
         question: 'Is there a free trial?',
-        answer: 'Yes! Pro plan comes with a 7-day free trial. No credit card required to start.',
+        answer: 'Yes! Both plans come with a 7-day free trial. No credit card required to start.',
     },
     {
         question: 'Can I switch between plans?',
@@ -109,7 +93,7 @@ const FAQ_DATA = [
 const PricingCard = ({ plan, onPress }) => (
     <View style={[styles.card, plan.popular && styles.cardPopular]}>
         {plan.badge && (
-            <View style={[styles.badge, plan.id === 'premium' ? styles.badgePremium : styles.badgePopular]}>
+            <View style={styles.badge}>
                 <Text style={styles.badgeText}>{plan.badge}</Text>
             </View>
         )}
@@ -122,13 +106,6 @@ const PricingCard = ({ plan, onPress }) => (
             <Text style={styles.price}>{plan.price}</Text>
             <Text style={styles.period}>/{plan.period}</Text>
         </View>
-
-        {plan.originalPrice && (
-            <View style={styles.savingsRow}>
-                <Text style={styles.originalPrice}>₹{plan.originalPrice}</Text>
-                {plan.savings && <Text style={styles.savingsText}>{plan.savings}</Text>}
-            </View>
-        )}
 
         <View style={styles.divider} />
 
@@ -151,7 +128,6 @@ const PricingCard = ({ plan, onPress }) => (
             style={[
                 styles.button,
                 plan.buttonStyle === 'primary' && styles.buttonPrimary,
-                plan.buttonStyle === 'dark' && styles.buttonDark,
                 plan.buttonStyle === 'outline' && styles.buttonOutline,
             ]}
             onPress={() => onPress(plan)}
@@ -160,7 +136,6 @@ const PricingCard = ({ plan, onPress }) => (
             <Text style={[
                 styles.buttonText,
                 plan.buttonStyle === 'primary' && styles.buttonTextPrimary,
-                plan.buttonStyle === 'dark' && styles.buttonTextDark,
             ]}>
                 {plan.buttonText}
             </Text>
@@ -189,11 +164,17 @@ const FAQItem = ({ item, isOpen, onToggle }) => (
 
 export default function PricingScreen({ navigation }) {
     const [openFAQ, setOpenFAQ] = useState(null);
-    const [billingPeriod, setBillingPeriod] = useState('monthly');
 
     const handleSelectPlan = (plan) => {
-        // Navigate to payment or registration
         navigation.navigate('Login', { selectedPlan: plan.id });
+    };
+
+    const handleBack = () => {
+        if (navigation.canGoBack()) {
+            navigation.goBack();
+        } else {
+            navigation.navigate('Landing');
+        }
     };
 
     return (
@@ -203,40 +184,17 @@ export default function PricingScreen({ navigation }) {
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => navigation.goBack()}
+                        onPress={handleBack}
                     >
                         <Ionicons name="arrow-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
 
                     <View style={styles.headerContent}>
                         <Text style={styles.headerBadge}>PRICING</Text>
-                        <Text style={styles.headerTitle}>Choose your plan</Text>
+                        <Text style={styles.headerTitle}>Simple, transparent pricing</Text>
                         <Text style={styles.headerSubtitle}>
-                            Start free and upgrade when you're ready for more power
+                            Choose the plan that fits your UPSC preparation needs
                         </Text>
-                    </View>
-
-                    {/* Billing Toggle */}
-                    <View style={styles.billingToggle}>
-                        <TouchableOpacity
-                            style={[styles.toggleOption, billingPeriod === 'monthly' && styles.toggleActive]}
-                            onPress={() => setBillingPeriod('monthly')}
-                        >
-                            <Text style={[styles.toggleText, billingPeriod === 'monthly' && styles.toggleTextActive]}>
-                                Monthly
-                            </Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.toggleOption, billingPeriod === 'yearly' && styles.toggleActive]}
-                            onPress={() => setBillingPeriod('yearly')}
-                        >
-                            <Text style={[styles.toggleText, billingPeriod === 'yearly' && styles.toggleTextActive]}>
-                                Yearly
-                            </Text>
-                            <View style={styles.saveTag}>
-                                <Text style={styles.saveTagText}>-40%</Text>
-                            </View>
-                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -259,12 +217,20 @@ export default function PricingScreen({ navigation }) {
                     </View>
                     <View style={styles.trustBadge}>
                         <Ionicons name="refresh" size={24} color="#3B82F6" />
-                        <Text style={styles.trustText}>7-Day Refund</Text>
+                        <Text style={styles.trustText}>7-Day Free Trial</Text>
                     </View>
                     <View style={styles.trustBadge}>
                         <Ionicons name="lock-closed" size={24} color="#8B5CF6" />
                         <Text style={styles.trustText}>Cancel Anytime</Text>
                     </View>
+                </View>
+
+                {/* Comparison Note */}
+                <View style={styles.comparisonNote}>
+                    <Ionicons name="information-circle" size={20} color="#3B82F6" />
+                    <Text style={styles.comparisonText}>
+                        Both plans include a 7-day free trial. Upgrade to Premium for complete access to all features.
+                    </Text>
                 </View>
 
                 {/* FAQ Section */}
@@ -314,7 +280,7 @@ const styles = StyleSheet.create({
     header: {
         paddingHorizontal: 24,
         paddingTop: 20,
-        paddingBottom: 32,
+        paddingBottom: 40,
         backgroundColor: '#FFF',
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
@@ -353,66 +319,23 @@ const styles = StyleSheet.create({
         maxWidth: 400,
         lineHeight: 24,
     },
-    billingToggle: {
-        flexDirection: 'row',
-        alignSelf: 'center',
-        marginTop: 32,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 12,
-        padding: 4,
-    },
-    toggleOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 10,
-        gap: 8,
-    },
-    toggleActive: {
-        backgroundColor: '#FFF',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    toggleText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748B',
-    },
-    toggleTextActive: {
-        color: '#0F172A',
-    },
-    saveTag: {
-        backgroundColor: '#DCFCE7',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-    },
-    saveTagText: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: '#16A34A',
-    },
     cardsContainer: {
-        flexDirection: isWeb && width > 900 ? 'row' : 'column',
+        flexDirection: isWeb && width > 800 ? 'row' : 'column',
         justifyContent: 'center',
-        alignItems: isWeb && width > 900 ? 'stretch' : 'center',
-        gap: 20,
+        alignItems: isWeb && width > 800 ? 'stretch' : 'center',
+        gap: 24,
         padding: 24,
-        maxWidth: 1100,
+        maxWidth: 900,
         alignSelf: 'center',
         width: '100%',
     },
     card: {
         backgroundColor: '#FFF',
         borderRadius: 24,
-        padding: 28,
-        flex: isWeb && width > 900 ? 1 : undefined,
-        width: isWeb && width > 900 ? undefined : '100%',
-        maxWidth: 360,
+        padding: 32,
+        flex: isWeb && width > 800 ? 1 : undefined,
+        width: isWeb && width > 800 ? undefined : '100%',
+        maxWidth: 420,
         borderWidth: 1,
         borderColor: '#E2E8F0',
     },
@@ -428,16 +351,11 @@ const styles = StyleSheet.create({
     badge: {
         position: 'absolute',
         top: -12,
-        right: 20,
-        paddingHorizontal: 12,
+        right: 24,
+        backgroundColor: '#3B82F6',
+        paddingHorizontal: 14,
         paddingVertical: 6,
         borderRadius: 20,
-    },
-    badgePopular: {
-        backgroundColor: '#3B82F6',
-    },
-    badgePremium: {
-        backgroundColor: '#8B5CF6',
     },
     badgeText: {
         fontSize: 11,
@@ -446,7 +364,7 @@ const styles = StyleSheet.create({
         letterSpacing: 0.5,
     },
     planName: {
-        fontSize: 22,
+        fontSize: 26,
         fontWeight: '800',
         color: '#0F172A',
         marginBottom: 4,
@@ -454,52 +372,37 @@ const styles = StyleSheet.create({
     planDescription: {
         fontSize: 14,
         color: '#64748B',
-        marginBottom: 20,
+        marginBottom: 24,
     },
     priceRow: {
         flexDirection: 'row',
         alignItems: 'baseline',
+        marginBottom: 24,
     },
     currency: {
-        fontSize: 20,
+        fontSize: 22,
         fontWeight: '600',
         color: '#0F172A',
     },
     price: {
-        fontSize: 48,
+        fontSize: 56,
         fontWeight: '800',
         color: '#0F172A',
         letterSpacing: -2,
     },
     period: {
-        fontSize: 14,
+        fontSize: 16,
         color: '#64748B',
         marginLeft: 4,
-    },
-    savingsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        marginTop: 4,
-    },
-    originalPrice: {
-        fontSize: 14,
-        color: '#94A3B8',
-        textDecorationLine: 'line-through',
-    },
-    savingsText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#16A34A',
     },
     divider: {
         height: 1,
         backgroundColor: '#E2E8F0',
-        marginVertical: 24,
+        marginBottom: 24,
     },
     featuresList: {
         gap: 14,
-        marginBottom: 28,
+        marginBottom: 32,
     },
     featureRow: {
         flexDirection: 'row',
@@ -519,7 +422,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        paddingVertical: 16,
+        paddingVertical: 18,
         borderRadius: 14,
     },
     buttonOutline: {
@@ -528,37 +431,48 @@ const styles = StyleSheet.create({
     buttonPrimary: {
         backgroundColor: '#3B82F6',
     },
-    buttonDark: {
-        backgroundColor: '#0F172A',
-    },
     buttonText: {
-        fontSize: 15,
+        fontSize: 16,
         fontWeight: '700',
         color: '#0F172A',
     },
     buttonTextPrimary: {
         color: '#FFF',
     },
-    buttonTextDark: {
-        color: '#FFF',
-    },
     trustSection: {
         flexDirection: 'row',
         justifyContent: 'center',
         flexWrap: 'wrap',
-        gap: 24,
-        paddingVertical: 32,
+        gap: 32,
+        paddingVertical: 40,
         paddingHorizontal: 24,
     },
     trustBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 10,
     },
     trustText: {
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: '600',
         color: '#475569',
+    },
+    comparisonNote: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 12,
+        backgroundColor: '#EFF6FF',
+        marginHorizontal: 24,
+        padding: 20,
+        borderRadius: 16,
+        maxWidth: 700,
+        alignSelf: 'center',
+    },
+    comparisonText: {
+        fontSize: 14,
+        color: '#1E40AF',
+        flex: 1,
+        lineHeight: 22,
     },
     faqSection: {
         paddingHorizontal: 24,
