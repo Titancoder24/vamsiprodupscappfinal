@@ -266,13 +266,20 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     // ========== SUMMARY GENERATION ==========
     const openSummaryGenerator = async () => {
+        console.log('[AINotes] Opening summary generator...');
         setSummaryStep('select-notes');
         setSummaryTagIds([]);
         setSummarySourceTypes(['manual', 'institute', 'current_affairs']);
-        setSelectedNoteIds([]);
-        setSelectedArticleIds([]);
         setCustomPrompt('');
         setShowSummaryModal(true);
+
+        // Auto-select all notes by default
+        const allNoteIds = notes.map(n => n.id);
+        setSelectedNoteIds(allNoteIds);
+        console.log('[AINotes] Auto-selected', allNoteIds.length, 'notes');
+
+        // Reset article selection
+        setSelectedArticleIds([]);
 
         // Fetch Current Affairs
         setLoadingArticles(true);
@@ -282,6 +289,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             console.log('[AINotes] Loaded', articles.length, 'current affairs articles');
         } catch (error) {
             console.error('[AINotes] Error loading articles:', error);
+            setCurrentAffairs([]);
         } finally {
             setLoadingArticles(false);
         }
