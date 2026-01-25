@@ -41,6 +41,7 @@ import {
     AISummary,
     AINotebook,
 } from '../services/aiNotesService';
+import { fetchCurrentAffairs, Article } from '../services/currentAffairsService';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -81,8 +82,13 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     // Summary Generation
     const [showSummaryModal, setShowSummaryModal] = useState(false);
+    const [summaryStep, setSummaryStep] = useState<'select-notes' | 'configure'>('select-notes');
     const [summaryTagIds, setSummaryTagIds] = useState<number[]>([]);
     const [summarySourceTypes, setSummarySourceTypes] = useState<SourceType[]>(['manual', 'institute', 'current_affairs']);
+    const [selectedNoteIds, setSelectedNoteIds] = useState<number[]>([]);
+    const [selectedArticleIds, setSelectedArticleIds] = useState<string[]>([]);
+    const [currentAffairs, setCurrentAffairs] = useState<Article[]>([]);
+    const [loadingArticles, setLoadingArticles] = useState(false);
     const [customPrompt, setCustomPrompt] = useState('');
     const [generating, setGenerating] = useState(false);
     const [generatingStatus, setGeneratingStatus] = useState('');
@@ -259,11 +265,26 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
 
     // ========== SUMMARY GENERATION ==========
-    const openSummaryGenerator = () => {
+    const openSummaryGenerator = async () => {
+        setSummaryStep('select-notes');
         setSummaryTagIds([]);
         setSummarySourceTypes(['manual', 'institute', 'current_affairs']);
+        setSelectedNoteIds([]);
+        setSelectedArticleIds([]);
         setCustomPrompt('');
         setShowSummaryModal(true);
+
+        // Fetch Current Affairs
+        setLoadingArticles(true);
+        try {
+            const articles = await fetchCurrentAffairs(30);
+            setCurrentAffairs(articles);
+            console.log('[AINotes] Loaded', articles.length, 'current affairs articles');
+        } catch (error) {
+            console.error('[AINotes] Error loading articles:', error);
+        } finally {
+            setLoadingArticles(false);
+        }
     };
 
     const toggleSummaryTag = (tagId: number) => {
@@ -282,62 +303,190 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         );
     };
 
+    const toggleNoteSelection = (noteId: number) => {
+        setSelectedNoteIds(prev =>
+            prev.includes(noteId)
+                ? prev.filter(id => id !== noteId)
+                : [...prev, noteId]
+        );
+    };
+
+    const toggleArticleSelection = (articleId: string) => {
+        setSelectedArticleIds(prev =>
+            prev.includes(articleId)
+                ? prev.filter(id => id !== articleId)
+                : [...prev, articleId]
+        );
+    };
+
+    const selectAllNotes = () => {
+        const allIds = notes.map(n => n.id);
+        setSelectedNoteIds(allIds);
+    };
+
+    const selectAllArticles = () => {
+        const allIds = currentAffairs.map(a => a.id);
+        setSelectedArticleIds(allIds);
+    };
+
     const handleGenerateSummary = async () => {
         console.log('[AINotes] handleGenerateSummary called');
-        console.log('[AINotes] summaryTagIds:', summaryTagIds);
-        console.log('[AINotes] summarySourceTypes:', summarySourceTypes);
-        console.log('[AINotes] Total notes available:', notes.length);
+        console.log('[AINotes] selectedNoteIds:', selectedNoteIds);
+        console.log('[AINotes] selectedArticleIds:', selectedArticleIds);
 
-        if (summaryTagIds.length === 0) {
-            Alert.alert('Select Tags', 'Please select at least one hashtag for the summary');
-            return;
-        }
-
-        // Get notes matching selected tags and source types
-        const matchingNotes = notes.filter(note => {
-            const hasMatchingTag = note.tags.some(t => summaryTagIds.includes(t.id));
-            const hasMatchingSource = summarySourceTypes.includes(note.sourceType as SourceType);
-            console.log(`[AINotes] Note "${note.title}": hasTag=${hasMatchingTag}, hasSource=${hasMatchingSource}`);
-            return hasMatchingTag && hasMatchingSource;
-        });
-
-        console.log('[AINotes] Matching notes:', matchingNotes.length);
-
-        if (matchingNotes.length === 0) {
-            Alert.alert('No Notes Found', 'No notes found with the selected tags and source types. Add some notes first!');
+        // Check if any content is selected
+        if (selectedNoteIds.length === 0 && selectedArticleIds.length === 0) {
+            Alert.alert('Select Content', 'Please select at least one note or current affairs article to summarize.');
             return;
         }
 
         setGenerating(true);
-        setGeneratingStatus('Preparing notes...');
+        setGeneratingStatus('Preparing content...');
 
         try {
-            const selectedTags = tags.filter(t => summaryTagIds.includes(t.id));
-            console.log('[AINotes] Selected tags for summary:', selectedTags.map(t => t.name));
+            // Gather selected notes
+            const selectedNotes = notes.filter(n => selectedNoteIds.includes(n.id));
+            const selectedArticles = currentAffairs.filter(a => selectedArticleIds.includes(a.id));
 
-            setGeneratingStatus(`Summarizing ${matchingNotes.length} notes...`);
+            console.log('[AINotes] Selected notes:', selectedNotes.length);
+            console.log('[AINotes] Selected articles:', selectedArticles.length);
 
-            console.log('[AINotes] Calling generateAISummary...');
-            const summary = await generateAISummary({
-                tagIds: summaryTagIds,
-                includeCurrentAffairs: summarySourceTypes.includes('current_affairs'),
-                includeSavedArticles: summarySourceTypes.includes('institute'),
-                customPrompt: customPrompt || undefined,
+            // Build content for AI
+            let contentForAI = '';
+
+            if (selectedNotes.length > 0) {
+                contentForAI += '=== YOUR NOTES ===\n\n';
+                selectedNotes.forEach((note, i) => {
+                    const sourceLabel = SOURCE_TYPES[note.sourceType as SourceType]?.label || 'Note';
+                    contentForAI += `[${sourceLabel} ${i + 1}: ${note.title}]\n`;
+                    if (note.tags.length > 0) {
+                        contentForAI += `Tags: ${note.tags.map(t => t.name).join(', ')}\n`;
+                    }
+                    contentForAI += `${note.content}\n\n`;
+                });
+            }
+
+            if (selectedArticles.length > 0) {
+                contentForAI += '\n=== CURRENT AFFAIRS ===\n\n';
+                selectedArticles.forEach((article, i) => {
+                    contentForAI += `[Article ${i + 1}: ${article.title}]\n`;
+                    contentForAI += `Source: ${article.source} | Date: ${new Date(article.date).toLocaleDateString()}\n`;
+                    contentForAI += `${article.content}\n\n`;
+                });
+            }
+
+            setGeneratingStatus('Generating AI summary...');
+
+            // Call OpenRouter API directly
+            const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
+
+            if (!OPENROUTER_API_KEY) {
+                throw new Error('AI API key not configured');
+            }
+
+            const systemPrompt = `You are an expert UPSC preparation assistant. Create comprehensive, exam-oriented notes by combining and summarizing the provided content.
+
+OUTPUT FORMAT:
+1. **TOPIC OVERVIEW** - Brief introduction
+2. **KEY POINTS** - Bullet points with important facts
+3. **EXAM-RELEVANT FACTS** - Dates, figures, names to remember
+4. **CURRENT AFFAIRS CONNECTION** - Link static topics to recent events
+5. **REVISION NOTES** - Quick summary for last-minute revision
+
+IMPORTANT:
+- Focus on UPSC Prelims and Mains relevance
+- Highlight facts, dates, and figures
+- Use clear, concise language
+- Structure for easy revision
+- Include potential exam questions`;
+
+            const userPrompt = `Create a comprehensive UPSC-oriented summary from the following content:
+
+${contentForAI}
+
+${customPrompt ? `Additional instructions: ${customPrompt}` : ''}
+
+Generate a well-structured summary that combines all sources and is suitable for UPSC revision.`;
+
+            console.log('[AINotes] Calling OpenRouter API...');
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://prepassist.in',
+                    'X-Title': 'PrepAssist UPSC',
+                },
+                body: JSON.stringify({
+                    model: 'google/gemini-2.0-flash-001',
+                    messages: [
+                        { role: 'system', content: systemPrompt },
+                        { role: 'user', content: userPrompt },
+                    ],
+                    temperature: 0.7,
+                    max_tokens: 4000,
+                }),
             });
 
-            console.log('[AINotes] Summary generated:', summary);
-
-            if (!summary) {
-                throw new Error('No summary was generated');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('[AINotes] API Error:', errorText);
+                throw new Error('AI service error. Please try again.');
             }
+
+            const data = await response.json();
+            const summaryContent = data.choices?.[0]?.message?.content;
+
+            if (!summaryContent) {
+                throw new Error('No summary generated');
+            }
+
+            console.log('[AINotes] Summary generated successfully');
+            setGeneratingStatus('Saving summary...');
+
+            // Create summary title
+            const titleParts: string[] = [];
+            if (selectedNotes.length > 0) {
+                const uniqueTags = [...new Set(selectedNotes.flatMap(n => n.tags.map(t => t.name)))];
+                titleParts.push(uniqueTags.slice(0, 2).join(', '));
+            }
+            if (selectedArticles.length > 0) {
+                titleParts.push('Current Affairs');
+            }
+            const summaryTitle = titleParts.join(' + ') + ' Summary';
+
+            // Save to storage
+            const { getItem, setItem } = await import('../services/storage');
+            const existingSummaries = JSON.parse(await getItem('@upsc_ai_summaries') || '[]');
+            const counterStr = await getItem('@upsc_summary_counter') || '0';
+            const newId = parseInt(counterStr) + 1;
+            await setItem('@upsc_summary_counter', String(newId));
+
+            const newSummary: AISummary = {
+                id: newId,
+                title: summaryTitle,
+                summary: summaryContent,
+                sources: [
+                    ...selectedNotes.map(n => ({ noteId: n.id, noteTitle: n.title, sourceType: n.sourceType || 'manual' })),
+                    ...selectedArticles.map(a => ({ noteId: 0, noteTitle: a.title, sourceType: 'current_affairs' })),
+                ],
+                tags: [...new Set(selectedNotes.flatMap(n => n.tags))],
+                tagIds: [...new Set(selectedNotes.flatMap(n => n.tags.map(t => t.id)))],
+                wordCount: summaryContent.split(/\s+/).length,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+            };
+
+            existingSummaries.unshift(newSummary);
+            await setItem('@upsc_ai_summaries', JSON.stringify(existingSummaries));
 
             setShowSummaryModal(false);
             await loadData();
 
             Alert.alert(
                 '✓ Summary Generated!',
-                `Created summary for ${selectedTags.map(t => t.name).join(', ')} from ${matchingNotes.length} notes.`,
-                [{ text: 'View', onPress: () => setShowSummaryDetail(summary) }]
+                `Created summary from ${selectedNotes.length} notes and ${selectedArticles.length} articles.`,
+                [{ text: 'View', onPress: () => setShowSummaryDetail(newSummary) }]
             );
         } catch (error: any) {
             console.error('[AINotes] Error generating summary:', error);
@@ -881,88 +1030,189 @@ You can copy content from:
         </Modal>
     );
 
-    // Summary Generator Modal
+    // Summary Generator Modal with Note Selection
     const renderSummaryModal = () => (
         <Modal visible={showSummaryModal} animationType="slide" transparent>
             <View style={styles.modalOverlay}>
-                <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-                    <Text style={styles.modalTitle}>Generate AI Summary</Text>
+                <View style={[styles.modalContent, { maxHeight: '90%', width: isWeb ? Math.min(width * 0.9, 700) : '95%' }]}>
+                    <Text style={styles.modalTitle}>
+                        {summaryStep === 'select-notes' ? '📝 Select Content to Summarize' : '⚡ Configure Summary'}
+                    </Text>
 
-                    <ScrollView>
-                        {/* Select Tags */}
-                        <Text style={styles.inputLabel}>Select Hashtags to Summarize</Text>
-                        <View style={styles.tagSelector}>
-                            {tags.map(tag => {
-                                const count = notes.filter(n => n.tags.some(t => t.id === tag.id)).length;
-                                return (
-                                    <TouchableOpacity
-                                        key={tag.id}
-                                        style={[
-                                            styles.tagSelectorItem,
-                                            summaryTagIds.includes(tag.id) && { backgroundColor: tag.color + '30', borderColor: tag.color }
-                                        ]}
-                                        onPress={() => toggleSummaryTag(tag.id)}
-                                    >
-                                        <Text style={[styles.tagSelectorText, { color: tag.color }]}>
-                                            {tag.name} ({count})
-                                        </Text>
-                                        {summaryTagIds.includes(tag.id) && (
-                                            <Ionicons name="checkmark" size={14} color={tag.color} />
-                                        )}
+                    {summaryStep === 'select-notes' ? (
+                        <ScrollView style={{ maxHeight: 500 }}>
+                            {/* My Notes Section */}
+                            <View style={{ marginBottom: 20 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <Text style={[styles.inputLabel, { marginBottom: 0 }]}>📚 Your Notes ({notes.length})</Text>
+                                    <TouchableOpacity onPress={selectAllNotes} style={{ padding: 5 }}>
+                                        <Text style={{ color: '#3B82F6', fontSize: 12 }}>Select All</Text>
                                     </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                                </View>
 
-                        {/* Select Source Types */}
-                        <Text style={styles.inputLabel}>Include Sources</Text>
-                        <View style={styles.sourceTypeSelector}>
-                            {Object.entries(SOURCE_TYPES).map(([key, config]) => (
-                                <TouchableOpacity
-                                    key={key}
-                                    style={[
-                                        styles.sourceTypeBtn,
-                                        summarySourceTypes.includes(key as SourceType) && { backgroundColor: config.color, borderColor: config.color }
-                                    ]}
-                                    onPress={() => toggleSummarySource(key as SourceType)}
-                                >
-                                    <Ionicons
-                                        name={config.icon as any}
-                                        size={16}
-                                        color={summarySourceTypes.includes(key as SourceType) ? '#FFF' : config.color}
-                                    />
-                                    <Text style={[
-                                        styles.sourceTypeBtnText,
-                                        { fontSize: 12 },
-                                        summarySourceTypes.includes(key as SourceType) && { color: '#FFF' }
-                                    ]}>{config.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                                {notes.length === 0 ? (
+                                    <View style={{ padding: 20, backgroundColor: '#F8FAFC', borderRadius: 10, alignItems: 'center' }}>
+                                        <Ionicons name="document-outline" size={32} color="#94A3B8" />
+                                        <Text style={{ color: '#64748B', marginTop: 10 }}>No notes yet. Add notes first!</Text>
+                                    </View>
+                                ) : (
+                                    notes.map(note => (
+                                        <TouchableOpacity
+                                            key={note.id}
+                                            style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                padding: 12,
+                                                backgroundColor: selectedNoteIds.includes(note.id) ? '#EFF6FF' : '#F8FAFC',
+                                                borderRadius: 10,
+                                                marginBottom: 8,
+                                                borderWidth: selectedNoteIds.includes(note.id) ? 2 : 1,
+                                                borderColor: selectedNoteIds.includes(note.id) ? '#3B82F6' : '#E2E8F0',
+                                            }}
+                                            onPress={() => toggleNoteSelection(note.id)}
+                                        >
+                                            <View style={{
+                                                width: 24, height: 24, borderRadius: 6,
+                                                backgroundColor: selectedNoteIds.includes(note.id) ? '#3B82F6' : '#E2E8F0',
+                                                justifyContent: 'center', alignItems: 'center', marginRight: 12
+                                            }}>
+                                                {selectedNoteIds.includes(note.id) && <Ionicons name="checkmark" size={16} color="#FFF" />}
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: '600', color: '#0F172A', marginBottom: 2 }} numberOfLines={1}>
+                                                    {note.title}
+                                                </Text>
+                                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                                                    <Text style={{
+                                                        fontSize: 10, color: SOURCE_TYPES[note.sourceType as SourceType]?.color || '#64748B',
+                                                        backgroundColor: (SOURCE_TYPES[note.sourceType as SourceType]?.color || '#64748B') + '20',
+                                                        paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4
+                                                    }}>
+                                                        {SOURCE_TYPES[note.sourceType as SourceType]?.label || 'Note'}
+                                                    </Text>
+                                                    {note.tags.slice(0, 2).map(t => (
+                                                        <Text key={t.id} style={{
+                                                            fontSize: 10, color: t.color,
+                                                            backgroundColor: t.color + '20',
+                                                            paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4
+                                                        }}>{t.name}</Text>
+                                                    ))}
+                                                </View>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))
+                                )}
+                            </View>
 
-                        {/* Custom Prompt */}
-                        <Text style={styles.inputLabel}>Custom Instructions (optional)</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="E.g., Focus on UPSC Prelims relevant points"
-                            value={customPrompt}
-                            onChangeText={setCustomPrompt}
-                        />
-                    </ScrollView>
+                            {/* Current Affairs Section */}
+                            <View style={{ marginBottom: 20 }}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                    <Text style={[styles.inputLabel, { marginBottom: 0 }]}>📰 Current Affairs ({currentAffairs.length})</Text>
+                                    <TouchableOpacity onPress={selectAllArticles} style={{ padding: 5 }}>
+                                        <Text style={{ color: '#10B981', fontSize: 12 }}>Select All</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                {loadingArticles ? (
+                                    <View style={{ padding: 20, alignItems: 'center' }}>
+                                        <ActivityIndicator color="#10B981" />
+                                        <Text style={{ color: '#64748B', marginTop: 10 }}>Loading Current Affairs...</Text>
+                                    </View>
+                                ) : currentAffairs.length === 0 ? (
+                                    <View style={{ padding: 20, backgroundColor: '#F8FAFC', borderRadius: 10, alignItems: 'center' }}>
+                                        <Ionicons name="newspaper-outline" size={32} color="#94A3B8" />
+                                        <Text style={{ color: '#64748B', marginTop: 10 }}>No current affairs available</Text>
+                                    </View>
+                                ) : (
+                                    currentAffairs.map(article => (
+                                        <TouchableOpacity
+                                            key={article.id}
+                                            style={{
+                                                flexDirection: 'row',
+                                                alignItems: 'center',
+                                                padding: 12,
+                                                backgroundColor: selectedArticleIds.includes(article.id) ? '#ECFDF5' : '#F8FAFC',
+                                                borderRadius: 10,
+                                                marginBottom: 8,
+                                                borderWidth: selectedArticleIds.includes(article.id) ? 2 : 1,
+                                                borderColor: selectedArticleIds.includes(article.id) ? '#10B981' : '#E2E8F0',
+                                            }}
+                                            onPress={() => toggleArticleSelection(article.id)}
+                                        >
+                                            <View style={{
+                                                width: 24, height: 24, borderRadius: 6,
+                                                backgroundColor: selectedArticleIds.includes(article.id) ? '#10B981' : '#E2E8F0',
+                                                justifyContent: 'center', alignItems: 'center', marginRight: 12
+                                            }}>
+                                                {selectedArticleIds.includes(article.id) && <Ionicons name="checkmark" size={16} color="#FFF" />}
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontWeight: '600', color: '#0F172A', marginBottom: 2 }} numberOfLines={2}>
+                                                    {article.title}
+                                                </Text>
+                                                <Text style={{ fontSize: 11, color: '#64748B' }}>
+                                                    {article.source} • {new Date(article.date).toLocaleDateString()}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    ))
+                                )}
+                            </View>
+
+                            {/* Selection Summary */}
+                            <View style={{
+                                backgroundColor: '#F0FDF4', padding: 15, borderRadius: 10, marginBottom: 10,
+                                borderWidth: 1, borderColor: '#BBF7D0'
+                            }}>
+                                <Text style={{ fontWeight: '600', color: '#166534', marginBottom: 5 }}>📊 Selected Content</Text>
+                                <Text style={{ color: '#15803D' }}>
+                                    {selectedNoteIds.length} notes + {selectedArticleIds.length} current affairs articles
+                                </Text>
+                            </View>
+
+                            {/* Custom Prompt */}
+                            <Text style={styles.inputLabel}>Custom Instructions (optional)</Text>
+                            <TextInput
+                                style={[styles.input, { height: 60 }]}
+                                placeholder="E.g., Focus on UPSC Prelims relevant points, include dates and facts"
+                                value={customPrompt}
+                                onChangeText={setCustomPrompt}
+                                multiline
+                            />
+                        </ScrollView>
+                    ) : null}
+
+                    {generating && (
+                        <View style={{ padding: 30, alignItems: 'center' }}>
+                            <ActivityIndicator color="#3B82F6" size="large" />
+                            <Text style={{ color: '#3B82F6', marginTop: 15, fontWeight: '600' }}>{generatingStatus}</Text>
+                            <Text style={{ color: '#64748B', marginTop: 5, fontSize: 12 }}>This may take a minute...</Text>
+                        </View>
+                    )}
 
                     <View style={styles.modalActions}>
-                        <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setShowSummaryModal(false)}>
+                        <TouchableOpacity
+                            style={styles.modalCancelBtn}
+                            onPress={() => setShowSummaryModal(false)}
+                            disabled={generating}
+                        >
                             <Text style={styles.modalCancelText}>Cancel</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={[styles.modalConfirmBtn, generating && { opacity: 0.7 }]}
+                            style={[
+                                styles.modalConfirmBtn,
+                                (generating || (selectedNoteIds.length === 0 && selectedArticleIds.length === 0)) && { opacity: 0.5 }
+                            ]}
                             onPress={handleGenerateSummary}
-                            disabled={generating}
+                            disabled={generating || (selectedNoteIds.length === 0 && selectedArticleIds.length === 0)}
                         >
                             {generating ? (
                                 <ActivityIndicator color="#FFF" size="small" />
                             ) : (
-                                <Text style={styles.modalConfirmText}>Generate</Text>
+                                <>
+                                    <Ionicons name="sparkles" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                                    <Text style={styles.modalConfirmText}>Generate AI Summary</Text>
+                                </>
                             )}
                         </TouchableOpacity>
                     </View>
