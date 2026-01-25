@@ -176,43 +176,63 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
 
     const handleSaveNote = async () => {
-        if (!noteTitle.trim() || !noteContent.trim()) {
-            Alert.alert('Error', 'Please enter both title and content');
+        console.log('[AINotes] handleSaveNote called');
+        console.log('[AINotes] noteTitle:', noteTitle);
+        console.log('[AINotes] noteContent length:', noteContent.length);
+        console.log('[AINotes] selectedTagIds:', selectedTagIds);
+
+        if (!noteTitle.trim()) {
+            Alert.alert('Missing Title', 'Please enter a title for your note');
+            return;
+        }
+
+        if (!noteContent.trim()) {
+            Alert.alert('Missing Content', 'Please enter some content for your note');
             return;
         }
 
         if (selectedTagIds.length === 0) {
-            Alert.alert('Add Tags', 'Please add at least one hashtag to organize your note');
+            Alert.alert('No Tags Selected', 'Please select at least one hashtag to organize your note');
             return;
         }
 
         try {
             const noteTags = tags.filter(t => selectedTagIds.includes(t.id));
+            console.log('[AINotes] noteTags:', noteTags.map(t => t.name));
+
+            const notePayload = {
+                title: noteTitle.trim(),
+                content: noteContent.trim(),
+                sourceType: noteSourceType,
+                sourceUrl: noteSourceUrl?.trim() || undefined,
+                tags: noteTags,
+                blocks: [{ id: '1', type: 'paragraph' as const, content: noteContent.trim() }],
+            };
+
+            console.log('[AINotes] Saving note with payload:', JSON.stringify(notePayload, null, 2));
 
             if (editingNote) {
-                await updateNote(editingNote.id, {
-                    title: noteTitle,
-                    content: noteContent,
-                    sourceType: noteSourceType,
-                    sourceUrl: noteSourceUrl || undefined,
-                    tags: noteTags,
-                });
-                Alert.alert('Success', 'Note updated!');
+                const result = await updateNote(editingNote.id, notePayload);
+                console.log('[AINotes] Note updated:', result);
+                Alert.alert('Success', 'Note updated successfully!');
             } else {
-                await createNote({
-                    title: noteTitle,
-                    content: noteContent,
-                    sourceType: noteSourceType,
-                    sourceUrl: noteSourceUrl || undefined,
-                    tags: noteTags,
-                });
-                Alert.alert('Success', 'Note saved with tags!');
+                const result = await createNote(notePayload);
+                console.log('[AINotes] Note created:', result);
+                Alert.alert('Success', 'Note saved successfully!');
             }
 
             setShowNoteEditor(false);
+            setNoteTitle('');
+            setNoteContent('');
+            setNoteSourceUrl('');
+            setSelectedTagIds([]);
+            setEditingNote(null);
+
             await loadData();
+            console.log('[AINotes] Data reloaded after save');
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to save note');
+            console.error('[AINotes] Error saving note:', error);
+            Alert.alert('Save Error', error.message || 'Failed to save note. Please try again.');
         }
     };
 
@@ -263,6 +283,11 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
 
     const handleGenerateSummary = async () => {
+        console.log('[AINotes] handleGenerateSummary called');
+        console.log('[AINotes] summaryTagIds:', summaryTagIds);
+        console.log('[AINotes] summarySourceTypes:', summarySourceTypes);
+        console.log('[AINotes] Total notes available:', notes.length);
+
         if (summaryTagIds.length === 0) {
             Alert.alert('Select Tags', 'Please select at least one hashtag for the summary');
             return;
@@ -272,8 +297,11 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         const matchingNotes = notes.filter(note => {
             const hasMatchingTag = note.tags.some(t => summaryTagIds.includes(t.id));
             const hasMatchingSource = summarySourceTypes.includes(note.sourceType as SourceType);
+            console.log(`[AINotes] Note "${note.title}": hasTag=${hasMatchingTag}, hasSource=${hasMatchingSource}`);
             return hasMatchingTag && hasMatchingSource;
         });
+
+        console.log('[AINotes] Matching notes:', matchingNotes.length);
 
         if (matchingNotes.length === 0) {
             Alert.alert('No Notes Found', 'No notes found with the selected tags and source types. Add some notes first!');
@@ -285,15 +313,23 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
         try {
             const selectedTags = tags.filter(t => summaryTagIds.includes(t.id));
+            console.log('[AINotes] Selected tags for summary:', selectedTags.map(t => t.name));
 
             setGeneratingStatus(`Summarizing ${matchingNotes.length} notes...`);
 
+            console.log('[AINotes] Calling generateAISummary...');
             const summary = await generateAISummary({
                 tagIds: summaryTagIds,
                 includeCurrentAffairs: summarySourceTypes.includes('current_affairs'),
                 includeSavedArticles: summarySourceTypes.includes('institute'),
                 customPrompt: customPrompt || undefined,
             });
+
+            console.log('[AINotes] Summary generated:', summary);
+
+            if (!summary) {
+                throw new Error('No summary was generated');
+            }
 
             setShowSummaryModal(false);
             await loadData();
@@ -304,7 +340,8 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                 [{ text: 'View', onPress: () => setShowSummaryDetail(summary) }]
             );
         } catch (error: any) {
-            Alert.alert('Error', error.message || 'Failed to generate summary');
+            console.error('[AINotes] Error generating summary:', error);
+            Alert.alert('Summary Error', error.message || 'Failed to generate summary. Please try again.');
         } finally {
             setGenerating(false);
             setGeneratingStatus('');
