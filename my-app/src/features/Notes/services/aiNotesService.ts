@@ -3,7 +3,7 @@
  * Uses OpenRouter API to generate intelligent summaries
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from './storage';
 import { LocalNote, LocalTag, getAllNotes, getAllTags, getNotesByTag, getNotesByNotebook } from './localNotesStorage';
 
 const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
@@ -52,9 +52,9 @@ export interface SummaryRequest {
 
 // Helper to generate unique ID
 const generateId = async (): Promise<number> => {
-    const current = await AsyncStorage.getItem(STORAGE_KEYS.SUMMARY_COUNTER);
+    const current = await getItem(STORAGE_KEYS.SUMMARY_COUNTER);
     const next = (parseInt(current || '0') || 0) + 1;
-    await AsyncStorage.setItem(STORAGE_KEYS.SUMMARY_COUNTER, String(next));
+    await setItem(STORAGE_KEYS.SUMMARY_COUNTER, String(next));
     return next;
 };
 
@@ -75,7 +75,7 @@ export const createNotebook = async (title: string, description?: string): Promi
 
         const notebooks = await getAllNotebooks();
         notebooks.unshift(newNotebook);
-        await AsyncStorage.setItem(STORAGE_KEYS.NOTEBOOKS, JSON.stringify(notebooks));
+        await setItem(STORAGE_KEYS.NOTEBOOKS, JSON.stringify(notebooks));
         return newNotebook;
     } catch (error) {
         console.error('Error creating notebook:', error);
@@ -88,7 +88,7 @@ export const createNotebook = async (title: string, description?: string): Promi
  */
 export const getAllNotebooks = async (): Promise<AINotebook[]> => {
     try {
-        const data = await AsyncStorage.getItem(STORAGE_KEYS.NOTEBOOKS);
+        const data = await getItem(STORAGE_KEYS.NOTEBOOKS);
         return data ? JSON.parse(data) : [];
     } catch (error) {
         return [];
@@ -101,7 +101,7 @@ export const getAllNotebooks = async (): Promise<AINotebook[]> => {
 export const deleteNotebook = async (id: string): Promise<void> => {
     const notebooks = await getAllNotebooks();
     const filtered = notebooks.filter(n => n.id !== id);
-    await AsyncStorage.setItem(STORAGE_KEYS.NOTEBOOKS, JSON.stringify(filtered));
+    await setItem(STORAGE_KEYS.NOTEBOOKS, JSON.stringify(filtered));
 };
 
 /**
@@ -345,7 +345,7 @@ Generate a well-structured summary that:
         // Save to storage
         const existing = await getAllSummaries();
         existing.unshift(summary);
-        await AsyncStorage.setItem(STORAGE_KEYS.SUMMARIES, JSON.stringify(existing));
+        await setItem(STORAGE_KEYS.SUMMARIES, JSON.stringify(existing));
 
         onProgress?.('Done!');
         return summary;
@@ -361,7 +361,7 @@ Generate a well-structured summary that:
  */
 export const getAllSummaries = async (): Promise<AISummary[]> => {
     try {
-        const data = await AsyncStorage.getItem(STORAGE_KEYS.SUMMARIES);
+        const data = await getItem(STORAGE_KEYS.SUMMARIES);
         return data ? JSON.parse(data) : [];
     } catch (error) {
         console.error('[AINotes] Error getting summaries:', error);
@@ -384,7 +384,7 @@ export const deleteSummary = async (id: number): Promise<boolean> => {
     try {
         const summaries = await getAllSummaries();
         const filtered = summaries.filter(s => s.id !== id);
-        await AsyncStorage.setItem(STORAGE_KEYS.SUMMARIES, JSON.stringify(filtered));
+        await setItem(STORAGE_KEYS.SUMMARIES, JSON.stringify(filtered));
         return true;
     } catch (error) {
         console.error('[AINotes] Error deleting summary:', error);

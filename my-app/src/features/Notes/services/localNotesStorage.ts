@@ -1,9 +1,9 @@
 /**
- * Local Notes Storage Service using AsyncStorage
- * Stores all notes data locally on the device
+ * Local Notes Storage Service
+ * Uses cross-platform storage (localStorage on web, AsyncStorage on native)
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getItem, setItem } from './storage';
 
 // Storage Keys
 const STORAGE_KEYS = {
@@ -93,9 +93,9 @@ export const DEFAULT_UPSC_TAGS: Omit<LocalTag, 'id' | 'usageCount' | 'createdAt'
 
 const generateId = async (counterKey: string): Promise<number> => {
     try {
-        const currentId = await AsyncStorage.getItem(counterKey);
+        const currentId = await getItem(counterKey);
         const newId = (currentId ? parseInt(currentId, 10) : 0) + 1;
-        await AsyncStorage.setItem(counterKey, newId.toString());
+        await setItem(counterKey, newId.toString());
         return newId;
     } catch (error) {
         console.error('[LocalNotesStorage] Error generating ID:', error);
@@ -109,7 +109,7 @@ const getTimestamp = (): string => new Date().toISOString();
 
 export const getAllNotes = async (): Promise<LocalNote[]> => {
     try {
-        const notesJson = await AsyncStorage.getItem(STORAGE_KEYS.NOTES);
+        const notesJson = await getItem(STORAGE_KEYS.NOTES);
         const notes: LocalNote[] = notesJson ? JSON.parse(notesJson) : [];
         // Sort by pinned first, then by updatedAt
         return notes.sort((a, b) => {
@@ -154,7 +154,7 @@ export const createNote = async (noteData: Partial<LocalNote>): Promise<LocalNot
         };
 
         notes.push(newNote);
-        await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+        await setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
 
         // Update tag usage counts
         for (const tag of newNote.tags) {
@@ -186,7 +186,7 @@ export const updateNote = async (noteId: number, updates: Partial<LocalNote>): P
         };
 
         notes[index] = updatedNote;
-        await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+        await setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
 
         console.log('[LocalNotesStorage] Updated note:', noteId);
         return updatedNote;
@@ -206,7 +206,7 @@ export const deleteNote = async (noteId: number): Promise<boolean> => {
             return false;
         }
 
-        await AsyncStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(filteredNotes));
+        await setItem(STORAGE_KEYS.NOTES, JSON.stringify(filteredNotes));
         console.log('[LocalNotesStorage] Deleted note:', noteId);
         return true;
     } catch (error) {
@@ -273,7 +273,7 @@ export const getNotesBySource = async (sourceType: LocalNote['sourceType']): Pro
 
 export const getAllTags = async (): Promise<LocalTag[]> => {
     try {
-        const tagsJson = await AsyncStorage.getItem(STORAGE_KEYS.TAGS);
+        const tagsJson = await getItem(STORAGE_KEYS.TAGS);
         let tags: LocalTag[] = tagsJson ? JSON.parse(tagsJson) : [];
 
         // Initialize default tags if empty
@@ -304,7 +304,7 @@ export const initializeDefaultTags = async (): Promise<LocalTag[]> => {
             });
         }
 
-        await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
+        await setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
         console.log('[LocalNotesStorage] Initialized default tags');
         return tags;
     } catch (error) {
@@ -337,7 +337,7 @@ export const createTag = async (name: string, color?: string, category?: LocalTa
         };
 
         tags.push(newTag);
-        await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
+        await setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
 
         console.log('[LocalNotesStorage] Created tag:', newTag.name);
         return newTag;
@@ -349,14 +349,14 @@ export const createTag = async (name: string, color?: string, category?: LocalTa
 
 export const incrementTagUsage = async (tagId: number): Promise<void> => {
     try {
-        const tagsJson = await AsyncStorage.getItem(STORAGE_KEYS.TAGS);
+        const tagsJson = await getItem(STORAGE_KEYS.TAGS);
         const tags: LocalTag[] = tagsJson ? JSON.parse(tagsJson) : [];
 
         const index = tags.findIndex(tag => tag.id === tagId);
         if (index !== -1) {
             tags[index].usageCount++;
             tags[index].updatedAt = getTimestamp();
-            await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
+            await setItem(STORAGE_KEYS.TAGS, JSON.stringify(tags));
         }
     } catch (error) {
         console.error('[LocalNotesStorage] Error incrementing tag usage:', error);
@@ -372,7 +372,7 @@ export const deleteTag = async (tagId: number): Promise<boolean> => {
             return false;
         }
 
-        await AsyncStorage.setItem(STORAGE_KEYS.TAGS, JSON.stringify(filteredTags));
+        await setItem(STORAGE_KEYS.TAGS, JSON.stringify(filteredTags));
 
         // Remove tag from all notes
         const notes = await getAllNotes();
@@ -395,7 +395,7 @@ export const deleteTag = async (tagId: number): Promise<boolean> => {
 
 export const saveScrapedLink = async (linkData: Omit<ScrapedLink, 'id' | 'scrapedAt'>): Promise<ScrapedLink> => {
     try {
-        const linksJson = await AsyncStorage.getItem(STORAGE_KEYS.LINKS);
+        const linksJson = await getItem(STORAGE_KEYS.LINKS);
         const links: ScrapedLink[] = linksJson ? JSON.parse(linksJson) : [];
 
         // Check if link already exists
@@ -412,7 +412,7 @@ export const saveScrapedLink = async (linkData: Omit<ScrapedLink, 'id' | 'scrape
         };
 
         links.push(newLink);
-        await AsyncStorage.setItem(STORAGE_KEYS.LINKS, JSON.stringify(links));
+        await setItem(STORAGE_KEYS.LINKS, JSON.stringify(links));
 
         console.log('[LocalNotesStorage] Saved scraped link:', linkData.url);
         return newLink;
@@ -424,7 +424,7 @@ export const saveScrapedLink = async (linkData: Omit<ScrapedLink, 'id' | 'scrape
 
 export const getScrapedLinks = async (): Promise<ScrapedLink[]> => {
     try {
-        const linksJson = await AsyncStorage.getItem(STORAGE_KEYS.LINKS);
+        const linksJson = await getItem(STORAGE_KEYS.LINKS);
         return linksJson ? JSON.parse(linksJson) : [];
     } catch (error) {
         console.error('[LocalNotesStorage] Error getting scraped links:', error);
@@ -436,13 +436,12 @@ export const getScrapedLinks = async (): Promise<ScrapedLink[]> => {
 
 export const clearAllNotesData = async (): Promise<void> => {
     try {
-        await AsyncStorage.multiRemove([
-            STORAGE_KEYS.NOTES,
-            STORAGE_KEYS.TAGS,
-            STORAGE_KEYS.LINKS,
-            STORAGE_KEYS.NOTE_COUNTER,
-            STORAGE_KEYS.TAG_COUNTER,
-        ]);
+        // Clear all storage keys by setting them to empty
+        await setItem(STORAGE_KEYS.NOTES, '[]');
+        await setItem(STORAGE_KEYS.TAGS, '[]');
+        await setItem(STORAGE_KEYS.LINKS, '[]');
+        await setItem(STORAGE_KEYS.NOTE_COUNTER, '0');
+        await setItem(STORAGE_KEYS.TAG_COUNTER, '0');
         console.log('[LocalNotesStorage] Cleared all notes data');
     } catch (error) {
         console.error('[LocalNotesStorage] Error clearing data:', error);
