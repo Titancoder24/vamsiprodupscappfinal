@@ -43,7 +43,7 @@ export interface LocalNote {
     content: string; // Plain text / markdown content
     blocks: NoteBlock[]; // Notion-like blocks
     tags: LocalTag[];
-    sourceType?: 'manual' | 'scraped' | 'ncert' | 'book' | 'current_affairs' | 'report';
+    sourceType?: 'manual' | 'institute' | 'scraped' | 'ncert' | 'book' | 'current_affairs' | 'report';
     sourceUrl?: string;
     summary?: string;
     isPinned: boolean;

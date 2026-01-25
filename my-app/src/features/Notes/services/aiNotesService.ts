@@ -112,9 +112,10 @@ export const getNotesByMultipleTags = async (tagIds: number[]): Promise<LocalNot
 
     if (tagIds.length === 0) return allNotes;
 
+    // Match notes that have ANY of the selected tags (more flexible)
     return allNotes.filter(note => {
         const noteTagIds = note.tags.map(t => t.id);
-        return tagIds.every(tagId => noteTagIds.includes(tagId));
+        return tagIds.some(tagId => noteTagIds.includes(tagId));
     });
 };
 
@@ -170,6 +171,14 @@ const buildSummaryContext = (notes: LocalNote[], tags: LocalTag[]): string => {
         context += "=== STUDENT'S PRE-EXISTING NOTES ===\n";
         groupedNotes.manual.forEach((note, i) => {
             context += `\n[Note ${i + 1}: ${note.title}]\n${note.content}\n`;
+        });
+    }
+
+    // Add institute notes (Vision IAS, IASBaba, etc.)
+    if (groupedNotes.institute?.length) {
+        context += "\n\n=== INSTITUTE NOTES (Vision IAS, IASBaba, etc.) ===\n";
+        groupedNotes.institute.forEach((note, i) => {
+            context += `\n[Note ${i + 1}: ${note.title}]${note.sourceUrl ? `\nSource: ${note.sourceUrl}` : ''}\n${note.content}\n`;
         });
     }
 
