@@ -100,6 +100,10 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     // Loading
     const [loading, setLoading] = useState(true);
 
+    // Filter states for summaries
+    const [filterTagId, setFilterTagId] = useState<number | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
     // ========== DATA LOADING ==========
     useFocusEffect(
         useCallback(() => {
@@ -341,7 +345,8 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const handleGenerateSummary = async () => {
         console.log('[AINotes] Starting summary generation...');
         console.log('[AINotes] API Key present:', !!OPENROUTER_API_KEY);
-        console.log('[AINotes] API Key length:', OPENROUTER_API_KEY?.length);
+        console.log('[AINotes] Selected note IDs:', selectedNoteIds);
+        console.log('[AINotes] Selected article IDs:', selectedArticleIds);
 
         // Check API key first
         if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.length < 10) {
@@ -349,64 +354,93 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             return;
         }
 
-        // Get all notes if none selected, or use selected
+        // Get notes to summarize
         let notesToSummarize = notes;
         if (selectedNoteIds.length > 0) {
             notesToSummarize = notes.filter(n => selectedNoteIds.includes(n.id));
         }
 
-        // Get selected articles
+        // Get articles to summarize
         const articlesToSummarize = currentAffairs.filter(a => selectedArticleIds.includes(a.id));
 
+        console.log('[AINotes] Notes to summarize:', notesToSummarize.length);
+        console.log('[AINotes] Articles to summarize:', articlesToSummarize.length);
+
         if (notesToSummarize.length === 0 && articlesToSummarize.length === 0) {
-            Alert.alert('No Content', 'Please add some notes first or select current affairs articles.');
+            Alert.alert('No Content', 'Please select notes or current affairs articles to summarize.');
             return;
         }
 
         setGenerating(true);
-        setGeneratingStatus('Preparing your content...');
+        setGeneratingStatus('Preparing content...');
 
         try {
-            // Build content string
+            // BUILD MERGED CONTENT FROM NOTES + ARTICLES
             let allContent = '';
 
-            notesToSummarize.forEach((note, i) => {
-                allContent += `\n--- Note ${i + 1}: ${note.title} ---\n${note.content}\n`;
-            });
+            // Add notes content
+            if (notesToSummarize.length > 0) {
+                allContent += '\n=== YOUR NOTES ===\n';
+                notesToSummarize.forEach((note, i) => {
+                    allContent += `\n[Note ${i + 1}] ${note.title}\n${note.content}\n`;
+                });
+            }
 
-            articlesToSummarize.forEach((article, i) => {
-                allContent += `\n--- Article ${i + 1}: ${article.title} ---\n${article.content}\n`;
-            });
+            // Add current affairs articles content
+            if (articlesToSummarize.length > 0) {
+                allContent += '\n=== CURRENT AFFAIRS ARTICLES ===\n';
+                articlesToSummarize.forEach((article, i) => {
+                    allContent += `\n[Article ${i + 1}] ${article.title}\n${article.content}\n`;
+                });
+            }
 
+            console.log('[AINotes] Total content length:', allContent.length);
             setGeneratingStatus('Calling AI...');
 
-            // Build prompt
-            const prompt = `You are a UPSC exam expert. Create a comprehensive summary with bullet points.
+            // Build prompt - NO MARKDOWN, NO EMOJIS
+            const prompt = `You are a UPSC exam expert. Create a comprehensive summary combining all the provided notes and current affairs articles.
 
-FORMAT:
-## 📚 TOPIC OVERVIEW
-• Brief introduction (2-3 lines)
+STRICT RULES:
+- DO NOT use any markdown (no #, ##, **, __, etc.)
+- DO NOT use any emojis or special symbols
+- Use simple bullet points with - or • 
+- Use PLAIN TEXT ONLY
+- Use clear section headers in UPPERCASE
+- Combine information from all sources into one cohesive summary
 
-## 🎯 KEY POINTS
-• Important point 1
-• Important point 2
-• Important point 3
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
+
+TOPIC OVERVIEW
+- Brief introduction about the topic
+- Context and background
+
+KEY POINTS
+- Important point 1
+- Important point 2
+- Important point 3
 (continue as needed)
 
-## 📝 FACTS & FIGURES
-• Key dates, numbers, names to remember
+IMPORTANT FACTS AND FIGURES
+- Key dates to remember
+- Important numbers and statistics
+- Names and places
 
-## ⚡ EXAM FOCUS
-• Prelims focus areas
-• Mains focus areas
+EXAM RELEVANCE
+- How this can be asked in Prelims
+- Mains answer writing points
+- Essay connection points
 
-## 📖 QUICK REVISION
-• 5-6 line summary
+QUICK REVISION
+- Main takeaway 1
+- Main takeaway 2
+- Main takeaway 3
 
-CONTENT:
+CONTENT TO SUMMARIZE:
 ${allContent}
 
-${customPrompt ? `INSTRUCTIONS: ${customPrompt}` : ''}`;
+${customPrompt ? `ADDITIONAL INSTRUCTIONS: ${customPrompt}` : ''}
+
+Generate a professional, exam-oriented summary. NO emojis, NO markdown.`;
 
             console.log('[AINotes] Sending request to OpenRouter...');
 
@@ -498,112 +532,259 @@ ${customPrompt ? `INSTRUCTIONS: ${customPrompt}` : ''}`;
         }
     };
 
-    // ========== EXPORT ==========
-    const handleExportSummary = async (summary: AISummary, format: 'txt' | 'docx' | 'pdf' = 'txt') => {
-        try {
-            const textContent = exportSummaryAsText(summary);
-            const fileName = summary.title.replace(/[^a-z0-9]/gi, '_');
+    // ========== EXPORT - BULLETPROOF VERSION ==========
 
-            if (isWeb) {
-                if (format === 'docx') {
-                    // For Word format, create HTML that Word can open
-                    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><title>${summary.title}</title></head>
-<body style="font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; line-height: 1.6;">
-<h1 style="color: #1E3A8A;">${summary.title}</h1>
-<p><strong>Tags:</strong> ${summary.tags.map(t => '#' + t.name).join(' ')}</p>
-<p><strong>Generated:</strong> ${new Date(summary.createdAt).toLocaleDateString()}</p>
-<hr/>
-<div style="white-space: pre-wrap;">${summary.summary}</div>
-<hr/>
-<h3>Sources:</h3>
-<ul>${summary.sources.map(s => `<li>${s.noteTitle} (${s.sourceType})</li>`).join('')}</ul>
-</body>
-</html>`;
-                    const blob = new Blob([htmlContent], { type: 'application/msword' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${fileName}.doc`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                    Alert.alert('Success', 'Word document downloaded! Open with Microsoft Word or Google Docs.');
-                } else if (format === 'pdf') {
-                    // For PDF, create a printable HTML page
-                    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<title>${summary.title}</title>
-<style>
-body { font-family: Georgia, serif; max-width: 700px; margin: 40px auto; padding: 20px; line-height: 1.8; color: #333; }
-h1 { color: #1E3A8A; border-bottom: 3px solid #3B82F6; padding-bottom: 10px; }
-.tags { background: #EFF6FF; padding: 10px 15px; border-radius: 8px; margin: 20px 0; }
-.tag { color: #3B82F6; font-weight: bold; }
-.content { white-space: pre-wrap; text-align: justify; }
-.sources { background: #F8FAFC; padding: 15px; border-radius: 8px; margin-top: 30px; }
-@media print { body { margin: 0; padding: 20px; } }
-</style>
-</head>
-<body>
-<h1>📚 ${summary.title}</h1>
-<div class="tags">
-<strong>Tags:</strong> ${summary.tags.map(t => `<span class="tag">#${t.name}</span>`).join(' ')}
-</div>
-<p><em>Generated on ${new Date(summary.createdAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}</em></p>
-<hr/>
-<div class="content">${summary.summary}</div>
-<div class="sources">
-<h3>📎 Sources Used:</h3>
-<ul>${summary.sources.map(s => `<li><strong>${s.noteTitle}</strong> <em>(${s.sourceType})</em></li>`).join('')}</ul>
-</div>
-<p style="text-align: center; color: #94A3B8; margin-top: 40px;">Generated by PrepAssist AI Notes Maker</p>
-</body>
-</html>`;
-                    const printWindow = window.open('', '_blank');
-                    if (printWindow) {
-                        printWindow.document.write(htmlContent);
-                        printWindow.document.close();
-                        setTimeout(() => {
-                            printWindow.print();
-                        }, 500);
-                    }
-                    Alert.alert('Print Dialog', 'Use "Save as PDF" in the print dialog to save as PDF file.');
-                } else {
-                    // Text format
-                    const blob = new Blob([textContent], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${fileName}.txt`;
-                    a.click();
-                    URL.revokeObjectURL(url);
-                }
-            } else {
-                // For native, just share the text content directly
-                await Share.share({
-                    title: summary.title,
-                    message: textContent,
-                });
-            }
+    /**
+     * Force download a file in browser
+     */
+    const forceDownload = (filename: string, content: string, mimeType: string): boolean => {
+        try {
+            console.log('[Export] Starting download:', filename);
+
+            // Create blob
+            const blob = new Blob([content], { type: mimeType });
+
+            // Create download URL
+            const downloadUrl = URL.createObjectURL(blob);
+
+            // Create hidden link
+            const link = document.createElement('a');
+            link.href = downloadUrl;
+            link.download = filename;
+            link.style.display = 'none';
+            link.style.visibility = 'hidden';
+
+            // Add to DOM
+            document.body.appendChild(link);
+
+            // Force click
+            link.click();
+
+            // Cleanup after short delay
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(downloadUrl);
+                console.log('[Export] Download complete:', filename);
+            }, 100);
+
+            return true;
         } catch (error) {
-            console.error('Export error:', error);
-            Alert.alert('Error', 'Failed to export summary');
+            console.error('[Export] Download error:', error);
+            return false;
         }
     };
 
+    /**
+     * Export summary in chosen format
+     */
+    const handleExportSummary = async (summary: AISummary, format: 'txt' | 'doc' | 'pdf') => {
+        console.log('[Export] Starting export:', format);
+
+        // Create safe filename
+        const safeTitle = summary.title
+            .replace(/[^a-zA-Z0-9\s]/g, '')
+            .replace(/\s+/g, '_')
+            .substring(0, 40) || 'Summary';
+
+        const dateStr = new Date(summary.createdAt).toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+
+        // Clean content - remove any emojis
+        const cleanContent = summary.summary
+            .replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '')
+            .trim();
+
+        // ===== TEXT FORMAT =====
+        if (format === 'txt') {
+            const textContent = [
+                summary.title.toUpperCase(),
+                '='.repeat(50),
+                '',
+                `Generated: ${dateStr}`,
+                '',
+                '='.repeat(50),
+                '',
+                cleanContent,
+                '',
+                '='.repeat(50),
+                'Generated by PrepAssist AI Notes Maker',
+                'https://prepassist.in'
+            ].join('\n');
+
+            if (isWeb) {
+                const success = forceDownload(`${safeTitle}.txt`, textContent, 'text/plain;charset=utf-8');
+                if (success) {
+                    Alert.alert('Success', 'Text file downloaded!');
+                } else {
+                    Alert.alert('Error', 'Download failed. Try again.');
+                }
+            } else {
+                await Share.share({ title: summary.title, message: textContent });
+            }
+        }
+
+        // ===== WORD FORMAT =====
+        else if (format === 'doc') {
+            const wordHtml = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word">
+<head>
+<meta charset="utf-8">
+<title>${summary.title}</title>
+<style>
+body { font-family: Calibri, Arial, sans-serif; font-size: 12pt; line-height: 1.6; margin: 40px; color: #333; }
+h1 { font-size: 18pt; color: #1a365d; border-bottom: 2px solid #2563eb; padding-bottom: 8px; margin-bottom: 16px; }
+.date { color: #666; font-size: 10pt; margin-bottom: 20px; }
+.content { white-space: pre-wrap; }
+.footer { margin-top: 40px; text-align: center; color: #999; font-size: 9pt; border-top: 1px solid #ccc; padding-top: 10px; }
+</style>
+</head>
+<body>
+<h1>${summary.title}</h1>
+<p class="date">Generated: ${dateStr}</p>
+<div class="content">${cleanContent.replace(/\n/g, '<br>')}</div>
+<p class="footer">Generated by PrepAssist AI Notes Maker | prepassist.in</p>
+</body>
+</html>`;
+
+            if (isWeb) {
+                const success = forceDownload(`${safeTitle}.doc`, wordHtml, 'application/msword');
+                if (success) {
+                    Alert.alert('Success', 'Word document downloaded! Open with MS Word or Google Docs.');
+                } else {
+                    Alert.alert('Error', 'Download failed. Try again.');
+                }
+            } else {
+                await Share.share({ title: summary.title, message: cleanContent });
+            }
+        }
+
+        // ===== PDF FORMAT (via Print) =====
+        else if (format === 'pdf') {
+            const pdfHtml = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${summary.title}</title>
+<style>
+@page { size: A4; margin: 20mm; }
+@media print { 
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .no-print { display: none !important; }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { 
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+    font-size: 11pt; 
+    line-height: 1.7; 
+    color: #222; 
+    padding: 40px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+h1 { 
+    font-size: 20pt; 
+    color: #1a365d; 
+    border-bottom: 3px solid #3b82f6; 
+    padding-bottom: 12px; 
+    margin-bottom: 16px; 
+}
+.date { 
+    color: #555; 
+    font-size: 10pt; 
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+.content { 
+    white-space: pre-wrap; 
+    font-size: 11pt;
+    line-height: 1.8;
+}
+.footer { 
+    margin-top: 50px; 
+    text-align: center; 
+    color: #888; 
+    font-size: 9pt; 
+    padding-top: 16px; 
+    border-top: 1px solid #ddd; 
+}
+.print-btn {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    font-size: 14px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.print-btn:hover { background: #2563eb; }
+</style>
+</head>
+<body>
+<button class="print-btn no-print" onclick="window.print()">Save as PDF</button>
+<h1>${summary.title}</h1>
+<p class="date">Generated: ${dateStr}</p>
+<div class="content">${cleanContent}</div>
+<p class="footer">Generated by PrepAssist AI Notes Maker | prepassist.in</p>
+<script>
+// Auto print after 1 second
+setTimeout(function() {
+    window.print();
+}, 1000);
+</script>
+</body>
+</html>`;
+
+            if (isWeb) {
+                // Open in new window
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                    printWindow.document.write(pdfHtml);
+                    printWindow.document.close();
+                    console.log('[Export] PDF print window opened');
+                } else {
+                    // Popup blocked - show instructions
+                    Alert.alert(
+                        'Popup Blocked',
+                        'Your browser blocked the print window. Please allow popups for this site, or download as Text/Word format instead.'
+                    );
+                }
+            } else {
+                await Share.share({ title: summary.title, message: cleanContent });
+            }
+        }
+    };
+
+    /**
+     * Show export format options
+     */
     const showExportOptions = (summary: AISummary) => {
         Alert.alert(
-            'Export Summary',
-            'Choose export format:',
+            'Download Summary',
+            'Choose your preferred format:',
             [
-                { text: 'Text (.txt)', onPress: () => handleExportSummary(summary, 'txt') },
-                { text: 'Word (.doc)', onPress: () => handleExportSummary(summary, 'docx') },
-                { text: 'PDF (Print)', onPress: () => handleExportSummary(summary, 'pdf') },
-                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Text File (.txt)',
+                    onPress: () => handleExportSummary(summary, 'txt')
+                },
+                {
+                    text: 'Word Document (.doc)',
+                    onPress: () => handleExportSummary(summary, 'doc')
+                },
+                {
+                    text: 'PDF (Print Dialog)',
+                    onPress: () => handleExportSummary(summary, 'pdf')
+                },
+                {
+                    text: 'Cancel',
+                    style: 'cancel'
+                },
             ]
         );
     };
@@ -816,68 +997,198 @@ h1 { color: #1E3A8A; border-bottom: 3px solid #3B82F6; padding-bottom: 10px; }
     };
 
     // Render Summaries Tab
-    const renderSummariesTab = () => (
-        <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-            {/* Generate Summary Button */}
-            <TouchableOpacity style={styles.generateBtn} onPress={openSummaryGenerator}>
-                <Ionicons name="sparkles" size={24} color="#FFF" />
-                <View>
-                    <Text style={styles.generateBtnText}>Generate AI Summary</Text>
-                    <Text style={styles.generateBtnSubtext}>Combine notes by hashtags</Text>
+    const renderSummariesTab = () => {
+        // Filter summaries based on selected tag and search
+        const filteredSummaries = summaries.filter(s => {
+            const matchesTag = !filterTagId || s.tags.some(t => t.id === filterTagId);
+            const matchesSearch = !searchQuery ||
+                s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                s.summary.toLowerCase().includes(searchQuery.toLowerCase());
+            return matchesTag && matchesSearch;
+        });
+
+        // Get all unique tags from summaries
+        const allTags = Array.from(new Set(summaries.flatMap(s => s.tags.map(t => JSON.stringify(t)))))
+            .map(t => JSON.parse(t));
+
+        return (
+            <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+                {/* Generate Summary Button */}
+                <TouchableOpacity style={styles.generateBtn} onPress={openSummaryGenerator}>
+                    <Ionicons name="sparkles" size={24} color="#FFF" />
+                    <View>
+                        <Text style={styles.generateBtnText}>Generate AI Summary</Text>
+                        <Text style={styles.generateBtnSubtext}>Combine notes by hashtags</Text>
+                    </View>
+                </TouchableOpacity>
+
+                {/* Search Bar */}
+                <View style={{ backgroundColor: '#F1F5F9', borderRadius: 12, padding: 12, marginBottom: 12, flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="search" size={20} color="#64748B" />
+                    <TextInput
+                        style={{ flex: 1, marginLeft: 10, fontSize: 15, color: '#0F172A' }}
+                        placeholder="Search summaries..."
+                        placeholderTextColor="#94A3B8"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                    {searchQuery ? (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
-            </TouchableOpacity>
 
-            {/* Summaries List */}
-            <Text style={styles.sectionTitle}>Your Summaries ({summaries.length})</Text>
+                {/* Tag Filter Chips */}
+                {allTags.length > 0 && (
+                    <View style={{ marginBottom: 16 }}>
+                        <Text style={{ fontSize: 13, color: '#64748B', marginBottom: 8 }}>Filter by Tag:</Text>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            <TouchableOpacity
+                                onPress={() => setFilterTagId(null)}
+                                style={{
+                                    paddingHorizontal: 14,
+                                    paddingVertical: 8,
+                                    borderRadius: 20,
+                                    backgroundColor: filterTagId === null ? '#3B82F6' : '#E2E8F0',
+                                    marginRight: 8,
+                                }}
+                            >
+                                <Text style={{ color: filterTagId === null ? '#FFF' : '#475569', fontWeight: '600', fontSize: 13 }}>
+                                    All
+                                </Text>
+                            </TouchableOpacity>
+                            {allTags.map((tag: any) => (
+                                <TouchableOpacity
+                                    key={tag.id}
+                                    onPress={() => setFilterTagId(filterTagId === tag.id ? null : tag.id)}
+                                    style={{
+                                        paddingHorizontal: 14,
+                                        paddingVertical: 8,
+                                        borderRadius: 20,
+                                        backgroundColor: filterTagId === tag.id ? tag.color : '#E2E8F0',
+                                        marginRight: 8,
+                                    }}
+                                >
+                                    <Text style={{
+                                        color: filterTagId === tag.id ? '#FFF' : tag.color,
+                                        fontWeight: '600',
+                                        fontSize: 13
+                                    }}>
+                                        {tag.name}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                    </View>
+                )}
 
-            {summaries.map(summary => (
-                <View key={summary.id} style={styles.summaryCard}>
-                    <View style={styles.summaryCardHeader}>
-                        <Text style={styles.summaryTitle}>{summary.title}</Text>
-                        <Text style={styles.summaryDate}>
-                            {new Date(summary.createdAt).toLocaleDateString()}
+                {/* Summaries List */}
+                <Text style={styles.sectionTitle}>
+                    {filterTagId || searchQuery
+                        ? `Filtered Summaries (${filteredSummaries.length})`
+                        : `Your Summaries (${summaries.length})`}
+                </Text>
+
+                {filteredSummaries.map(summary => (
+                    <View key={summary.id} style={styles.summaryCard}>
+                        <View style={styles.summaryCardHeader}>
+                            <Text style={styles.summaryTitle}>{summary.title}</Text>
+                            <Text style={styles.summaryDate}>
+                                {new Date(summary.createdAt).toLocaleDateString()}
+                            </Text>
+                        </View>
+
+                        <View style={styles.summaryTags}>
+                            {summary.tags.map(tag => (
+                                <Text key={tag.id} style={[styles.summaryTag, { color: tag.color }]}>{tag.name}</Text>
+                            ))}
+                        </View>
+
+                        <Text style={styles.summaryPreview} numberOfLines={3}>{summary.summary}</Text>
+
+                        <View style={styles.summaryActions}>
+                            <TouchableOpacity style={styles.summaryAction} onPress={() => setShowSummaryDetail(summary)}>
+                                <Ionicons name="eye-outline" size={18} color="#3B82F6" />
+                                <Text style={styles.summaryActionText}>View</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.summaryAction} onPress={() => {
+                                // Direct download without dialog
+                                const safeTitle = summary.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) || 'Summary';
+                                const dateStr = new Date(summary.createdAt).toLocaleDateString('en-IN');
+                                const content = `${summary.title}\n\nGenerated: ${dateStr}\n\n${'='.repeat(50)}\n\n${summary.summary}\n\n${'='.repeat(50)}\n\nGenerated by PrepAssist AI Notes`;
+
+                                try {
+                                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `${safeTitle}.txt`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    URL.revokeObjectURL(url);
+                                } catch (e) {
+                                    console.error('Download error:', e);
+                                }
+                            }}>
+                                <Ionicons name="document-text-outline" size={18} color="#10B981" />
+                                <Text style={[styles.summaryActionText, { color: '#10B981' }]}>TXT</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.summaryAction} onPress={() => {
+                                // Direct PDF via print
+                                const s = summary;
+                                const dateStr = new Date(s.createdAt).toLocaleDateString('en-IN');
+                                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${s.title}</title><style>
+body{font-family:Arial,sans-serif;padding:40px;max-width:800px;margin:0 auto;line-height:1.8;color:#222;}
+h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
+.date{color:#666;font-size:12px;margin-bottom:20px;}
+.content{white-space:pre-wrap;}
+.footer{margin-top:40px;text-align:center;color:#999;font-size:10px;border-top:1px solid #ddd;padding-top:15px;}
+@media print{body{padding:20px;}}
+</style></head><body>
+<h1>${s.title}</h1>
+<p class="date">Generated: ${dateStr}</p>
+<div class="content">${s.summary}</div>
+<p class="footer">Generated by PrepAssist AI Notes Maker</p>
+</body></html>`;
+                                const w = window.open('', '_blank');
+                                if (w) {
+                                    w.document.write(html);
+                                    w.document.close();
+                                    setTimeout(() => w.print(), 500);
+                                }
+                            }}>
+                                <Ionicons name="print-outline" size={18} color="#F59E0B" />
+                                <Text style={[styles.summaryActionText, { color: '#F59E0B' }]}>PDF</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.summaryAction} onPress={() => handleShareSummary(summary)}>
+                                <Ionicons name="share-outline" size={18} color="#8B5CF6" />
+                                <Text style={[styles.summaryActionText, { color: '#8B5CF6' }]}>Share</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.summaryAction} onPress={() => handleDeleteSummary(summary.id)}>
+                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ))}
+
+                {filteredSummaries.length === 0 && (
+                    <View style={styles.emptyState}>
+                        <Ionicons name="sparkles-outline" size={48} color="#CBD5E1" />
+                        <Text style={styles.emptyStateTitle}>
+                            {searchQuery || filterTagId ? 'No Matching Summaries' : 'No Summaries Yet'}
+                        </Text>
+                        <Text style={styles.emptyStateText}>
+                            {searchQuery || filterTagId
+                                ? 'Try a different search or filter'
+                                : 'Generate AI summaries by combining notes with matching hashtags'}
                         </Text>
                     </View>
-
-                    <View style={styles.summaryTags}>
-                        {summary.tags.map(tag => (
-                            <Text key={tag.id} style={[styles.summaryTag, { color: tag.color }]}>{tag.name}</Text>
-                        ))}
-                    </View>
-
-                    <Text style={styles.summaryPreview} numberOfLines={3}>{summary.summary}</Text>
-
-                    <View style={styles.summaryActions}>
-                        <TouchableOpacity style={styles.summaryAction} onPress={() => setShowSummaryDetail(summary)}>
-                            <Ionicons name="eye-outline" size={18} color="#3B82F6" />
-                            <Text style={styles.summaryActionText}>View</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.summaryAction} onPress={() => showExportOptions(summary)}>
-                            <Ionicons name="download-outline" size={18} color="#10B981" />
-                            <Text style={[styles.summaryActionText, { color: '#10B981' }]}>Export</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.summaryAction} onPress={() => handleShareSummary(summary)}>
-                            <Ionicons name="share-outline" size={18} color="#8B5CF6" />
-                            <Text style={[styles.summaryActionText, { color: '#8B5CF6' }]}>Share</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.summaryAction} onPress={() => handleDeleteSummary(summary.id)}>
-                            <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            ))}
-
-            {summaries.length === 0 && (
-                <View style={styles.emptyState}>
-                    <Ionicons name="sparkles-outline" size={48} color="#CBD5E1" />
-                    <Text style={styles.emptyStateTitle}>No Summaries Yet</Text>
-                    <Text style={styles.emptyStateText}>
-                        Generate AI summaries by combining notes with matching hashtags
-                    </Text>
-                </View>
-            )}
-        </ScrollView>
-    );
+                )}
+            </ScrollView>
+        );
+    };
 
     // ========== MODALS ==========
 
@@ -1234,9 +1545,52 @@ You can copy content from:
                             <Ionicons name="arrow-back" size={24} color="#0F172A" />
                         </TouchableOpacity>
                         <Text style={styles.detailTitle} numberOfLines={1}>{showSummaryDetail.title}</Text>
-                        <TouchableOpacity onPress={() => showExportOptions(showSummaryDetail)}>
-                            <Ionicons name="download-outline" size={24} color="#3B82F6" />
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                            <TouchableOpacity onPress={() => {
+                                const s = showSummaryDetail;
+                                const safeTitle = s.title.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30) || 'Summary';
+                                const dateStr = new Date(s.createdAt).toLocaleDateString('en-IN');
+                                const content = `${s.title}\n\nGenerated: ${dateStr}\n\n${'='.repeat(50)}\n\n${s.summary}\n\n${'='.repeat(50)}\n\nGenerated by PrepAssist AI Notes`;
+                                try {
+                                    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+                                    const url = URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.href = url;
+                                    a.download = `${safeTitle}.txt`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    document.body.removeChild(a);
+                                    URL.revokeObjectURL(url);
+                                } catch (e) { console.error(e); }
+                            }}>
+                                <Ionicons name="document-text-outline" size={24} color="#10B981" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => {
+                                const s = showSummaryDetail;
+                                const dateStr = new Date(s.createdAt).toLocaleDateString('en-IN');
+                                const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${s.title}</title><style>
+body{font-family:Arial,sans-serif;padding:40px;max-width:800px;margin:0 auto;line-height:1.8;color:#222;}
+h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
+.date{color:#666;font-size:12px;margin-bottom:20px;}
+.content{white-space:pre-wrap;}
+.footer{margin-top:40px;text-align:center;color:#999;font-size:10px;border-top:1px solid #ddd;padding-top:15px;}
+@media print{body{padding:20px;}}
+</style></head><body>
+<h1>${s.title}</h1>
+<p class="date">Generated: ${dateStr}</p>
+<div class="content">${s.summary}</div>
+<p class="footer">Generated by PrepAssist AI Notes Maker</p>
+</body></html>`;
+                                const w = window.open('', '_blank');
+                                if (w) {
+                                    w.document.write(html);
+                                    w.document.close();
+                                    setTimeout(() => w.print(), 500);
+                                }
+                            }}>
+                                <Ionicons name="print-outline" size={24} color="#F59E0B" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     <ScrollView style={styles.detailBody}>

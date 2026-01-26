@@ -41,6 +41,7 @@ if (Platform.OS !== 'web') {
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { savePDFMCQSession, getAllPDFMCQSessions, PDFMCQSession } from '../utils/pdfMCQStorage';
 import useCredits from '../../../hooks/useCredits';
+import { supabase } from '../../../lib/supabase';
 
 // ===================== CONFIGURATION =====================
 const CONFIG = {
@@ -1003,6 +1004,94 @@ export default function PDFGeneratorScreen() {
 
     // Timer
     const timerRef = useRef<any>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [pdfHistory, setPdfHistory] = useState<any[]>([]);
+    const [hasSavedCurrentTest, setHasSavedCurrentTest] = useState(false);
+
+    // Storage key for PDF test scores
+    const PDF_SCORES_KEY = 'pdf_mcq_test_scores';
+
+    // Load history from AsyncStorage on mount
+    useEffect(() => {
+        const loadHistory = async () => {
+            try {
+                const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+                const stored = await AsyncStorage.getItem(PDF_SCORES_KEY);
+                if (stored) {
+                    const scores = JSON.parse(stored);
+                    setPdfHistory(scores);
+                }
+            } catch (e) {
+                console.log('Error loading history:', e);
+            }
+        };
+        loadHistory();
+    }, []);
+
+    // Save score to AsyncStorage
+    const handleSaveScore = async () => {
+        const { correct, answered } = getScore();
+
+        if (answered === 0) {
+            Alert.alert('No Answers', 'Please answer some questions before saving.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+
+            // Get PDF filename
+            let fileName = 'PDF Practice';
+            if (statusMessage.includes('Selected:')) {
+                const match = statusMessage.match(/Selected:\s*(.*?)\s*\(/);
+                if (match && match[1]) fileName = match[1];
+            } else if (currentSession && currentSession.pdfName) {
+                fileName = currentSession.pdfName;
+            }
+
+            const percentage = (correct / answered) * 100;
+
+            // Create new score entry
+            const newScore = {
+                id: Date.now().toString(),
+                file_name: fileName,
+                total_questions: mcqs.length,
+                correct_answers: correct,
+                score_percentage: percentage,
+                created_at: new Date().toISOString()
+            };
+
+            // Get existing scores
+            const stored = await AsyncStorage.getItem(PDF_SCORES_KEY);
+            let scores = stored ? JSON.parse(stored) : [];
+
+            // Add new score at the beginning
+            scores = [newScore, ...scores].slice(0, 50); // Keep max 50 entries
+
+            // Save to AsyncStorage
+            await AsyncStorage.setItem(PDF_SCORES_KEY, JSON.stringify(scores));
+
+            // Update state
+            setPdfHistory(scores);
+
+            Alert.alert('Success', 'Your score has been saved locally!');
+        } catch (error: any) {
+            console.error('Save error:', error);
+            Alert.alert('Error', 'Failed to save score. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Auto-save when all questions are answered
+    useEffect(() => {
+        const { answered } = getScore();
+        if (mcqs.length > 0 && answered === mcqs.length && !hasSavedCurrentTest && !isSaving) {
+            setHasSavedCurrentTest(true);
+            handleSaveScore();
+        }
+    }, [showResults, mcqs.length, hasSavedCurrentTest, isSaving]);
 
     useEffect(() => {
         if (stage !== 'idle' && stage !== 'complete' && stage !== 'error') {
@@ -1052,6 +1141,7 @@ export default function PDFGeneratorScreen() {
             setShowResults({});
             setElapsedSeconds(0);
             setErrorMessage('');
+            setHasSavedCurrentTest(false);
 
             // STEP 1: Pick file
             setStage('picking');
@@ -1393,19 +1483,112 @@ export default function PDFGeneratorScreen() {
                     </View>
                 )}
 
+                {/* Previous Test Scores Table */}
+                {stage === 'idle' && mcqs.length === 0 && (
+                    <View style={{ marginTop: 24, paddingHorizontal: 4 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                            <Ionicons name="time-outline" size={20} color={theme.colors.primary} />
+                            <Text style={{ fontSize: 18, fontWeight: '700', color: theme.colors.text, marginLeft: 8 }}>
+                                Previous Test Scores
+                            </Text>
+                        </View>
+                        <View style={{
+                            backgroundColor: theme.colors.surface,
+                            borderRadius: 16,
+                            overflow: 'hidden',
+                            borderWidth: 1,
+                            borderColor: theme.colors.border
+                        }}>
+                            {/* Table Header */}
+                            <View style={{
+                                flexDirection: 'row',
+                                padding: 12,
+                                backgroundColor: isDark ? '#2A2A2E' : '#F5F5F7',
+                                borderBottomWidth: 1,
+                                borderBottomColor: theme.colors.border
+                            }}>
+                                <Text style={{ flex: 2, fontWeight: '600', fontSize: 13, color: theme.colors.textSecondary }}>PDF Name</Text>
+                                <Text style={{ flex: 1, fontWeight: '600', fontSize: 13, color: theme.colors.textSecondary, textAlign: 'center' }}>Score</Text>
+                                <Text style={{ flex: 1, fontWeight: '600', fontSize: 13, color: theme.colors.textSecondary, textAlign: 'right' }}>Date</Text>
+                            </View>
+
+                            {/* Empty State */}
+                            {pdfHistory.length === 0 && (
+                                <View style={{ padding: 32, alignItems: 'center' }}>
+                                    <Ionicons name="document-text-outline" size={40} color={theme.colors.textSecondary} />
+                                    <Text style={{ fontSize: 15, fontWeight: '600', color: theme.colors.text, marginTop: 12 }}>
+                                        No tests completed yet
+                                    </Text>
+                                    <Text style={{ fontSize: 13, color: theme.colors.textSecondary, marginTop: 4, textAlign: 'center' }}>
+                                        Complete a PDF MCQ test and save your score to see it here
+                                    </Text>
+                                </View>
+                            )}
+
+                            {/* Table Rows */}
+                            {pdfHistory.map((item, index) => (
+                                <View key={item.id} style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    padding: 12,
+                                    borderBottomWidth: index === pdfHistory.length - 1 ? 0 : 1,
+                                    borderBottomColor: theme.colors.border
+                                }}>
+                                    <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center' }}>
+                                        <View style={{
+                                            width: 32, height: 32, borderRadius: 8,
+                                            backgroundColor: item.score_percentage >= 70 ? '#10B98115' : item.score_percentage >= 40 ? '#F59E0B15' : '#EF444415',
+                                            alignItems: 'center', justifyContent: 'center', marginRight: 10
+                                        }}>
+                                            <Ionicons name="document-text" size={16} color={item.score_percentage >= 70 ? '#10B981' : item.score_percentage >= 40 ? '#F59E0B' : '#EF4444'} />
+                                        </View>
+                                        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.colors.text }} numberOfLines={1}>
+                                            {item.file_name}
+                                        </Text>
+                                    </View>
+                                    <View style={{ flex: 1, alignItems: 'center' }}>
+                                        <View style={{
+                                            paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                                            backgroundColor: item.score_percentage >= 70 ? '#10B98120' : item.score_percentage >= 40 ? '#F59E0B20' : '#EF444420'
+                                        }}>
+                                            <Text style={{
+                                                fontSize: 13, fontWeight: '700',
+                                                color: item.score_percentage >= 70 ? '#10B981' : item.score_percentage >= 40 ? '#F59E0B' : '#EF4444'
+                                            }}>
+                                                {item.correct_answers}/{item.total_questions} ({Math.round(item.score_percentage)}%)
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <Text style={{ flex: 1, fontSize: 12, color: theme.colors.textSecondary, textAlign: 'right' }}>
+                                        {new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                    </View>
+                )}
+
                 {/* MCQs Display */}
                 {mcqs.length > 0 && (
                     <View style={styles.mcqsContainer}>
-                        {/* Score Card */}
+
                         {getScore().answered > 0 && (
                             <View style={[styles.scoreCard, { backgroundColor: theme.colors.surface }]}>
-                                <View>
+                                <View style={{ flex: 1 }}>
                                     <Text style={[styles.scoreLabel, { color: theme.colors.textSecondary }]}>
                                         Your Score
                                     </Text>
                                     <Text style={[styles.scoreValue, { color: theme.colors.text }]}>
                                         {getScore().correct} / {getScore().answered}
                                     </Text>
+                                    {hasSavedCurrentTest && (
+                                        <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center' }}>
+                                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                                            <Text style={{ marginLeft: 4, color: '#10B981', fontWeight: '600', fontSize: 13 }}>
+                                                Score Saved
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
                                 <View style={[styles.scorePercentBadge, {
                                     backgroundColor: getScore().correct / getScore().answered >= 0.7

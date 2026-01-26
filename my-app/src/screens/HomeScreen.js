@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   Modal,
   FlatList,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,6 +22,7 @@ import { useWebStyles } from '../components/WebContainer';
 import { checkNewsMatches, markMatchAsRead, forceRefreshMatches } from '../services/NewsMatchService';
 import CreditsBadge from '../components/CreditsBadge';
 import AIOnboarding, { useOnboarding } from '../components/AIOnboarding';
+import EngagespotNotification from '../components/EngagespotNotification';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -124,12 +126,12 @@ export default function HomeScreen({ navigation }) {
       gradient: ['#FF2D55', '#FF375F'],
       screen: 'PDFMCQGenerator',
     },
-    // 5. AI Essay Writing
+    // 5. AI Mains Writing
     {
       id: 'essay',
       icon: 'document-text-outline',
-      title: 'AI Essay Writing',
-      desc: 'Practice essay topics',
+      title: 'AI Mains Writing',
+      desc: 'Practice mains answer writing',
       gradient: ['#FF9500', '#E68600'],
       screen: 'Essay',
     },
@@ -255,6 +257,11 @@ export default function HomeScreen({ navigation }) {
               <View ref={creditsRef} collapsable={false}>
                 <CreditsBadge />
               </View>
+
+              {/* Engagespot Push Notifications (Web only) */}
+              {Platform.OS === 'web' && user?.id && (
+                <EngagespotNotification userId={user.id.toString()} />
+              )}
 
               {/* Notification Bell */}
               <TouchableOpacity

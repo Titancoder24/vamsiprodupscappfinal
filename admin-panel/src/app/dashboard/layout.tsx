@@ -15,7 +15,8 @@ import {
     Route,
     BookOpen,
     FileQuestion,
-    Settings
+    Settings,
+    Bell
 } from 'lucide-react';
 
 const navigation = [
@@ -26,6 +27,7 @@ const navigation = [
     { name: 'Roadmap', href: '/dashboard/roadmap', icon: Route },
     { name: 'References', href: '/dashboard/references', icon: BookOpen },
     { name: 'Question Paper', href: '/dashboard/question-paper', icon: FileQuestion },
+    { name: 'Push Notifications', href: '/dashboard/push-notifications', icon: Bell },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 

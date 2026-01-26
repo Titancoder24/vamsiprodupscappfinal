@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext({});
@@ -245,8 +246,10 @@ export const AuthProvider = ({ children }) => {
             name: name,
             full_name: name,
           },
-          // Skip email confirmation for immediate login
-          emailRedirectTo: undefined,
+          // Use proper redirect URL based on platform
+          emailRedirectTo: Platform.OS === 'web'
+            ? `${window.location.origin}/auth/callback`
+            : 'upscprep://auth/callback',
         },
       });
 
@@ -274,37 +277,9 @@ export const AuthProvider = ({ children }) => {
         return data.user;
       }
 
-      // If no session, email confirmation might be required
-      // Auto-sign in immediately since we have the password
-      console.log('[AuthContext] No session returned, attempting auto sign-in...');
-
-      // Small delay to allow Supabase to process the signup
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Try to sign in immediately
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        // If sign in fails due to email confirmation, inform the user
-        if (signInError.message?.includes('Email not confirmed')) {
-          console.log('[AuthContext] Email confirmation required');
-          throw new Error('Please check your email to confirm your account, then sign in.');
-        }
-        console.error('[AuthContext] Auto sign-in error:', signInError.message);
-        throw new Error(signInError.message);
-      }
-
-      if (signInData?.user && signInData?.session) {
-        console.log('[AuthContext] Auto sign-in successful:', signInData.user.email);
-        // Directly handle the user to ensure state update
-        await handleSupabaseUser(signInData.user, signInData.session);
-        return signInData.user;
-      }
-
-      // Fallback - just return the created user (auth state listener should handle it)
+      // No session means email confirmation is required
+      // Return the user with email_confirmed_at = null so the UI can show the verification message
+      console.log('[AuthContext] Email confirmation required - returning user for verification');
       return data.user;
     } catch (error) {
       console.error('[AuthContext] Error in signUpWithEmail:', error);
@@ -312,13 +287,17 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Send password reset email
   const sendPasswordResetEmail = async (email) => {
     try {
       console.log('[AuthContext] Sending password reset email to:', email);
 
+      // Use proper redirect URL based on platform
+      const redirectTo = Platform.OS === 'web'
+        ? `${window.location.origin}/auth/reset-password`
+        : 'upscprep://reset-password';
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'upscprep://reset-password', // Deep link for mobile app
+        redirectTo,
       });
 
       if (error) {
@@ -352,6 +331,43 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('[AuthContext] Error in resetPassword:', error);
+      throw error;
+    }
+  };
+
+  // Send Magic Link (Passwordless Sign In/Up)
+  const sendMagicLink = async (email, name) => {
+    try {
+      console.log('[AuthContext] Sending magic link to:', email);
+
+      const options = {
+        emailRedirectTo: 'upscprep://auth/callback',
+      };
+
+      // If name is provided, add it to user metadata
+      if (name) {
+        options.options = {
+          data: {
+            name: name,
+            full_name: name,
+          }
+        };
+      }
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        ...options,
+      });
+
+      if (error) {
+        console.error('[AuthContext] Magic link error:', error.message);
+        throw new Error(error.message);
+      }
+
+      console.log('[AuthContext] Magic link sent successfully');
+      return true;
+    } catch (error) {
+      console.error('[AuthContext] Error in sendMagicLink:', error);
       throw error;
     }
   };
@@ -407,6 +423,7 @@ export const AuthProvider = ({ children }) => {
         signInAsGuest,
         signInWithEmail,
         signUpWithEmail,
+        sendMagicLink,
         sendPasswordResetEmail,
         resetPassword,
         deleteAccount,

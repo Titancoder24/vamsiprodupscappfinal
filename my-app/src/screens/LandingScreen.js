@@ -122,40 +122,29 @@ const AnimatedGrid = () => {
   );
 };
 
-// Animated Avatar Component
-const AnimatedAvatar = ({ index, emoji, delay }) => {
-  const bounce = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
+// Animated Avatar Component Removed
 
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.delay(delay),
-        Animated.parallel([
-          Animated.timing(bounce, { toValue: -5, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1.1, duration: 500, useNativeDriver: true }),
-        ]),
-        Animated.parallel([
-          Animated.timing(bounce, { toValue: 0, duration: 500, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          Animated.timing(scale, { toValue: 1, duration: 500, useNativeDriver: true }),
-        ]),
-      ])
-    ).start();
-  }, []);
-
-  const bgColors = ['#DBEAFE', '#D1FAE5', '#FEF3C7', '#FCE7F3'];
-
-  return (
-    <Animated.View
-      style={[
-        styles.animatedAvatar,
-        { backgroundColor: bgColors[index % bgColors.length], marginLeft: index > 0 ? -10 : 0, zIndex: 4 - index, transform: [{ translateY: bounce }, { scale }] },
-      ]}
-    >
-      <Text style={styles.avatarEmoji}>{emoji}</Text>
-    </Animated.View>
-  );
-};
+// New Modern Section Component
+const ModernSection = ({ title, subtitle, icon, align = 'left', isDark = false }) => (
+  <View style={[styles.modernSection, isDark && styles.modernSectionDark, align === 'right' && styles.modernSectionRight]}>
+    <View style={styles.modernSectionContent}>
+      <View style={[styles.modernIconBox, isDark ? styles.modernIconBoxDark : styles.modernIconBoxLight]}>
+        <Ionicons name={icon} size={24} color={isDark ? '#60A5FA' : '#2563EB'} />
+      </View>
+      <Text style={[styles.modernTitle, isDark && styles.textWhite]}>{title}</Text>
+      <Text style={[styles.modernSubtitle, isDark && styles.textGray]}>{subtitle}</Text>
+    </View>
+    <View style={[styles.modernVisual, align === 'right' && styles.modernVisualLeft]}>
+      {/* Abstract visual representation */}
+      <View style={[styles.visualCard, isDark ? styles.visualCardDark : styles.visualCardLight]}>
+        <View style={styles.visualLine} />
+        <View style={[styles.visualLine, { width: '60%' }]} />
+        <View style={[styles.visualLine, { width: '80%' }]} />
+        <View style={[styles.visualCircle]} />
+      </View>
+    </View>
+  </View>
+);
 
 // Phone Mockup Component
 const PhoneMockup = () => {
@@ -293,7 +282,7 @@ export default function LandingScreen({ navigation }) {
               <View style={styles.heroContent}>
                 <View style={styles.heroBadge}>
                   <View style={styles.heroBadgeDot} />
-                  <Text style={styles.heroBadgeText}>🚀 AI-Powered UPSC Preparation</Text>
+                  <Text style={styles.heroBadgeText}>AI-Powered UPSC Preparation</Text>
                 </View>
 
                 <Text style={styles.heroTitle}>
@@ -332,12 +321,6 @@ export default function LandingScreen({ navigation }) {
 
                 {/* Social Proof */}
                 <View style={styles.socialProof}>
-                  <View style={styles.avatarStack}>
-                    <AnimatedAvatar index={0} emoji="👨‍🎓" delay={0} />
-                    <AnimatedAvatar index={1} emoji="👩‍💼" delay={200} />
-                    <AnimatedAvatar index={2} emoji="🧑‍🏫" delay={400} />
-                    <AnimatedAvatar index={3} emoji="👨‍💻" delay={600} />
-                  </View>
                   <View>
                     <View style={styles.starsRow}>
                       {[1, 2, 3, 4, 5].map((i) => (
@@ -345,7 +328,7 @@ export default function LandingScreen({ navigation }) {
                       ))}
                     </View>
                     <Text style={styles.socialProofText}>
-                      <Text style={styles.socialProofBold}>15,000+</Text> aspirants
+                      <Text style={styles.socialProofBold}>15,000+</Text> aspirants trust us
                     </Text>
                   </View>
                 </View>
@@ -360,43 +343,29 @@ export default function LandingScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Features */}
-          <View style={styles.featuresSection}>
-            <Text style={styles.featuresTitle}>
-              Everything you need{'\n'}
-              <Text style={styles.featuresTitleLight}>to crack the exam.</Text>
-            </Text>
-            <View style={styles.featuresGrid}>
-              <FeatureCard icon="hardware-chip-outline" iconBg="#DBEAFE" title="AI Question Engine" description="Auto-generate MCQs from any topic or current affairs." />
-              <FeatureCard icon="create-outline" iconBg="#E0F2FE" title="Mains Evaluator" description="Get AI-powered feedback on your answers instantly." />
-              <FeatureCard icon="flash-outline" iconBg="#FEF3C7" title="Smart News Feed" description="Tagged current affairs with MCQ practice." />
-              <FeatureCard icon="map-outline" iconBg="#D1FAE5" title="Dynamic Roadmap" description="Personalized study plan based on your progress." />
-              <FeatureCard icon="document-text-outline" iconBg="#FCE7F3" title="PDF to MCQ" description="Extract MCQs from any PDF document using AI." />
-              <FeatureCard icon="git-network-outline" iconBg="#E0E7FF" title="Mind Maps" description="Visual learning with interactive mind maps." />
-            </View>
-          </View>
+          {/* Modern Feature Sections */}
+          <View style={styles.modernSectionsContainer}>
+            <ModernSection
+              title="Your Personal Content Engine"
+              subtitle="Don't just read—interact. Upload any study material and instantly generate practice MCQs and concise summaries. Turn passive reading into active retention without the manual effort."
+              icon="document-text-outline"
+              align="left"
+            />
 
-          {/* Why Choose Us */}
-          <View style={styles.whySection}>
-            <Text style={styles.whyTitle}>Why aspirants love PrepAssist</Text>
-            <View style={styles.whyGrid}>
-              <View style={styles.whyStat}>
-                <Text style={styles.whyNumber}>15K+</Text>
-                <Text style={styles.whyLabel}>Active Users</Text>
-              </View>
-              <View style={styles.whyStat}>
-                <Text style={styles.whyNumber}>50K+</Text>
-                <Text style={styles.whyLabel}>MCQs Solved</Text>
-              </View>
-              <View style={styles.whyStat}>
-                <Text style={styles.whyNumber}>4.9</Text>
-                <Text style={styles.whyLabel}>App Rating</Text>
-              </View>
-              <View style={styles.whyStat}>
-                <Text style={styles.whyNumber}>24/7</Text>
-                <Text style={styles.whyLabel}>AI Support</Text>
-              </View>
-            </View>
+            <ModernSection
+              title="Progress You Can Actually See"
+              subtitle="The UPSC syllabus is vast. We make it navigable. Granularly track your coverage across every subject and micro-topic. No more guessing games about what's left to cover."
+              icon="stats-chart-outline"
+              align="right"
+              isDark={true}
+            />
+
+            <ModernSection
+              title="Feedback That Never Sleeps"
+              subtitle="Writing practice shouldn't wait for a tutor's schedule. Get instant, objective analysis of your Mains answers. Fix structural flaws and content gaps while the ideas are still fresh."
+              icon="create-outline"
+              align="left"
+            />
           </View>
 
           {/* Pricing CTA */}
@@ -491,8 +460,8 @@ const styles = StyleSheet.create({
   // Grid
   gridContainer: { position: 'absolute', top: 0, left: 0, right: 0, height: height * 0.6, overflow: 'hidden', zIndex: 0 },
   gridLines: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  gridLineVertical: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(37, 99, 235, 0.04)' },
-  gridLineHorizontal: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(37, 99, 235, 0.04)' },
+  gridLineVertical: { position: 'absolute', top: 0, bottom: 0, width: 1, backgroundColor: 'rgba(37, 99, 235, 0.12)' },
+  gridLineHorizontal: { position: 'absolute', left: 0, right: 0, height: 1, backgroundColor: 'rgba(37, 99, 235, 0.12)' },
   glowSpot: { position: 'absolute', borderRadius: 500, backgroundColor: '#2563EB' },
   glowSpot1: { width: 400, height: 400, top: -100, right: -100 },
   glowSpot2: { width: 300, height: 300, bottom: 50, left: -100 },
@@ -601,4 +570,24 @@ const styles = StyleSheet.create({
   footer: { borderTopWidth: 1, borderTopColor: '#E5E7EB', backgroundColor: '#FAFAFA', paddingVertical: 28, alignItems: 'center' },
   footerLogo: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginBottom: 6 },
   footerCopyright: { fontSize: 10, color: '#94A3B8' },
+  // Modern Sections
+  modernSectionsContainer: { paddingVertical: 40, gap: 40 },
+  modernSection: { flexDirection: isWeb && width > 768 ? 'row' : 'column', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 60, gap: 40, maxWidth: 1100, alignSelf: 'center', width: '100%', borderRadius: 24 },
+  modernSectionDark: { backgroundColor: '#0F172A' },
+  modernSectionRight: { flexDirection: isWeb && width > 768 ? 'row-reverse' : 'column' },
+  modernSectionContent: { flex: 1, maxWidth: 500 },
+  modernTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', marginBottom: 16, lineHeight: 40 },
+  modernSubtitle: { fontSize: 16, color: '#475569', lineHeight: 26 },
+  modernIconBox: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  modernIconBoxLight: { backgroundColor: '#DBEAFE' },
+  modernIconBoxDark: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  textWhite: { color: '#FFF' },
+  textGray: { color: '#94A3B8' },
+  modernVisual: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  modernVisualLeft: { alignItems: 'flex-start' },
+  visualCard: { width: '100%', maxWidth: 400, height: 240, borderRadius: 20, padding: 24, justifyContent: 'center', gap: 16 },
+  visualCardLight: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+  visualCardDark: { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  visualLine: { height: 12, backgroundColor: '#E2E8F0', borderRadius: 6, width: '100%' },
+  visualCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#3B82F6', marginTop: 12 },
 });

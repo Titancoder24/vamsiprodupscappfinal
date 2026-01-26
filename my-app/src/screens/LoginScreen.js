@@ -46,10 +46,13 @@ export default function LoginScreen({ navigation }) {
       showError('Please enter your email');
       return;
     }
+
+    // Check password for both Login and Sign Up
     if (!password.trim()) {
       showError('Please enter your password');
       return;
     }
+
     if (isSignUp && !name.trim()) {
       showError('Please enter your name');
       return;
@@ -61,8 +64,20 @@ export default function LoginScreen({ navigation }) {
       setError('');
 
       if (isSignUp) {
-        await signUpWithEmail(email.trim().toLowerCase(), password, name.trim());
+        // Sign Up with Email + Password
+        const result = await signUpWithEmail(email.trim().toLowerCase(), password, name.trim());
+
+        // If no user returned or email not confirmed, show the check email message
+        if (!result || !result.email_confirmed_at) {
+          Alert.alert(
+            'Verify Your Email',
+            'We have sent a verification link to your email. Please check your inbox and click the link to activate your account.',
+            [{ text: 'OK', onPress: () => setIsSignUp(false) }]
+          );
+        }
+        // If email is confirmed (email confirmation disabled), user will be logged in automatically
       } else {
+        // Login with Password
         await signInWithEmail(email.trim().toLowerCase(), password);
       }
     } catch (err) {

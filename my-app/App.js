@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { RoadmapProvider } from './src/context/RoadmapContext';
 import { VisualReferenceProvider } from './src/context/VisualReferenceContext';
+import { NotificationProvider } from './src/context/NotificationContext';
 import { WebLayout } from './src/components/WebContainer';
 
 // Auth Screens
@@ -68,6 +69,10 @@ import { PDFGeneratorScreen, PDFMCQListScreen, AIMCQGeneratorScreen, AIMCQListSc
 // Coming Soon Screen
 import ComingSoonScreen from './src/screens/ComingSoonScreen';
 
+// Auth Callback Screen
+import AuthCallbackScreen from './src/screens/AuthCallbackScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
+
 // Billing Screen
 import BillingScreen from './src/screens/BillingScreen';
 
@@ -93,6 +98,8 @@ const AuthNavigator = () => {
       <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Pricing" component={PricingScreen} />
+      <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
+      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
     </Stack.Navigator>
   );
 };
@@ -212,6 +219,7 @@ const linking = {
           AIMCQGenerator: 'ai-mcq',
           Progress: 'progress',
           Settings: 'settings',
+          QuestionPaper: 'question-bank/:questionSetId',
         },
       },
       Auth: {
@@ -219,6 +227,12 @@ const linking = {
           Landing: 'upsc',
           Login: 'login',
           Pricing: 'pricing',
+          AuthCallback: {
+            path: 'auth/callback',
+          },
+          ResetPassword: {
+            path: 'auth/reset-password',
+          },
         },
       },
     },
@@ -229,18 +243,20 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <RoadmapProvider>
-          <VisualReferenceProvider>
-            <ReferenceThemeProvider>
-              <WebLayout>
-                <NavigationContainer linking={linking} fallback={<LoadingScreen />}>
-                  <StatusBar style="dark" />
-                  <RootNavigator />
-                </NavigationContainer>
-              </WebLayout>
-            </ReferenceThemeProvider>
-          </VisualReferenceProvider>
-        </RoadmapProvider>
+        <NotificationProvider>
+          <RoadmapProvider>
+            <VisualReferenceProvider>
+              <ReferenceThemeProvider>
+                <WebLayout>
+                  <NavigationContainer linking={linking} fallback={<LoadingScreen />}>
+                    <StatusBar style="dark" />
+                    <RootNavigator />
+                  </NavigationContainer>
+                </WebLayout>
+              </ReferenceThemeProvider>
+            </VisualReferenceProvider>
+          </RoadmapProvider>
+        </NotificationProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );
