@@ -338,149 +338,136 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
 
     const handleGenerateSummary = async () => {
-        console.log('[AINotes] handleGenerateSummary called');
-        console.log('[AINotes] selectedNoteIds:', selectedNoteIds);
-        console.log('[AINotes] selectedArticleIds:', selectedArticleIds);
+        console.log('[AINotes] Starting summary generation...');
 
-        // Check if any content is selected
-        if (selectedNoteIds.length === 0 && selectedArticleIds.length === 0) {
-            Alert.alert('Select Content', 'Please select at least one note or current affairs article to summarize.');
+        // Get all notes if none selected, or use selected
+        let notesToSummarize = notes;
+        if (selectedNoteIds.length > 0) {
+            notesToSummarize = notes.filter(n => selectedNoteIds.includes(n.id));
+        }
+
+        // Get selected articles
+        const articlesToSummarize = currentAffairs.filter(a => selectedArticleIds.includes(a.id));
+
+        if (notesToSummarize.length === 0 && articlesToSummarize.length === 0) {
+            Alert.alert('No Content', 'Please add some notes first or select current affairs articles.');
             return;
         }
 
         setGenerating(true);
-        setGeneratingStatus('Preparing content...');
+        setGeneratingStatus('Preparing your content...');
 
         try {
-            // Gather selected notes
-            const selectedNotes = notes.filter(n => selectedNoteIds.includes(n.id));
-            const selectedArticles = currentAffairs.filter(a => selectedArticleIds.includes(a.id));
+            // Build simple content string
+            let allContent = '';
 
-            console.log('[AINotes] Selected notes:', selectedNotes.length);
-            console.log('[AINotes] Selected articles:', selectedArticles.length);
+            notesToSummarize.forEach((note, i) => {
+                allContent += `\n--- Note ${i + 1}: ${note.title} ---\n${note.content}\n`;
+            });
 
-            // Build content for AI
-            let contentForAI = '';
-
-            if (selectedNotes.length > 0) {
-                contentForAI += '=== YOUR NOTES ===\n\n';
-                selectedNotes.forEach((note, i) => {
-                    const sourceLabel = SOURCE_TYPES[note.sourceType as SourceType]?.label || 'Note';
-                    contentForAI += `[${sourceLabel} ${i + 1}: ${note.title}]\n`;
-                    if (note.tags.length > 0) {
-                        contentForAI += `Tags: ${note.tags.map(t => t.name).join(', ')}\n`;
-                    }
-                    contentForAI += `${note.content}\n\n`;
-                });
-            }
-
-            if (selectedArticles.length > 0) {
-                contentForAI += '\n=== CURRENT AFFAIRS ===\n\n';
-                selectedArticles.forEach((article, i) => {
-                    contentForAI += `[Article ${i + 1}: ${article.title}]\n`;
-                    contentForAI += `Source: ${article.source} | Date: ${new Date(article.date).toLocaleDateString()}\n`;
-                    contentForAI += `${article.content}\n\n`;
-                });
-            }
+            articlesToSummarize.forEach((article, i) => {
+                allContent += `\n--- Article ${i + 1}: ${article.title} ---\n${article.content}\n`;
+            });
 
             setGeneratingStatus('Generating AI summary...');
 
-            // Call OpenRouter API directly
-            const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
-
-            if (!OPENROUTER_API_KEY) {
-                throw new Error('AI API key not configured');
+            // Get API key
+            const apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
+            if (!apiKey) {
+                throw new Error('API key not found. Please check configuration.');
             }
 
-            const systemPrompt = `You are an expert UPSC preparation assistant. Create comprehensive, exam-oriented notes by combining and summarizing the provided content.
+            // Simple prompt for bullet points
+            const prompt = `You are a UPSC exam expert. Summarize the following content in a clear, structured format with bullet points.
 
-OUTPUT FORMAT:
-1. **TOPIC OVERVIEW** - Brief introduction
-2. **KEY POINTS** - Bullet points with important facts
-3. **EXAM-RELEVANT FACTS** - Dates, figures, names to remember
-4. **CURRENT AFFAIRS CONNECTION** - Link static topics to recent events
-5. **REVISION NOTES** - Quick summary for last-minute revision
+FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
 
-IMPORTANT:
-- Focus on UPSC Prelims and Mains relevance
-- Highlight facts, dates, and figures
-- Use clear, concise language
-- Structure for easy revision
-- Include potential exam questions`;
+## 📚 TOPIC OVERVIEW
+• Brief 2-3 line introduction
 
-            const userPrompt = `Create a comprehensive UPSC-oriented summary from the following content:
+## 🎯 KEY POINTS (Most Important)
+• Point 1
+• Point 2
+• Point 3 (etc.)
 
-${contentForAI}
+## 📝 IMPORTANT FACTS & FIGURES
+• Fact 1
+• Fact 2
+• Fact 3 (etc.)
 
-${customPrompt ? `Additional instructions: ${customPrompt}` : ''}
+## ⚡ EXAM-ORIENTED NOTES
+• What can be asked in Prelims
+• What can be asked in Mains
 
-Generate a well-structured summary that combines all sources and is suitable for UPSC revision.`;
+## 📖 QUICK REVISION
+• 5-6 line summary for last-minute revision
 
-            console.log('[AINotes] Calling OpenRouter API...');
+CONTENT TO SUMMARIZE:
+${allContent}
+
+${customPrompt ? `SPECIAL INSTRUCTIONS: ${customPrompt}` : ''}
+
+Generate comprehensive bullet-point notes suitable for UPSC preparation.`;
+
+            console.log('[AINotes] Calling AI API...');
+
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://prepassist.in',
                     'X-Title': 'PrepAssist UPSC',
                 },
                 body: JSON.stringify({
                     model: 'google/gemini-2.0-flash-001',
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: userPrompt },
-                    ],
-                    temperature: 0.7,
-                    max_tokens: 4000,
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.5,
+                    max_tokens: 3000,
                 }),
             });
 
+            console.log('[AINotes] API Response status:', response.status);
+
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('[AINotes] API Error:', errorText);
-                throw new Error('AI service error. Please try again.');
+                const errText = await response.text();
+                console.error('[AINotes] API Error:', errText);
+                throw new Error(`API Error: ${response.status}`);
             }
 
-            const data = await response.json();
-            const summaryContent = data.choices?.[0]?.message?.content;
+            const result = await response.json();
+            const summaryText = result.choices?.[0]?.message?.content;
 
-            if (!summaryContent) {
-                throw new Error('No summary generated');
+            if (!summaryText) {
+                throw new Error('Empty response from AI');
             }
 
-            console.log('[AINotes] Summary generated successfully');
+            console.log('[AINotes] Summary generated, saving...');
             setGeneratingStatus('Saving summary...');
 
-            // Create summary title
-            const titleParts: string[] = [];
-            if (selectedNotes.length > 0) {
-                const uniqueTags = [...new Set(selectedNotes.flatMap(n => n.tags.map(t => t.name)))];
-                titleParts.push(uniqueTags.slice(0, 2).join(', '));
-            }
-            if (selectedArticles.length > 0) {
-                titleParts.push('Current Affairs');
-            }
-            const summaryTitle = titleParts.join(' + ') + ' Summary';
+            // Create title
+            const summaryTitle = notesToSummarize.length > 0
+                ? `${notesToSummarize[0].title} Summary`
+                : 'Current Affairs Summary';
 
-            // Save to storage
+            // Save to localStorage
             const { getItem, setItem } = await import('../services/storage');
+
             const existingSummaries = JSON.parse(await getItem('@upsc_ai_summaries') || '[]');
-            const counterStr = await getItem('@upsc_summary_counter') || '0';
-            const newId = parseInt(counterStr) + 1;
-            await setItem('@upsc_summary_counter', String(newId));
+            const counter = parseInt(await getItem('@upsc_summary_counter') || '0') + 1;
+            await setItem('@upsc_summary_counter', String(counter));
 
             const newSummary: AISummary = {
-                id: newId,
+                id: counter,
                 title: summaryTitle,
-                summary: summaryContent,
+                summary: summaryText,
                 sources: [
-                    ...selectedNotes.map(n => ({ noteId: n.id, noteTitle: n.title, sourceType: n.sourceType || 'manual' })),
-                    ...selectedArticles.map(a => ({ noteId: 0, noteTitle: a.title, sourceType: 'current_affairs' })),
+                    ...notesToSummarize.map(n => ({ noteId: n.id, noteTitle: n.title, sourceType: n.sourceType || 'manual' })),
+                    ...articlesToSummarize.map(a => ({ noteId: 0, noteTitle: a.title, sourceType: 'current_affairs' })),
                 ],
-                tags: [...new Set(selectedNotes.flatMap(n => n.tags))],
-                tagIds: [...new Set(selectedNotes.flatMap(n => n.tags.map(t => t.id)))],
-                wordCount: summaryContent.split(/\s+/).length,
+                tags: notesToSummarize.flatMap(n => n.tags).filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i),
+                tagIds: [...new Set(notesToSummarize.flatMap(n => n.tags.map(t => t.id)))],
+                wordCount: summaryText.split(/\s+/).length,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString(),
             };
@@ -488,17 +475,28 @@ Generate a well-structured summary that combines all sources and is suitable for
             existingSummaries.unshift(newSummary);
             await setItem('@upsc_ai_summaries', JSON.stringify(existingSummaries));
 
+            console.log('[AINotes] Summary saved successfully!');
+
             setShowSummaryModal(false);
             await loadData();
 
+            // Show success and open the summary
             Alert.alert(
-                '✓ Summary Generated!',
-                `Created summary from ${selectedNotes.length} notes and ${selectedArticles.length} articles.`,
-                [{ text: 'View', onPress: () => setShowSummaryDetail(newSummary) }]
+                '✅ Summary Ready!',
+                `Created from ${notesToSummarize.length} notes${articlesToSummarize.length > 0 ? ` and ${articlesToSummarize.length} articles` : ''}.`,
+                [
+                    { text: 'View Now', onPress: () => setShowSummaryDetail(newSummary) },
+                    { text: 'OK' }
+                ]
             );
+
         } catch (error: any) {
-            console.error('[AINotes] Error generating summary:', error);
-            Alert.alert('Summary Error', error.message || 'Failed to generate summary. Please try again.');
+            console.error('[AINotes] Summary error:', error);
+            Alert.alert(
+                'Generation Failed',
+                error.message || 'Something went wrong. Please try again.',
+                [{ text: 'OK' }]
+            );
         } finally {
             setGenerating(false);
             setGeneratingStatus('');
