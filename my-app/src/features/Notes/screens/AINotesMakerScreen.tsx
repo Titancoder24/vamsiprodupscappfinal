@@ -42,6 +42,7 @@ import {
     AINotebook,
 } from '../services/aiNotesService';
 import { fetchCurrentAffairs, Article } from '../services/currentAffairsService';
+import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -339,6 +340,14 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     const handleGenerateSummary = async () => {
         console.log('[AINotes] Starting summary generation...');
+        console.log('[AINotes] API Key present:', !!OPENROUTER_API_KEY);
+        console.log('[AINotes] API Key length:', OPENROUTER_API_KEY?.length);
+
+        // Check API key first
+        if (!OPENROUTER_API_KEY || OPENROUTER_API_KEY.length < 10) {
+            Alert.alert('Error', 'API key not configured. Please check setup.');
+            return;
+        }
 
         // Get all notes if none selected, or use selected
         let notesToSummarize = notes;
@@ -358,7 +367,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         setGeneratingStatus('Preparing your content...');
 
         try {
-            // Build simple content string
+            // Build content string
             let allContent = '';
 
             notesToSummarize.forEach((note, i) => {
@@ -369,65 +378,55 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                 allContent += `\n--- Article ${i + 1}: ${article.title} ---\n${article.content}\n`;
             });
 
-            setGeneratingStatus('Generating AI summary...');
+            setGeneratingStatus('Calling AI...');
 
-            // Get API key
-            const apiKey = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY;
-            if (!apiKey) {
-                throw new Error('API key not found. Please check configuration.');
-            }
+            // Build prompt
+            const prompt = `You are a UPSC exam expert. Create a comprehensive summary with bullet points.
 
-            // Simple prompt for bullet points
-            const prompt = `You are a UPSC exam expert. Summarize the following content in a clear, structured format with bullet points.
-
-FORMAT YOUR RESPONSE EXACTLY LIKE THIS:
-
+FORMAT:
 ## 📚 TOPIC OVERVIEW
-• Brief 2-3 line introduction
+• Brief introduction (2-3 lines)
 
-## 🎯 KEY POINTS (Most Important)
-• Point 1
-• Point 2
-• Point 3 (etc.)
+## 🎯 KEY POINTS
+• Important point 1
+• Important point 2
+• Important point 3
+(continue as needed)
 
-## 📝 IMPORTANT FACTS & FIGURES
-• Fact 1
-• Fact 2
-• Fact 3 (etc.)
+## 📝 FACTS & FIGURES
+• Key dates, numbers, names to remember
 
-## ⚡ EXAM-ORIENTED NOTES
-• What can be asked in Prelims
-• What can be asked in Mains
+## ⚡ EXAM FOCUS
+• Prelims focus areas
+• Mains focus areas
 
 ## 📖 QUICK REVISION
-• 5-6 line summary for last-minute revision
+• 5-6 line summary
 
-CONTENT TO SUMMARIZE:
+CONTENT:
 ${allContent}
 
-${customPrompt ? `SPECIAL INSTRUCTIONS: ${customPrompt}` : ''}
+${customPrompt ? `INSTRUCTIONS: ${customPrompt}` : ''}`;
 
-Generate comprehensive bullet-point notes suitable for UPSC preparation.`;
-
-            console.log('[AINotes] Calling AI API...');
+            console.log('[AINotes] Sending request to OpenRouter...');
 
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
+                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://prepassist.in',
-                    'X-Title': 'PrepAssist UPSC',
+                    'X-Title': 'PrepAssist AI Notes',
                 },
                 body: JSON.stringify({
-                    model: 'google/gemini-2.0-flash-001',
+                    model: 'google/gemini-3-flash-preview',
                     messages: [{ role: 'user', content: prompt }],
-                    temperature: 0.5,
-                    max_tokens: 3000,
+                    temperature: 0.7,
+                    max_tokens: 4000,
                 }),
             });
 
-            console.log('[AINotes] API Response status:', response.status);
+            console.log('[AINotes] Response status:', response.status);
 
             if (!response.ok) {
                 const errText = await response.text();
@@ -435,15 +434,16 @@ Generate comprehensive bullet-point notes suitable for UPSC preparation.`;
                 throw new Error(`API Error: ${response.status}`);
             }
 
-            const result = await response.json();
-            const summaryText = result.choices?.[0]?.message?.content;
+            const data = await response.json();
+            console.log('[AINotes] Response received');
 
+            const summaryText = data.choices?.[0]?.message?.content;
             if (!summaryText) {
-                throw new Error('Empty response from AI');
+                throw new Error('No content in response');
             }
 
-            console.log('[AINotes] Summary generated, saving...');
-            setGeneratingStatus('Saving summary...');
+            console.log('[AINotes] Summary length:', summaryText.length);
+            setGeneratingStatus('Saving...');
 
             // Create title
             const summaryTitle = notesToSummarize.length > 0
@@ -475,12 +475,11 @@ Generate comprehensive bullet-point notes suitable for UPSC preparation.`;
             existingSummaries.unshift(newSummary);
             await setItem('@upsc_ai_summaries', JSON.stringify(existingSummaries));
 
-            console.log('[AINotes] Summary saved successfully!');
+            console.log('[AINotes] Summary saved!');
 
             setShowSummaryModal(false);
             await loadData();
 
-            // Show success and open the summary
             Alert.alert(
                 '✅ Summary Ready!',
                 `Created from ${notesToSummarize.length} notes${articlesToSummarize.length > 0 ? ` and ${articlesToSummarize.length} articles` : ''}.`,
@@ -491,12 +490,8 @@ Generate comprehensive bullet-point notes suitable for UPSC preparation.`;
             );
 
         } catch (error: any) {
-            console.error('[AINotes] Summary error:', error);
-            Alert.alert(
-                'Generation Failed',
-                error.message || 'Something went wrong. Please try again.',
-                [{ text: 'OK' }]
-            );
+            console.error('[AINotes] Error:', error);
+            Alert.alert('Generation Failed', error.message || 'Something went wrong. Try again.');
         } finally {
             setGenerating(false);
             setGeneratingStatus('');
