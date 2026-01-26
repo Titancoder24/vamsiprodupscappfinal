@@ -22,7 +22,7 @@ import { useWebStyles } from '../components/WebContainer';
 import { checkNewsMatches, markMatchAsRead, forceRefreshMatches } from '../services/NewsMatchService';
 import CreditsBadge from '../components/CreditsBadge';
 import AIOnboarding, { useOnboarding } from '../components/AIOnboarding';
-import EngagespotNotification from '../components/EngagespotNotification';
+import NotificationCenter from '../components/NotificationCenter';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -258,25 +258,10 @@ export default function HomeScreen({ navigation }) {
                 <CreditsBadge />
               </View>
 
-              {/* Engagespot Push Notifications (Web only) */}
-              {Platform.OS === 'web' && user?.id && (
-                <EngagespotNotification userId={user.id.toString()} />
+              {/* Modern Notification Center (Web only) */}
+              {Platform.OS === 'web' && (
+                <NotificationCenter iconColor={theme.colors.text} />
               )}
-
-              {/* Notification Bell */}
-              <TouchableOpacity
-                style={[styles.iconButton, { backgroundColor: theme.colors.surface }]}
-                onPress={() => setShowNotifications(true)}
-              >
-                <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
-                {newsMatches.length > 0 && (
-                  <View style={styles.notificationBadge}>
-                    <Text style={styles.notificationCount}>
-                      {newsMatches.length > 9 ? '9+' : newsMatches.length}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
 
               {/* Settings Button */}
               <TouchableOpacity
