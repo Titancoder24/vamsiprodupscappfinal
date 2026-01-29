@@ -25,16 +25,16 @@ Then open: **http://localhost:3000**
 
 ## 👤 Admin Login Credentials
 
-- **Email**: `admin@upscprep.com`
+- **Email**: `vamsi@prepassist.in`
 - **Password**: `admin123`
 
 **Note:** If the admin user wasn't created automatically, create it manually:
-1. Go to: https://supabase.com/dashboard/project/sfukhupkvsjaqkbiskbj/auth/users
+1. Go to: https://supabase.com/dashboard/project/pjubvuvqzwhvqxeeubcv/auth/users
 2. Click "Add user" → "Create new user"
-3. Email: `admin@upscprep.com`
+3. Email: `vamsi@prepassist.in`
 4. Password: `admin123`
 5. ✅ Check "Auto Confirm User"
-6. Add metadata: `{"name": "Admin User", "role": "admin"}`
+6. Add metadata: `{"name": "Vamsi Admin", "role": "admin"}`
 
 ## 📊 Database Tables Created
 
