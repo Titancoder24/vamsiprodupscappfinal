@@ -51,7 +51,7 @@ export function useCredits() {
             return;
         }
 
-        if (!userId && !userEmail) {
+        if (!userId) {
             setCredits(0);
             setPlanType('free');
             setLoading(false);
@@ -61,18 +61,11 @@ export function useCredits() {
         try {
             setLoading(true);
 
-            // Try to get by user_id first, then by email
-            let query = supabase
+            const { data, error: fetchError } = await supabase
                 .from('user_subscriptions')
-                .select('current_credits, plan_type, user_id');
-
-            if (userId) {
-                query = query.eq('user_id', userId);
-            } else if (userEmail) {
-                query = query.eq('user_id', userEmail);
-            }
-
-            const { data, error: fetchError } = await query.single();
+                .select('current_credits, plan_type, user_id')
+                .eq('user_id', userId)
+                .maybeSingle();
 
             if (fetchError && fetchError.code !== 'PGRST116') {
                 console.error('[Credits] Fetch error:', fetchError);
@@ -204,19 +197,17 @@ export function useCredits() {
 
     // Subscribe to realtime updates
     useEffect(() => {
-        if (!userId && !userEmail) return;
-
-        const identifier = userId || userEmail;
+        if (!userId) return;
 
         const subscription = supabase
-            .channel('credits-updates')
+            .channel(`credits-${userId}`)
             .on(
                 'postgres_changes',
                 {
                     event: 'UPDATE',
                     schema: 'public',
                     table: 'user_subscriptions',
-                    filter: `user_id=eq.${identifier}`,
+                    filter: `user_id=eq.${userId}`,
                 },
                 (payload) => {
                     console.log('[Credits] Realtime update:', payload);

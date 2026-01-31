@@ -181,24 +181,15 @@ async function handleSubscriptionCreated(supabase: any, data: any) {
         return;
     }
 
-    // Call add_credits RPC to log transaction and update balance
+    // Unified atomic RPC call for Provisioning + History + Audit
     await supabase.rpc('add_credits', {
         p_user_id: userId,
         p_credits: credits,
         p_transaction_type: 'subscription_credit',
         p_payment_id: payment_id || `sub_${subscription_id}`,
-        p_description: `${planType.toUpperCase()} Plan subscription started`
-    });
-
-    // Log payment history
-    await supabase.from("payment_history").insert({
-        user_id: userId,
-        payment_type: 'subscription',
-        amount_inr: planType === 'pro' ? 699 : 399,
-        status: 'completed',
-        dodo_payment_id: payment_id || `sub_${subscription_id}`,
-        plan_type: planType,
-        payment_method: data.payment_method || 'unknown',
+        p_description: `${planType.toUpperCase()} Plan subscription started`,
+        p_amount_inr: planType === 'pro' ? 699 : 399,
+        p_payment_method: data.payment_method || 'unknown'
     });
 }
 
@@ -230,13 +221,15 @@ async function handleSubscriptionRenewed(supabase: any, data: any) {
         })
         .eq("dodo_subscription_id", subscription_id);
 
-    // Use RPC for atomic credit addition
+    // Use atomic RPC for renewal
     await supabase.rpc('add_credits', {
         p_user_id: sub.user_id,
         p_credits: credits,
         p_transaction_type: 'subscription_credit',
         p_payment_id: payment_id,
-        p_description: 'Monthly subscription renewal credits'
+        p_description: 'Monthly subscription renewal credits',
+        p_amount_inr: sub.plan_type === 'pro' ? 699 : 399,
+        p_payment_method: data.payment_method || 'unknown'
     });
 }
 
@@ -274,29 +267,15 @@ async function handlePaymentCompleted(supabase: any, data: any) {
 
     console.log(`[Webhook] Adding ${credits} credits to user ${userId} for payment ${payment_id}`);
 
-    // 1. Use RPC for atomic update and activity logging
+    // Unified atomic RPC call for purchase
     const { data: result, error: rpcError } = await supabase.rpc('add_credits', {
         p_user_id: userId,
         p_credits: credits,
         p_transaction_type: 'purchase',
         p_payment_id: payment_id,
-        p_description: `Purchased ${credits} credits pack`
-    });
-
-    if (rpcError) {
-        console.error("[Webhook] RPC error adding credits:", rpcError);
-        return;
-    }
-
-    // 2. Log to payment history (has unique constraint on dodo_payment_id now)
-    await supabase.from("payment_history").insert({
-        user_id: userId,
-        payment_type: 'credits',
-        amount_inr: total_amount ? total_amount / 100 : 0,
-        status: 'completed',
-        dodo_payment_id: payment_id,
-        credits_purchased: credits,
-        payment_method: data.payment_method || 'unknown',
+        p_description: `Purchased ${credits} credits pack`,
+        p_amount_inr: total_amount ? total_amount / 100 : 0,
+        p_payment_method: data.payment_method || 'unknown'
     });
 }
 

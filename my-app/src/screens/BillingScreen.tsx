@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { useWebStyles } from '../components/WebContainer';
 import { useAuth } from '../context/AuthContext';
+import { useCredits } from '../hooks/useCredits';
 import {
     getSubscriptionPlans,
     getCreditPackages,
@@ -55,9 +56,9 @@ export default function BillingScreen() {
     const navigation = useNavigation<any>();
     const { user } = useAuth() as { user: { email?: string; name?: string } | null };
 
+    const { credits: realTimeCredits, planType: realTimePlan, refreshCredits } = useCredits();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-    const [credits, setCredits] = useState<CreditBalance | null>(null);
     const [transactions, setTransactions] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'plans' | 'credits' | 'history'>('plans');
 
@@ -69,11 +70,10 @@ export default function BillingScreen() {
 
     const loadData = async () => {
         try {
-            const [creditsData, transactionsData] = await Promise.all([
-                getUserCredits(),
+            const [_, transactionsData] = await Promise.all([
+                refreshCredits(),
                 getTransactionHistory(10),
             ]);
-            setCredits(creditsData);
             setTransactions(transactionsData);
         } catch (error) {
             console.error('[Billing] Load error:', error);
@@ -82,6 +82,21 @@ export default function BillingScreen() {
             setRefreshing(false);
         }
     };
+
+    // Auto-refresh when tab becomes visible (Enterprise logic)
+    useEffect(() => {
+        if (Platform.OS === 'web') {
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'visible') {
+                    console.log('[Billing] Tab visible, refreshing credits...');
+                    refreshCredits();
+                    loadData();
+                }
+            };
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+        }
+    }, []);
 
     const openCheckout = async (url: string, productName: string) => {
         if (!userEmail) {
@@ -96,7 +111,19 @@ export default function BillingScreen() {
 
         try {
             if (Platform.OS === 'web') {
-                window.open(fullUrl, '_blank');
+                const checkoutWindow = window.open(fullUrl, '_blank');
+
+                // Smart Polling (Enterprise logic) - check every 2s for 1 minute
+                let pollCount = 0;
+                const pollInterval = setInterval(async () => {
+                    pollCount++;
+                    console.log(`[Billing] Enterprise Poll ${pollCount}/30...`);
+                    await refreshCredits();
+                    await loadData();
+
+                    if (pollCount >= 30) clearInterval(pollInterval);
+                }, 2000);
+
             } else {
                 const canOpen = await Linking.canOpenURL(fullUrl);
                 if (canOpen) {
@@ -118,25 +145,19 @@ export default function BillingScreen() {
                 <View>
                     <Text style={[styles.creditsLabel, { color: isDark ? '#888' : '#666' }]}>Available Credits</Text>
                     <Text style={[styles.creditsNumber, { color: isDark ? '#FFF' : '#1A1A1A' }]}>
-                        {credits?.credits || 0}
+                        {realTimeCredits || 0}
                     </Text>
                 </View>
-                <View style={[styles.planBadge, { backgroundColor: credits?.plan_type === 'pro' ? '#6366F1' : credits?.plan_type === 'basic' ? '#10B981' : '#6B7280' }]}>
+                <View style={[styles.planBadge, { backgroundColor: realTimePlan === 'pro' ? '#6366F1' : realTimePlan === 'basic' ? '#10B981' : '#6B7280' }]}>
                     <Ionicons name="flash" size={14} color="#FFF" />
                     <Text style={styles.planBadgeText}>
-                        {credits?.plan_type === 'pro' ? 'PRO' : credits?.plan_type === 'basic' ? 'BASIC' : 'FREE'}
+                        {(realTimePlan || '').toUpperCase()}
                     </Text>
                 </View>
             </View>
-            {credits?.monthly_credits ? (
-                <Text style={[styles.creditsSubtext, { color: isDark ? '#666' : '#888' }]}>
-                    {credits.monthly_credits} credits/month • Renews {credits.expires_at ? new Date(credits.expires_at).toLocaleDateString() : 'N/A'}
-                </Text>
-            ) : (
-                <Text style={[styles.creditsSubtext, { color: isDark ? '#666' : '#888' }]}>
-                    Subscribe for monthly credits
-                </Text>
-            )}
+            <Text style={[styles.creditsSubtext, { color: isDark ? '#666' : '#888' }]}>
+                {realTimePlan === 'pro' ? '400 credits/month' : realTimePlan === 'basic' ? '200 credits/month' : 'Subscribe for monthly credits'}
+            </Text>
         </View>
     );
 
