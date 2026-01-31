@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -127,10 +128,11 @@ export default function LoginScreen({ navigation }) {
           <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
             {/* Logo Section */}
             <View style={styles.logoSection}>
-              <View style={styles.logoContainer}>
-                <Ionicons name="book" size={32} color="#1A1A1A" />
-              </View>
-              <Text style={styles.appName}>UPSC Prep</Text>
+              <Image
+                source={require('../../assets/prepassist-logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
 
             {/* Header */}
@@ -308,6 +310,10 @@ const styles = StyleSheet.create({
   logoSection: {
     alignItems: 'center',
     marginBottom: 40,
+  },
+  logoImage: {
+    width: 200,
+    height: 100,
   },
   logoContainer: {
     width: 64,

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
-  Mail, Lock, ArrowRight, AlertCircle, CheckCircle,
+  Mail, Lock, ArrowRight, AlertCircle, CheckCircle, Check,
   Sparkles, Brain, Trophy, Users, Target, Zap, ChevronRight,
   Play, Star, Quote, ArrowUpRight, Menu, X, Cpu, FileText,
   BarChart3, Map, Newspaper, Clock
@@ -65,31 +65,22 @@ function AnimatedCounter({ end, suffix = '', duration = 2000 }: { end: number; s
 // PrepAssist Logo Component
 function PrepAssistLogo({ size = 'default' }: { size?: 'small' | 'default' | 'large' }) {
   const sizes = {
-    small: { container: 'w-8 h-8', hexagon: 24 },
-    default: { container: 'w-10 h-10', hexagon: 32 },
-    large: { container: 'w-16 h-16', hexagon: 48 },
+    small: { width: 120, height: 50 },
+    default: { width: 150, height: 60 },
+    large: { width: 200, height: 80 },
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <svg viewBox="0 0 100 100" className={sizes[size].container} fill="none">
-        {/* Orange Left Arrow */}
-        <path
-          d="M30 70 L30 30 L50 15 L50 35 L40 42 L40 58 L50 65 L50 85 Z"
-          fill="#F5A623"
-        />
-        {/* Blue Right Arrow */}
-        <path
-          d="M70 30 L70 70 L50 85 L50 65 L60 58 L60 42 L50 35 L50 15 Z"
-          fill="#2196F3"
-        />
-      </svg>
-      <span className="font-bold text-gray-900 heading-display" style={{ fontSize: size === 'large' ? '1.5rem' : size === 'small' ? '1rem' : '1.25rem' }}>
-        Prep<span className="text-gray-500">Assist</span>
-      </span>
-    </div>
+    <img
+      src="/prepassist-logo.png"
+      alt="PrepAssist - AI Mentor for Your Preparation"
+      width={sizes[size].width}
+      height={sizes[size].height}
+      style={{ objectFit: 'contain' }}
+    />
   );
 }
+
 
 // Feature Card Component
 function FeatureCard({ icon: Icon, title, description, iconBg, delay }: {
@@ -261,22 +252,21 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-8">
             <a href="#features" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">FEATURES</a>
             <a href="#testimonials" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">TESTIMONIALS</a>
-            <a href="#pricing" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">PRICING</a>
+            <a href="/pricing" className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium">PRICING</a>
           </div>
 
           <div className="hidden md:flex items-center gap-4">
             <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); setShowLogin(true); }}
+              href="https://app.prepassist.in/login"
               className="text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium"
             >
-              Admin
+              Log in
             </a>
             <a
-              href="https://www.prepassist.in/upsc"
+              href="https://app.prepassist.in/login"
               className="btn-blue text-sm py-3 px-6"
             >
-              Sign In
+              Sign Up
             </a>
           </div>
 
@@ -294,124 +284,23 @@ export default function LandingPage() {
           <div className="md:hidden mt-4 glass-light rounded-2xl p-6 space-y-4">
             <a href="#features" className="block text-gray-600 hover:text-gray-900 transition-colors">Features</a>
             <a href="#testimonials" className="block text-gray-600 hover:text-gray-900 transition-colors">Testimonials</a>
-            <a href="#pricing" className="block text-gray-600 hover:text-gray-900 transition-colors">Pricing</a>
+            <a href="/pricing" className="block text-gray-600 hover:text-gray-900 transition-colors">Pricing</a>
             <a
-              href="https://www.prepassist.in/upsc"
+              href="https://app.prepassist.in/login"
               className="btn-blue w-full text-sm py-3 text-center block"
             >
-              Sign In
+              Sign Up
             </a>
             <a
-              href="#"
-              onClick={(e) => { e.preventDefault(); setShowLogin(true); }}
+              href="https://app.prepassist.in/login"
               className="text-gray-500 text-sm text-center block mt-2"
             >
-              Admin Login
+              Log in
             </a>
           </div>
         )}
       </nav>
 
-      {/* Login Modal */}
-      {showLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowLogin(false)} />
-          <div className="relative bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl">
-            <button
-              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              onClick={() => setShowLogin(false)}
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="mb-8 text-center">
-              <div className="flex justify-center mb-4">
-                <PrepAssistLogo size="large" />
-              </div>
-              <h2 className="text-2xl font-bold heading-display text-gray-900">Welcome back</h2>
-              <p className="text-gray-500 mt-2">Sign in to access the admin dashboard</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {error && (
-                <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm">
-                  <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {forgotSuccess && (
-                <div className="flex items-start gap-3 bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded-xl text-sm">
-                  <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                  <span>{forgotSuccess}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                    placeholder="you@example.com"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                    placeholder="••••••••"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
-                  disabled={forgotLoading}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors disabled:opacity-50"
-                >
-                  {forgotLoading ? 'Sending...' : 'Forgot password?'}
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full btn-primary py-4"
-              >
-                {loading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    Sign in
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-32 pb-20 px-6">
@@ -438,7 +327,7 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-wrap gap-4 mb-12">
-                <a href="https://www.prepassist.in/upsc" className="btn-primary">
+                <a href="https://app.prepassist.in/login" className="btn-primary">
                   Start Learning Free <ArrowRight className="w-4 h-4" />
                 </a>
                 <button className="btn-secondary">

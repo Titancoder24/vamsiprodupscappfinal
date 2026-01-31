@@ -64,7 +64,11 @@ export default function ArticlesScreen({ navigation }) {
   const handleDateChange = (event, date) => {
     setShowDatePicker(false);
     if (date) {
-      const formattedDate = date.toISOString().split('T')[0];
+      // Use local date components to avoid timezone offset issues with toISOString()
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const formattedDate = `${year}-${month}-${day}`;
       setSelectedDate(formattedDate);
     }
   };
@@ -100,13 +104,11 @@ export default function ArticlesScreen({ navigation }) {
         query = query.eq('subject', selectedSubject);
       }
       if (selectedDate) {
-        // Filter by date  
-        const startOfDay = new Date(selectedDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(selectedDate);
-        endOfDay.setHours(23, 59, 59, 999);
-        query = query.gte('published_date', startOfDay.toISOString())
-          .lte('published_date', endOfDay.toISOString());
+        // Filter by date (handling timestamp boundaries)
+        const startOfDay = `${selectedDate} 00:00:00`;
+        const endOfDay = `${selectedDate} 23:59:59`;
+        query = query.gte('published_date', startOfDay)
+          .lte('published_date', endOfDay);
       }
 
       const { data, error: fetchError } = await query.limit(50);

@@ -71,21 +71,26 @@ export default function DashboardLayout({
             <div className={`fixed inset-y-0 left-0 ${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-slate-900 to-slate-800 transition-all duration-300 z-40`}>
                 <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className={`p-4 border-b border-slate-700 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
-                        {!isSidebarCollapsed && (
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
-                                    <BookMarked className="w-5 h-5 text-white" />
-                                </div>
+                    <div className={`p-4 border-b border-slate-700 flex items-center ${isSidebarCollapsed ? 'flex-col gap-4' : 'justify-between'}`}>
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 flex items-center justify-center p-1 bg-white/10 rounded-xl overflow-hidden flex-shrink-0">
+                                <img
+                                    src="/prepassist-logo.png"
+                                    alt="PrepAssist"
+                                    className="w-full h-full object-contain"
+                                    style={{ filter: 'brightness(0) invert(1)' }}
+                                />
+                            </div>
+                            {!isSidebarCollapsed && (
                                 <div>
-                                    <h1 className="text-lg font-bold text-white">UPSC Prep</h1>
+                                    <h1 className="text-lg font-bold text-white">PrepAssist</h1>
                                     <p className="text-xs text-slate-400">Admin Panel</p>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                         <button
                             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+                            className={`p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors ${isSidebarCollapsed ? '' : 'ml-auto'}`}
                         >
                             {isSidebarCollapsed ? <Menu className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
                         </button>

@@ -249,7 +249,11 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.headerTop}>
             <View>
               <Text style={[styles.greeting, { color: theme.colors.textSecondary }]}>Hello, {firstName} 👋</Text>
-              <Text style={[styles.title, { color: theme.colors.text }]}>UPSC Prep</Text>
+              <Image
+                source={require('../../assets/prepassist-logo.png')}
+                style={styles.headerLogo}
+                resizeMode="contain"
+              />
             </View>
 
             <View style={styles.headerActions}>
@@ -544,6 +548,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1C1C1E',
     letterSpacing: -0.8,
+    marginTop: 4,
+  },
+  headerLogo: {
+    width: 140,
+    height: 50,
     marginTop: 4,
   },
   iconButton: {

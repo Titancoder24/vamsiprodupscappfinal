@@ -42,6 +42,7 @@ import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { savePDFMCQSession, getAllPDFMCQSessions, PDFMCQSession } from '../utils/pdfMCQStorage';
 import useCredits from '../../../hooks/useCredits';
 import { supabase } from '../../../lib/supabase';
+import { canBypassCredits } from '../../../utils/devMode';
 
 // ===================== CONFIGURATION =====================
 const CONFIG = {
@@ -237,11 +238,15 @@ function exportToPDF(mcqs: MCQ[], selectedAnswers: Record<number, string>): void
 </html>`;
 
     // Open in new window for printing/saving as PDF
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        setTimeout(() => printWindow.print(), 500);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 500);
+        }
+    } else {
+        Alert.alert('PDF Export', 'PDF report generation is currently optimized for Web. For mobile, please use CSV export or take screenshots of your results.');
     }
 }
 
@@ -988,7 +993,7 @@ export default function PDFGeneratorScreen() {
     const navigation = useNavigation<any>();
 
     // Credit checking (5 credits for PDF MCQ)
-    const { credits, hasEnoughCredits, useCredits: deductCredits } = useCredits();
+    const { credits, hasEnoughCredits, useCredits: deductCredits, loading } = useCredits();
 
     // State
     const [stage, setStage] = useState<ProcessStage>('idle');
@@ -1131,19 +1136,7 @@ export default function PDFGeneratorScreen() {
         const estimatedTime = count <= 25 ? 8 : Math.max(10, Math.ceil(count / 200) * 7 + 5);
 
         try {
-            // Deduct credits before starting
-            const success = await deductCredits('pdf_mcq');
-            if (!success) return;
-
-            // Reset state
-            setMcqs([]);
-            setSelectedAnswers({});
-            setShowResults({});
-            setElapsedSeconds(0);
-            setErrorMessage('');
-            setHasSavedCurrentTest(false);
-
-            // STEP 1: Pick file
+            // STEP 1: Pick file (Do this before deducting credits)
             setStage('picking');
             setProgress(5);
             setStatusMessage('📁 Select a PDF file...');
@@ -1169,8 +1162,24 @@ export default function PDFGeneratorScreen() {
                 );
             }
 
+            // NOW deduct credits since we have a file and user is committed
+            setStatusMessage('💎 Validating credits...');
+            const success = await deductCredits('pdf_mcq');
+            if (!success) {
+                setStage('idle');
+                return;
+            }
+
+            // Reset MCQ state
+            setMcqs([]);
+            setSelectedAnswers({});
+            setShowResults({});
+            setElapsedSeconds(0);
+            setErrorMessage('');
+            setHasSavedCurrentTest(false);
+
             setStatusMessage(`📄 Selected: ${pickedFile.name} (${fileSizeMB.toFixed(1)}MB)`);
-            setProgress(10);
+            setProgress(15);
 
             // STEP 2: Read file
             setStage('reading');
@@ -1280,8 +1289,8 @@ export default function PDFGeneratorScreen() {
     };
 
     const isLoading = ['picking', 'reading', 'ocr', 'generating', 'parsing'].includes(stage);
-    const count = parseInt(mcqCount) || 10;
-    const estimatedTime = Math.max(20, count * 2);
+    const countValue = parseInt(mcqCount) || 10;
+    const estimatedTime = countValue <= 25 ? 8 : Math.max(10, Math.ceil(countValue / 200) * 7 + 5);
 
     // ===================== LOADING SCREEN =====================
     if (isLoading) {
@@ -1445,13 +1454,23 @@ export default function PDFGeneratorScreen() {
 
                         {/* Upload Button */}
                         <TouchableOpacity
-                            style={[styles.uploadButton, { backgroundColor: theme.colors.primary }]}
+                            style={[
+                                styles.uploadButton,
+                                { backgroundColor: (loading || credits < 5) && !canBypassCredits() ? theme.colors.textSecondary : theme.colors.primary }
+                            ]}
                             onPress={startProcess}
                             activeOpacity={0.8}
+                            disabled={loading}
                         >
-                            <Ionicons name="cloud-upload-outline" size={22} color="#FFF" />
-                            <Text style={styles.uploadButtonText}>Select PDF & Generate MCQs</Text>
-                            <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                            {(loading) ? (
+                                <ActivityIndicator size="small" color="#FFF" />
+                            ) : (
+                                <>
+                                    <Ionicons name="cloud-upload-outline" size={22} color="#FFF" />
+                                    <Text style={styles.uploadButtonText}>Select PDF & Generate MCQs</Text>
+                                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                                </>
+                            )}
                         </TouchableOpacity>
 
                         {/* Features */}

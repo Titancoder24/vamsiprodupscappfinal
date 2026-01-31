@@ -47,29 +47,20 @@ export async function verifyCredentials(email: string, password: string): Promis
 // Verify token from Supabase session
 export async function verifyToken(accessToken: string): Promise<AdminUser | null> {
     try {
-        console.log('Verifying token...');
-        // Use anon key for token verification (service role key is for admin operations)
-        const { createClient } = await import('@supabase/supabase-js');
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-        const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+        console.log('Verifying token for admin panel...');
 
-        if (!supabaseUrl || !supabaseAnonKey) {
-            console.error('Missing Supabase environment variables for token verification');
+        // Use the existing createServerClient which has the correct configuration
+        const supabase = createServerClient();
+
+        if (!supabase) {
+            console.error('Failed to create Supabase server client');
             return null;
         }
-
-        // Create client with anon key for token verification
-        const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        });
 
         const { data: { user }, error } = await supabase.auth.getUser(accessToken);
 
         if (error || !user) {
-            console.log('Token verification error:', error?.message);
+            console.log('Token verification error:', error?.message || 'No user returned');
             return null;
         }
 

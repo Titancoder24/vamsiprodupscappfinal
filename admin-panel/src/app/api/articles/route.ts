@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
         const status = searchParams.get('status') || '';
         const offset = (page - 1) * limit;
 
+        console.log(`GET /api/articles: page=${page}, search=${search}, gsPaper=${gsPaper}, status=${status}`);
+
         const supabase = createServerClient();
 
         let query = supabase.from('articles').select('*', { count: 'exact' });
@@ -48,6 +50,8 @@ export async function GET(request: NextRequest) {
             console.error('Get articles error:', error);
             return NextResponse.json({ error: error.message }, { status: 500 });
         }
+
+        console.log(`Found ${articles?.length || 0} articles. Total count: ${count}`);
 
         // Transform snake_case to camelCase for frontend compatibility
         const transformedArticles = articles?.map(article => ({
