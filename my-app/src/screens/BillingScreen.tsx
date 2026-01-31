@@ -471,9 +471,38 @@ export default function BillingScreen() {
                     <TouchableOpacity onPress={() => navigation.goBack()} style={[styles.backButton, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF' }]}>
                         <Ionicons name="arrow-back" size={20} color={isDark ? '#FFF' : '#1A1A1A'} />
                     </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: isDark ? '#FFF' : '#1A1A1A' }]}>Billing & Credits</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={[styles.headerTitle, { color: isDark ? '#FFF' : '#1A1A1A' }]}>Billing & Credits</Text>
+                        <View style={{ backgroundColor: '#EF4444', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: '800' }}>DEBUG</Text>
+                        </View>
+                    </View>
                     <View style={{ width: 40 }} />
                 </View>
+
+                {/* EMERGENCY TEST PACK AT TOP */}
+                <TouchableOpacity
+                    style={{
+                        backgroundColor: '#EF4444',
+                        marginHorizontal: 20,
+                        padding: 12,
+                        borderRadius: 12,
+                        flexDirection: 'row',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: 16
+                    }}
+                    onPress={() => openCheckout(CHECKOUT_URLS.TEST_5_RUPEES, 'Test Pack')}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <Ionicons name="flash" size={20} color="#FFF" />
+                        <View>
+                            <Text style={{ color: '#FFF', fontWeight: '800' }}>₹5 TEST PACK (10 CREDITS)</Text>
+                            <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 11 }}>Tap here to test payment flow</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                </TouchableOpacity>
 
                 {/* Credits Card */}
                 {renderCreditsCard()}
