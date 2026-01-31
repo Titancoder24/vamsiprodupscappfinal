@@ -43,6 +43,8 @@ import {
 } from '../services/aiNotesService';
 import { fetchCurrentAffairs, Article } from '../services/currentAffairsService';
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
+import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
+import { FlatList, RefreshControl } from 'react-native';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -99,6 +101,8 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     // Loading
     const [loading, setLoading] = useState(true);
+    const [newsMatches, setNewsMatches] = useState<MatchedArticle[]>([]);
+    const [showNotifications, setShowNotifications] = useState(false);
 
     // Filter states for summaries
     const [filterTagId, setFilterTagId] = useState<number | null>(null);
@@ -127,6 +131,14 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             // Calculate alerts (tags with recent current affairs)
             const alertsData = await getTagBasedAlerts();
             setAlerts(alertsData.map(a => ({ tag: a.tag, count: a.newArticles.length })));
+
+            // Check for news matches (NEW: Knowledge Radar)
+            try {
+                const matches = await checkNewsMatches();
+                setNewsMatches(matches);
+            } catch (err) {
+                console.error("Failed to check news matches", err);
+            }
 
         } catch (error) {
             console.error('Error loading data:', error);
@@ -1640,10 +1652,126 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                     <Text style={styles.headerTitle}>AI Notes Maker</Text>
                     <Text style={styles.headerSubtitle}>Organize & Summarize by Hashtags</Text>
                 </View>
-                <TouchableOpacity onPress={loadData} style={styles.refreshBtn}>
-                    <Ionicons name="refresh" size={22} color="#64748B" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TouchableOpacity
+                        onPress={() => setShowNotifications(true)}
+                        style={{ marginRight: 15, position: 'relative' }}
+                    >
+                        <Ionicons
+                            name={newsMatches.length > 0 ? "notifications" : "notifications-outline"}
+                            size={24}
+                            color={newsMatches.length > 0 ? "#F59E0B" : "#64748B"}
+                        />
+                        {newsMatches.length > 0 && (
+                            <View style={{
+                                position: 'absolute',
+                                top: -5,
+                                right: -5,
+                                backgroundColor: '#EF4444',
+                                borderRadius: 10,
+                                minWidth: 16,
+                                height: 16,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                paddingHorizontal: 3,
+                                borderWidth: 1.5,
+                                borderColor: '#FFF'
+                            }}>
+                                <Text style={{ color: '#FFF', fontSize: 8, fontWeight: '700' }}>
+                                    {newsMatches.length}
+                                </Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={loadData} style={styles.refreshBtn}>
+                        <Ionicons name="refresh" size={22} color="#64748B" />
+                    </TouchableOpacity>
+                </View>
             </View>
+
+            {/* Notifications Modal */}
+            <Modal
+                visible={showNotifications}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowNotifications(false)}
+            >
+                <View style={{
+                    flex: 1,
+                    backgroundColor: 'rgba(0,0,0,0.5)',
+                    justifyContent: 'flex-end',
+                }}>
+                    <View style={{
+                        backgroundColor: '#FFFFFF',
+                        borderTopLeftRadius: 24,
+                        borderTopRightRadius: 24,
+                        padding: 20,
+                        maxHeight: '80%',
+                    }}>
+                        <View style={{
+                            flexDirection: 'row',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: 8,
+                        }}>
+                            <Text style={{ fontSize: 20, fontWeight: '700', color: '#1F2937' }}>
+                                {newsMatches.length > 0 ? `News Matches (${newsMatches.length})` : 'News Notifications'}
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowNotifications(false)}>
+                                <Ionicons name="close" size={24} color="#1F2937" />
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
+                            Current affairs related to your saved hashtags
+                        </Text>
+
+                        {newsMatches.length > 0 ? (
+                            <FlatList
+                                data={newsMatches}
+                                keyExtractor={(item) => item.articleId.toString()}
+                                renderItem={({ item }) => (
+                                    <TouchableOpacity
+                                        style={{
+                                            backgroundColor: '#F9FAFB',
+                                            padding: 12,
+                                            borderRadius: 12,
+                                            marginBottom: 12,
+                                            borderWidth: 1,
+                                            borderColor: '#F3F4F6',
+                                        }}
+                                        onPress={() => {
+                                            setShowNotifications(false);
+                                            navigation.navigate('ArticleDetailScreen', { articleId: item.articleId });
+                                        }}
+                                    >
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6, gap: 6 }}>
+                                            <Ionicons name="newspaper-outline" size={16} color="#3B82F6" />
+                                            <Text style={{ fontSize: 12, color: '#3B82F6', fontWeight: '600' }}>
+                                                {item.matchReason}
+                                            </Text>
+                                        </View>
+                                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#1F2937', marginBottom: 6 }} numberOfLines={2}>
+                                            {item.articleTitle}
+                                        </Text>
+                                        <Text style={{ fontSize: 12, color: '#6B7280', fontStyle: 'italic' }}>
+                                            <Ionicons name="pricetag-outline" size={12} color="#6B7280" /> Matched Tag: {item.matchedTag}
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
+                                contentContainerStyle={{ paddingBottom: 20 }}
+                            />
+                        ) : (
+                            <View style={{ alignItems: 'center', padding: 40 }}>
+                                <Ionicons name="checkmark-circle-outline" size={64} color="#10B981" />
+                                <Text style={{ fontSize: 18, fontWeight: '700', color: '#1F2937', marginTop: 12 }}>All Caught Up!</Text>
+                                <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 8 }}>
+                                    No new matches found between your hashtags and recent news articles.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
             {/* Stats Bar */}
             <View style={styles.statsBar}>
