@@ -89,7 +89,9 @@ export default function BillingScreen() {
             return;
         }
 
-        const fullUrl = `${url}?email=${encodeURIComponent(userEmail)}`;
+        const currentUrl = typeof window !== 'undefined' ? window.location.origin : 'https://my-m79q0zn05-vamsis-projects-4d71922c.vercel.app';
+        const fullUrl = `${url}?email=${encodeURIComponent(userEmail)}&redirect_url=${encodeURIComponent(currentUrl + '/home')}`;
+
         console.log('[Billing] Opening checkout:', fullUrl);
 
         try {
