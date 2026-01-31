@@ -85,17 +85,16 @@ const LoadingScreen = () => (
   </View>
 );
 
-// Auth Navigator (Landing + Login)
+// Auth Navigator (Login + Pricing)
 const AuthNavigator = () => {
   return (
     <Stack.Navigator
-      initialRouteName="Landing"
+      initialRouteName="Login"
       screenOptions={{
         headerShown: false,
         animation: 'fade',
       }}
     >
-      <Stack.Screen name="Landing" component={LandingScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Pricing" component={PricingScreen} />
       <Stack.Screen name="AuthCallback" component={AuthCallbackScreen} />
@@ -224,7 +223,6 @@ const linking = {
       },
       Auth: {
         screens: {
-          Landing: 'upsc',
           Login: 'login',
           Pricing: 'pricing',
           AuthCallback: {
