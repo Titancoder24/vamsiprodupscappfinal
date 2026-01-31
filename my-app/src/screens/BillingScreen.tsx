@@ -46,7 +46,7 @@ const CHECKOUT_URLS = {
     CREDITS_750: 'https://checkout.dodopayments.com/buy/pdt_0NWfNy0Q3SrufzdKZlE2G',
     CREDITS_1200: 'https://checkout.dodopayments.com/buy/pdt_0NWfO0TYn9murkxJ3FWbC',
     CREDITS_1999: 'https://checkout.dodopayments.com/buy/pdt_0NWfO2IA7c8uoxbXKPkFP',
-    TEST_5_RUPEES: 'https://checkout.dodopayments.com/buy/pdt_TEST_5_RUPEES',
+    TEST_5_RUPEES: 'https://checkout.dodopayments.com/buy/pdt_0NXVmuekVgYecsGGsW7li',
 };
 
 export default function BillingScreen() {

@@ -17,7 +17,7 @@ const PACKAGE_CREDITS: Record<string, number> = {
     'pdt_0NWfNy0Q3SrufzdKZlE2G': 750,   // 750 credits pack (LIVE)
     'pdt_0NWfO0TYn9murkxJ3FWbC': 1200,  // 1200 credits pack (LIVE)
     'pdt_0NWfO2IA7c8uoxbXKPkFP': 1999,  // 1999 credits pack (LIVE)
-    'pdt_TEST_5_RUPEES': 10,           // 10 credits test pack (₹5)
+    'pdt_0NXVmuekVgYecsGGsW7li': 10,           // 10 credits test pack (₹5)
 };
 
 // LIVE Product to plan type mapping
