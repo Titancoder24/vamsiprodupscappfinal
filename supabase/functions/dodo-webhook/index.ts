@@ -31,6 +31,39 @@ const PRODUCT_PLANS: Record<string, 'basic' | 'pro'> = {
     'pdt_0NWfLU5OfjnVhmPz86wWZ': 'pro',    // Pro Plan (LIVE)
 };
 
+// Helper to find Supabase User ID by email
+async function getUserIdByEmail(supabase: any, email: string): Promise<string | null> {
+    if (!email) return null;
+    try {
+        console.log(`[Webhook] Looking up user by email: ${email}`);
+        // In Edge Functions with service role, we use auth.admin to list users
+        const { data, error } = await supabase.auth.admin.listUsers();
+
+        if (error) {
+            console.error(`[Webhook] User lookup error for ${email}:`, error);
+            return null;
+        }
+
+        const user = data.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
+
+        if (user) {
+            console.log(`[Webhook] Found user ID: ${user.id} for email: ${email}`);
+            return user.id;
+        } else {
+            console.warn(`[Webhook] No user found in Supabase for email: ${email}`);
+            return null;
+        }
+    } catch (err) {
+        console.error(`[Webhook] User lookup exception for ${email}:`, err);
+        return null;
+    }
+}
+
+function isUUID(str: string): boolean {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+}
+
 serve(async (req) => {
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
@@ -38,9 +71,6 @@ serve(async (req) => {
     }
 
     try {
-        // Get the webhook signature (optional verification)
-        const signature = req.headers.get("x-webhook-signature");
-
         // Parse the webhook payload
         const payload = await req.json();
 
@@ -112,24 +142,16 @@ async function handleSubscriptionCreated(supabase: any, data: any) {
     }
 
     // Find user by email
-    const { data: users, error: userError } = await supabase
-        .from("auth.users")
-        .select("id")
-        .eq("email", customerEmail)
-        .single();
+    const userId = await getUserIdByEmail(supabase, customerEmail);
 
-    // If can't find in auth.users, try profiles or other user table
-    let userId = users?.id;
-
-    if (!userId) {
-        // Try to find user by email in a profiles table or create mapping
-        console.log("[Webhook] User not found by email, using customer ID as reference");
-        userId = data.customer_id || customerEmail;
+    if (!userId || !isUUID(userId)) {
+        console.error(`[Webhook] Valid Supabase user ID not found for ${customerEmail}. Found: ${userId}`);
+        return;
     }
 
     // Determine plan type
     const planType = PRODUCT_PLANS[product_id] || 'basic';
-    const monthlyCredits = PLAN_CREDITS[planType];
+    const monthlyCredits = PLAN_CREDITS[planType as keyof typeof PLAN_CREDITS] || 200;
 
     // Calculate expiry (30 days from now)
     const expiresAt = new Date();
@@ -185,7 +207,7 @@ async function handleSubscriptionCreated(supabase: any, data: any) {
 
 // Handle subscription renewal
 async function handleSubscriptionRenewed(supabase: any, data: any) {
-    const { subscription_id, product_id } = data;
+    const { subscription_id } = data;
 
     // Find subscription
     const { data: subscription, error } = await supabase
@@ -207,7 +229,7 @@ async function handleSubscriptionRenewed(supabase: any, data: any) {
     expiresAt.setDate(expiresAt.getDate() + 30);
 
     // Add monthly credits
-    const newCredits = subscription.current_credits + monthlyCredits;
+    const newCredits = (subscription.current_credits || 0) + monthlyCredits;
 
     // Update subscription
     await supabase
@@ -262,10 +284,15 @@ async function handlePaymentCompleted(supabase: any, data: any) {
         return;
     }
 
-    // Find user
-    let userId = data.customer_id || customerEmail;
+    // Find user by email
+    const userId = await getUserIdByEmail(supabase, customerEmail);
 
-    // Get or create subscription record
+    if (!userId || !isUUID(userId)) {
+        console.error(`[Webhook] Valid Supabase user ID not found for payment ${payment_id} (${customerEmail})`);
+        return;
+    }
+
+    // Get existing subscription or create a base one
     const { data: existingSub } = await supabase
         .from("user_subscriptions")
         .select("*")
@@ -276,7 +303,6 @@ async function handlePaymentCompleted(supabase: any, data: any) {
     const newBalance = currentCredits + creditsAmount;
 
     if (existingSub) {
-        // Update existing subscription
         await supabase
             .from("user_subscriptions")
             .update({
@@ -285,7 +311,6 @@ async function handlePaymentCompleted(supabase: any, data: any) {
             })
             .eq("id", existingSub.id);
     } else {
-        // Create new subscription record (free tier with purchased credits)
         await supabase
             .from("user_subscriptions")
             .insert({
@@ -294,6 +319,8 @@ async function handlePaymentCompleted(supabase: any, data: any) {
                 status: 'active',
                 current_credits: creditsAmount,
                 dodo_customer_id: data.customer_id,
+                started_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
             });
     }
 
@@ -308,11 +335,11 @@ async function handlePaymentCompleted(supabase: any, data: any) {
     });
 
     // Log payment history
-    const priceMap: Record<number, number> = { 50: 99, 120: 199, 300: 399 };
+    const priceMap: Record<number, number> = { 50: 99, 120: 199, 300: 399, 750: 999, 1200: 1499, 1999: 1999 };
     await supabase.from("payment_history").insert({
         user_id: userId,
         payment_type: 'credits',
-        amount_inr: priceMap[creditsAmount] || 0,
+        amount_inr: priceMap[creditsAmount] || (data.total_amount ? data.total_amount / 100 : 0),
         status: 'completed',
         dodo_payment_id: payment_id,
         credits_purchased: creditsAmount,
@@ -327,9 +354,11 @@ async function handlePaymentFailed(supabase: any, data: any) {
     const { customer, payment_id, product_id } = data;
     const customerEmail = customer?.email || data.customer_email;
 
+    const userId = await getUserIdByEmail(supabase, customerEmail);
+
     // Log failed payment
     await supabase.from("payment_history").insert({
-        user_id: data.customer_id || customerEmail,
+        user_id: userId || data.customer_id || customerEmail,
         payment_type: PRODUCT_PLANS[product_id] ? 'subscription' : 'credits',
         amount_inr: 0,
         status: 'failed',
