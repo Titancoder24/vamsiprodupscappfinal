@@ -46,6 +46,7 @@ const CHECKOUT_URLS = {
     CREDITS_750: 'https://checkout.dodopayments.com/buy/pdt_0NWfNy0Q3SrufzdKZlE2G',
     CREDITS_1200: 'https://checkout.dodopayments.com/buy/pdt_0NWfO0TYn9murkxJ3FWbC',
     CREDITS_1999: 'https://checkout.dodopayments.com/buy/pdt_0NWfO2IA7c8uoxbXKPkFP',
+    TEST_5_RUPEES: 'https://checkout.dodopayments.com/buy/pdt_TEST_5_RUPEES',
 };
 
 export default function BillingScreen() {
@@ -279,6 +280,25 @@ export default function BillingScreen() {
             <Text style={[styles.sectionSubtitle, { color: isDark ? '#666' : '#888' }]}>
                 One-time purchase • Credits never expire
             </Text>
+
+            {/* Test Package Section */}
+            <View style={{ marginBottom: 16 }}>
+                <TouchableOpacity
+                    style={[styles.testPackageCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFF3F3', borderColor: '#EF4444' }]}
+                    onPress={() => openCheckout(CHECKOUT_URLS.TEST_5_RUPEES, 'Test Pack')}
+                >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <View style={{ backgroundColor: '#EF4444', padding: 8, borderRadius: 10 }}>
+                            <Ionicons name="beaker" size={20} color="#FFF" />
+                        </View>
+                        <View>
+                            <Text style={{ fontWeight: '700', color: isDark ? '#FFF' : '#1A1A1A' }}>Quick Test Pack</Text>
+                            <Text style={{ fontSize: 12, color: isDark ? '#AAA' : '#666' }}>10 credits for testing purposes</Text>
+                        </View>
+                    </View>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: '#EF4444' }}>₹5</Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Row 1: Starter packages */}
             <View style={styles.packagesRow}>
@@ -564,4 +584,13 @@ const styles = StyleSheet.create({
     // Payment Info
     paymentInfo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16, borderTopWidth: 1, marginTop: 20 },
     paymentInfoText: { fontSize: 12 },
+    testPackageCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 2,
+        borderStyle: 'dashed',
+    },
 });
