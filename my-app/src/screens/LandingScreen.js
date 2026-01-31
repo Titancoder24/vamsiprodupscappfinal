@@ -243,8 +243,12 @@ export default function LandingScreen({ navigation }) {
         <View style={styles.navbar}>
           <View style={styles.navbarInner}>
             <View style={styles.logoContainer}>
-              <Ionicons name="book" size={20} color="#1A1A1A" />
-              <Text style={styles.logoText}>UPSC Prep</Text>
+              {/* PrepAssist Logo SVG */}
+              <View style={styles.logoIcon}>
+                <View style={styles.logoArrowOrange} />
+                <View style={styles.logoArrowBlue} />
+              </View>
+              <Text style={styles.logoText}>Prep<Text style={styles.logoTextLight}>Assist</Text></Text>
             </View>
 
             {/* Nav Links */}
@@ -394,8 +398,14 @@ export default function LandingScreen({ navigation }) {
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerLogo}>UPSC Prep</Text>
-            <Text style={styles.footerCopyright}>© 2025 UPSC Prep. All rights reserved.</Text>
+            <View style={styles.footerLogoContainer}>
+              <View style={styles.logoIconSmall}>
+                <View style={styles.logoArrowOrangeSmall} />
+                <View style={styles.logoArrowBlueSmall} />
+              </View>
+              <Text style={styles.footerLogo}>Prep<Text style={styles.logoTextLight}>Assist</Text></Text>
+            </View>
+            <Text style={styles.footerCopyright}>© 2026 PrepAssist. All rights reserved. Built with ❤️ for aspirants.</Text>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -568,8 +578,70 @@ const styles = StyleSheet.create({
 
   // Footer
   footer: { borderTopWidth: 1, borderTopColor: '#E5E7EB', backgroundColor: '#FAFAFA', paddingVertical: 28, alignItems: 'center' },
-  footerLogo: { fontSize: 13, fontWeight: '700', color: '#0F172A', marginBottom: 6 },
-  footerCopyright: { fontSize: 10, color: '#94A3B8' },
+  footerLogoContainer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  footerLogo: { fontSize: 14, fontWeight: '700', color: '#0F172A' },
+  footerCopyright: { fontSize: 11, color: '#94A3B8', textAlign: 'center' },
+
+  // PrepAssist Logo Styles
+  logoIcon: { width: 28, height: 28, position: 'relative' },
+  logoArrowOrange: {
+    position: 'absolute',
+    left: 2,
+    top: 4,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#F5A623',
+    transform: [{ rotate: '180deg' }]
+  },
+  logoArrowBlue: {
+    position: 'absolute',
+    right: 2,
+    top: 4,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 20,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#2196F3',
+  },
+  logoTextLight: { fontWeight: '500', color: '#64748B' },
+
+  // Small logo for footer
+  logoIconSmall: { width: 20, height: 20, position: 'relative' },
+  logoArrowOrangeSmall: {
+    position: 'absolute',
+    left: 1,
+    top: 3,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 14,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#F5A623',
+    transform: [{ rotate: '180deg' }]
+  },
+  logoArrowBlueSmall: {
+    position: 'absolute',
+    right: 1,
+    top: 3,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderBottomWidth: 14,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: '#2196F3',
+  },
   // Modern Sections
   modernSectionsContainer: { paddingVertical: 40, gap: 40 },
   modernSection: { flexDirection: isWeb && width > 768 ? 'row' : 'column', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 60, gap: 40, maxWidth: 1100, alignSelf: 'center', width: '100%', borderRadius: 24 },
