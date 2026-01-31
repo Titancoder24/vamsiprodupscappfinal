@@ -3,6 +3,10 @@
     "public": true,
     "rewrites": [
         {
+            "source": "/pricing",
+            "destination": "https://prepassist-landing-vamsis-projects-4d71922c.vercel.app/pricing"
+        },
+        {
             "source": "/(.*)",
             "destination": "/index.html"
         }
