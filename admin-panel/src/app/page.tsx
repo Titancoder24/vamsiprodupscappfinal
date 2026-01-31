@@ -273,7 +273,7 @@ export default function LandingPage() {
               Admin
             </a>
             <a
-              href="http://localhost:8081/upsc"
+              href="https://www.prepassist.in/upsc"
               className="btn-blue text-sm py-3 px-6"
             >
               Sign In
@@ -296,7 +296,7 @@ export default function LandingPage() {
             <a href="#testimonials" className="block text-gray-600 hover:text-gray-900 transition-colors">Testimonials</a>
             <a href="#pricing" className="block text-gray-600 hover:text-gray-900 transition-colors">Pricing</a>
             <a
-              href="http://localhost:8081/upsc"
+              href="https://www.prepassist.in/upsc"
               className="btn-blue w-full text-sm py-3 text-center block"
             >
               Sign In
@@ -438,7 +438,7 @@ export default function LandingPage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-wrap gap-4 mb-12">
-                <a href="http://localhost:8081/upsc" className="btn-primary">
+                <a href="https://www.prepassist.in/upsc" className="btn-primary">
                   Start Learning Free <ArrowRight className="w-4 h-4" />
                 </a>
                 <button className="btn-secondary">
