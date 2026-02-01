@@ -121,8 +121,8 @@ TASK:
 
 OUTPUT RULES:
 - If ANY match is found, status MUST be "updates_available".
-- "message" must be: "I found [X] new articles for your notes."
-- "reason" must be: "New Article: [Article Title]"
+- "message" must be: "I found [X] new articles. Your notes might be outdated."
+- "reason" must be: "🟢 NEW ARTICLE: [Article Title] (Relates to: [Note Title])"
 
 Output ONLY valid JSON:
 {
@@ -134,7 +134,7 @@ Output ONLY valid JSON:
       "noteTitle": "title",
       "articleId": "id",
       "articleTitle": "title",
-      "reason": "New Article: [Article Title]"
+      "reason": "🟢 NEW ARTICLE: [Article Title] (Relates to: [Note Title])"
     }
   ]
 }`;

@@ -217,7 +217,12 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                                             <Ionicons name="bulb" size={16} color="#F59E0B" />
                                             <Text style={[styles.noteTitle, { color: theme.colors.text }]}>{update.noteTitle}</Text>
                                         </View>
-                                        <Text style={[styles.updateReason, { color: theme.colors.textSecondary }]}>{update.reason}</Text>
+                                        <Text style={[
+                                            styles.updateReason,
+                                            { color: update.reason.includes('🟢') ? '#10B981' : theme.colors.textSecondary, fontWeight: update.reason.includes('🟢') ? '700' : '400' }
+                                        ]}>
+                                            {update.reason}
+                                        </Text>
                                     </View>
                                 ))}
                             </View>
@@ -241,9 +246,22 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                                     {msg.role === 'user' ? (
                                         <Text style={styles.userText}>{msg.content}</Text>
                                     ) : (
-                                        <Text style={{ color: theme.colors.text, fontSize: 15, lineHeight: 22 }}>
-                                            {msg.content}
-                                        </Text>
+                                        <View>
+                                            {msg.content.split('\n').map((line, i) => (
+                                                <Text
+                                                    key={i}
+                                                    style={{
+                                                        color: line.includes('🟢') ? '#10B981' : theme.colors.text,
+                                                        fontSize: 15,
+                                                        lineHeight: 22,
+                                                        fontWeight: line.includes('🟢') ? '700' : '400',
+                                                        marginBottom: 4
+                                                    }}
+                                                >
+                                                    {line}
+                                                </Text>
+                                            ))}
+                                        </View>
                                     )}
                                 </View>
                             </View>
