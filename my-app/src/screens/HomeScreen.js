@@ -162,34 +162,6 @@ export default function HomeScreen({ navigation }) {
       gradient: ['#F59E0B', '#D97706'],
       screen: 'QuestionSetList',
     },
-    // ========== COMING SOON FEATURES ==========
-    {
-      id: 'bank',
-      icon: 'folder-outline',
-      title: 'Question Bank',
-      desc: 'Your saved questions',
-      gradient: ['#5856D6', '#4845B5'],
-      screen: 'ComingSoon',
-      comingSoon: true,
-    },
-    {
-      id: 'reference',
-      icon: 'library-outline',
-      title: 'Visual Reference',
-      desc: 'Maps, timelines & more',
-      gradient: ['#FF6B6B', '#EE5A5A'],
-      screen: 'ComingSoon',
-      comingSoon: true,
-    },
-    {
-      id: 'mindmap',
-      icon: 'git-network-outline',
-      title: 'Mind Map',
-      desc: 'Visual knowledge graph',
-      gradient: ['#14B8A6', '#0D9488'],
-      screen: 'ComingSoon',
-      comingSoon: true,
-    },
     {
       id: 'progress',
       icon: 'stats-chart-outline',
@@ -204,24 +176,6 @@ export default function HomeScreen({ navigation }) {
       title: 'Study Roadmap',
       desc: 'Your complete syllabus',
       gradient: ['#667eea', '#764ba2'],
-      screen: 'ComingSoon',
-      comingSoon: true,
-    },
-    {
-      id: 'daily',
-      icon: 'calendar-outline',
-      title: "Today's Plan",
-      desc: 'Daily study goals',
-      gradient: ['#10B981', '#059669'],
-      screen: 'ComingSoon',
-      comingSoon: true,
-    },
-    {
-      id: 'mcq',
-      icon: 'sparkles-outline',
-      title: 'Generate MCQs',
-      desc: 'Create custom questions',
-      gradient: ['#3B82F6', '#2563EB'],
       screen: 'ComingSoon',
       comingSoon: true,
     },
@@ -350,48 +304,6 @@ export default function HomeScreen({ navigation }) {
           ))}
         </ScrollView>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={[styles.quickAction, { backgroundColor: theme.colors.surface, opacity: 0.7 }]}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('ComingSoon', { feature: 'Practice from Bank' })}
-          >
-            <View style={[styles.quickActionIconWrapper, { backgroundColor: isDark ? '#312E81' : '#EEF2FF' }]}>
-              <Ionicons name="library" size={24} color={theme.colors.primary} />
-            </View>
-            <View style={styles.quickActionInfo}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={[styles.quickActionTitle, { color: theme.colors.text }]}>Practice from Bank</Text>
-                <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                  <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '700' }}>SOON</Text>
-                </View>
-              </View>
-              <Text style={[styles.quickActionDesc, { color: theme.colors.textSecondary }]}>Review your saved questions</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.quickAction, { backgroundColor: theme.colors.surface, opacity: 0.7 }]}
-            activeOpacity={0.7}
-            onPress={() => navigation.navigate('ComingSoon', { feature: 'View Progress' })}
-          >
-            <View style={[styles.quickActionIconWrapper, { backgroundColor: isDark ? '#064E3B' : '#D1FAE5' }]}>
-              <Ionicons name="trending-up" size={24} color={theme.colors.success} />
-            </View>
-            <View style={styles.quickActionInfo}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Text style={[styles.quickActionTitle, { color: theme.colors.text }]}>View Progress</Text>
-                <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
-                  <Text style={{ color: '#FFF', fontSize: 9, fontWeight: '700' }}>SOON</Text>
-                </View>
-              </View>
-              <Text style={[styles.quickActionDesc, { color: theme.colors.textSecondary }]}>Track your improvement</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={theme.colors.textSecondary} />
-          </TouchableOpacity>
-        </View>
 
         {/* Motivational Card */}
         <View style={[styles.motivationCard, { backgroundColor: isDark ? theme.colors.surface : '#1C1C1E' }]}>
