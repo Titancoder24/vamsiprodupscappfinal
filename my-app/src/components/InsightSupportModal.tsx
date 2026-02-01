@@ -22,13 +22,52 @@ interface Props {
     onClose: () => void;
 }
 
+const TypingText: React.FC<{ text: string; style: any }> = ({ text, style }) => {
+    const [displayedText, setDisplayedText] = useState('');
+
+    useEffect(() => {
+        setDisplayedText('');
+        let index = 0;
+        const interval = setInterval(() => {
+            if (index < text.length) {
+                setDisplayedText(prev => prev + text[index]);
+                index++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 15); // Fast typing
+        return () => clearInterval(interval);
+    }, [text]);
+
+    return <Text style={style}>{displayedText}</Text>;
+};
+
 const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
     const { theme, isDark } = useTheme();
     const [status, setStatus] = useState<InsightStatus | null>(null);
     const [loading, setLoading] = useState(true);
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const pulseOpacity = useRef(new Animated.Value(0.5)).current;
 
     const [internalVisible, setInternalVisible] = useState(visible);
+
+    useEffect(() => {
+        if (loading) {
+            Animated.loop(
+                Animated.parallel([
+                    Animated.sequence([
+                        Animated.timing(pulseAnim, { toValue: 2, duration: 1500, useNativeDriver: true }),
+                        Animated.timing(pulseAnim, { toValue: 1, duration: 0, useNativeDriver: true }),
+                    ]),
+                    Animated.sequence([
+                        Animated.timing(pulseOpacity, { toValue: 0, duration: 1500, useNativeDriver: true }),
+                        Animated.timing(pulseOpacity, { toValue: 0.5, duration: 0, useNativeDriver: true }),
+                    ])
+                ])
+            ).start();
+        }
+    }, [loading]);
 
     useEffect(() => {
         if (visible) {
@@ -100,18 +139,22 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                 <ScrollView contentContainerStyle={styles.scrollContent}>
                     {loading ? (
                         <View style={styles.loadingContainer}>
-                            <ActivityIndicator size="large" color={theme.colors.primary} />
+                            <View style={styles.radarContainer}>
+                                <Animated.View style={[styles.pulseCircle, { transform: [{ scale: pulseAnim }], opacity: pulseOpacity }]} />
+                                <Ionicons name="scan" size={40} color={theme.colors.primary} />
+                            </View>
                             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
-                                Syncing your knowledge with current affairs...
+                                Knowledge Radar: Searching for news updates...
                             </Text>
                         </View>
                     ) : (
                         <View>
                             {/* Message Bubble Style */}
                             <View style={[styles.bubble, { backgroundColor: isDark ? '#2D2D30' : '#F0F0F5' }]}>
-                                <Text style={[styles.bubbleText, { color: theme.colors.text }]}>
-                                    {status?.message}
-                                </Text>
+                                <TypingText
+                                    text={status?.message || ''}
+                                    style={[styles.bubbleText, { color: theme.colors.text }]}
+                                />
                             </View>
 
                             {status?.status === 'updates_available' && (
@@ -310,6 +353,20 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderRadius: 24,
+    },
+    radarContainer: {
+        width: 100,
+        height: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    pulseCircle: {
+        position: 'absolute',
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#3B82F6',
     },
 });
 

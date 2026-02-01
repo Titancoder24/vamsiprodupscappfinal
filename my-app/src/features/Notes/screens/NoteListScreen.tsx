@@ -18,6 +18,7 @@ import { useTheme } from '../../../features/Reference/theme/ThemeContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import InsightSupportModal from '../../../components/InsightSupportModal';
+import { InsightAgent } from '../../../services/InsightAgent';
 import {
     getAllNotes,
     getAllTags,
@@ -56,6 +57,7 @@ const TAG_COLORS = [
 export const NoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { theme, isDark } = useTheme();
     const [showInsightSupport, setShowInsightSupport] = useState(false);
+    const [aiInsightStatus, setAiInsightStatus] = useState<'none' | 'updates'>('none');
     const [notes, setNotes] = useState<LocalNote[]>([]);
     const [tags, setTags] = useState<LocalTag[]>([]);
     const [loading, setLoading] = useState(true);
@@ -97,6 +99,16 @@ export const NoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         setLoading(true);
         fadeAnim.setValue(0);
         await Promise.all([loadNotes(), loadTags()]);
+
+        // AI Insight background check (Silent)
+        InsightAgent.checkNoteStatus().then(res => {
+            if (res.status === 'updates_available') {
+                setAiInsightStatus('updates');
+            } else {
+                setAiInsightStatus('none');
+            }
+        }).catch(e => console.log('[NoteList] Background check failed', e));
+
         setLoading(false);
     };
 
@@ -553,7 +565,7 @@ export const NoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     style={styles.floatingAiGradient}
                 >
                     <Ionicons name="sparkles" size={24} color="#FFF" />
-                    <View style={styles.aiBadge} />
+                    {aiInsightStatus === 'updates' && <View style={styles.aiBadge} />}
                 </LinearGradient>
             </TouchableOpacity>
         </SafeAreaView>

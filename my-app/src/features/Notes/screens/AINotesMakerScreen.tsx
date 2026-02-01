@@ -48,6 +48,7 @@ import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
 import { FlatList, RefreshControl } from 'react-native';
 import InsightSupportModal from '../../../components/InsightSupportModal';
+import { InsightAgent } from '../../../services/InsightAgent';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -107,6 +108,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [loading, setLoading] = useState(true);
     const [newsMatches, setNewsMatches] = useState<MatchedArticle[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [aiInsightStatus, setAiInsightStatus] = useState<'none' | 'updates'>('none');
 
     // Filter states for summaries
     const [filterTagId, setFilterTagId] = useState<number | null>(null);
@@ -143,6 +145,15 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             } catch (err) {
                 console.error("Failed to check news matches", err);
             }
+
+            // AI Insight background check (Silent)
+            InsightAgent.checkNoteStatus().then(res => {
+                if (res.status === 'updates_available') {
+                    setAiInsightStatus('updates');
+                } else {
+                    setAiInsightStatus('none');
+                }
+            }).catch(e => console.log('[AINotes] Background check failed', e));
 
         } catch (error) {
             console.error('Error loading data:', error);
@@ -1868,7 +1879,7 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                     style={styles.floatingAiGradient}
                 >
                     <Ionicons name="sparkles" size={24} color="#FFF" />
-                    <View style={styles.aiBadge} />
+                    {aiInsightStatus === 'updates' && <View style={styles.aiBadge} />}
                 </LinearGradient>
             </TouchableOpacity>
 

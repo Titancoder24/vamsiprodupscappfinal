@@ -61,10 +61,12 @@ export class InsightAgent {
 If any article provides an update OR conflicts with an older fact in the notes, identify the match.
 If everything is consistent, say everything is fine.
 
+CRITICAL: The "message" field in your JSON output must be exactly 1 or 2 sentences ONLY. No more.
+
 Output ONLY a JSON object:
 {
   "status": "ok" | "updates_available",
-  "message": "A 1-2 sentence overview message",
+  "message": "A strictly 1-2 sentence overview message",
   "updates": [{"noteId": "...", "noteTitle": "...", "articleId": "...", "articleTitle": "...", "reason": "..."}]
 }`;
 
