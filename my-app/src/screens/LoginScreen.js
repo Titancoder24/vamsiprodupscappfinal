@@ -25,7 +25,6 @@ export default function LoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isMagicMode, setIsMagicMode] = useState(true); // Default to Magic Link
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -43,42 +42,7 @@ export default function LoginScreen({ navigation }) {
     setTimeout(() => setError(''), 4000);
   };
 
-  const handleMagicLink = async () => {
-    if (!email.trim()) {
-      showError('Please enter your email');
-      return;
-    }
-
-    if (isSignUp && !name.trim()) {
-      showError('Please enter your name');
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setLoadingType('email');
-      setError('');
-
-      await sendMagicLink(email.trim().toLowerCase(), isSignUp ? name.trim() : null);
-
-      Alert.alert(
-        'Magic Link Sent!',
-        'Check your email and click the link to sign in instantly. No password required.',
-        [{ text: 'OK' }]
-      );
-    } catch (err) {
-      showError(err.message || 'Failed to send magic link');
-    } finally {
-      setIsLoading(false);
-      setLoadingType(null);
-    }
-  };
-
   const handleEmailLogin = async () => {
-    if (isMagicMode) {
-      return handleMagicLink();
-    }
-
     if (!email.trim()) {
       showError('Please enter your email');
       return;
@@ -112,7 +76,6 @@ export default function LoginScreen({ navigation }) {
             [{ text: 'OK', onPress: () => setIsSignUp(false) }]
           );
         }
-        // If email is confirmed (email confirmation disabled), user will be logged in automatically
       } else {
         // Login with Password
         await signInWithEmail(email.trim().toLowerCase(), password);
@@ -229,46 +192,33 @@ export default function LoginScreen({ navigation }) {
                 </View>
               </View>
 
-              {!isMagicMode && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Password</Text>
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                    <SmartTextInput
-                      style={styles.input}
-                      placeholder="••••••••"
-                      placeholderTextColor="#9CA3AF"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!showPassword}
-                      autoCapitalize="none"
-                      autoCorrect={false}
-                      editable={!isLoading}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                  <SmartTextInput
+                    style={styles.input}
+                    placeholder="••••••••"
+                    placeholderTextColor="#9CA3AF"
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isLoading}
+                  />
+                  <TouchableOpacity
+                    onPress={() => setShowPassword(!showPassword)}
+                    style={styles.eyeButton}
+                  >
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color="#6B7280"
                     />
-                    <TouchableOpacity
-                      onPress={() => setShowPassword(!showPassword)}
-                      style={styles.eyeButton}
-                    >
-                      <Ionicons
-                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                        size={20}
-                        color="#6B7280"
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  </TouchableOpacity>
                 </View>
-              )}
-
-              {/* Mode Switch Helper */}
-              <TouchableOpacity
-                style={styles.magicToggle}
-                onPress={() => setIsMagicMode(!isMagicMode)}
-              >
-                <Ionicons name={isMagicMode ? "key-outline" : "mail-open-outline"} size={16} color="#4F46E5" />
-                <Text style={styles.magicToggleText}>
-                  {isMagicMode ? "Use password instead" : "Send magic link (passwordless)"}
-                </Text>
-              </TouchableOpacity>
+              </View>
 
               {/* Forgot Password */}
               {!isSignUp && (
@@ -297,11 +247,9 @@ export default function LoginScreen({ navigation }) {
                 ) : (
                   <>
                     <Text style={styles.submitButtonText}>
-                      {isMagicMode
-                        ? (isSignUp ? 'Create account' : 'Send link')
-                        : (isSignUp ? 'Create account' : 'Sign in')}
+                      {isSignUp ? 'Create account' : 'Sign in'}
                     </Text>
-                    <Ionicons name={isMagicMode ? "send" : "arrow-forward"} size={18} color="#FFFFFF" />
+                    <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                   </>
                 )}
               </TouchableOpacity>
@@ -488,19 +436,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1A1A1A',
     fontWeight: '600',
-  },
-  magicToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    marginTop: -8,
-    marginBottom: 8,
-  },
-  magicToggleText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '500',
   },
   footer: {
     marginTop: 40,
