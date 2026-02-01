@@ -265,11 +265,20 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         flex: 1,
-        marginTop: SCREEN_HEIGHT * 0.1,
+        marginTop: Platform.OS === 'web' ? SCREEN_HEIGHT * 0.15 : SCREEN_HEIGHT * 0.1,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         shadowColor: '#000',
         elevation: 20,
+        // Web Specific Centering
+        ...(Platform.OS === 'web' ? {
+            width: '100%',
+            maxWidth: 600,
+            alignSelf: 'center',
+            height: '85%',
+            position: 'absolute',
+            bottom: 0,
+        } : {})
     },
     header: {
         flexDirection: 'row',
