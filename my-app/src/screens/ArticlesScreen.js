@@ -311,15 +311,42 @@ export default function ArticlesScreen({ navigation }) {
 
         {/* Date Filter */}
         <View style={styles.dateFilterRow}>
-          <TouchableOpacity
-            style={[styles.dateButton, { backgroundColor: theme.colors.surface }]}
-            onPress={() => setShowDatePicker(true)}
-          >
-            <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
-            <Text style={[styles.dateButtonText, { color: theme.colors.text }]}>
-              {selectedDate || 'dd/mm/yyyy'}
-            </Text>
-          </TouchableOpacity>
+          {Platform.OS === 'web' ? (
+            <View style={[styles.dateButton, { backgroundColor: theme.colors.surface, position: 'relative', overflow: 'hidden' }]}>
+              <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} style={{ marginRight: 8 }} />
+              <Text style={[styles.dateButtonText, { color: theme.colors.text }]}>
+                {selectedDate || 'Pick Date'}
+              </Text>
+              <DateTimePicker
+                value={selectedDate ? new Date(selectedDate) : new Date()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  opacity: 0,
+                  cursor: 'pointer',
+                  width: '100%',
+                  height: '100%'
+                }}
+              />
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.dateButton, { backgroundColor: theme.colors.surface }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.dateButtonText, { color: theme.colors.text }]}>
+                {selectedDate || 'dd/mm/yyyy'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
           {selectedDate && (
             <TouchableOpacity style={styles.clearDateBtn} onPress={clearDateFilter}>
               <Ionicons name="close-circle" size={20} color={theme.colors.error} />
@@ -327,7 +354,7 @@ export default function ArticlesScreen({ navigation }) {
           )}
         </View>
 
-        {showDatePicker && (
+        {Platform.OS !== 'web' && showDatePicker && (
           <DateTimePicker
             value={selectedDate ? new Date(selectedDate) : new Date()}
             mode="date"
