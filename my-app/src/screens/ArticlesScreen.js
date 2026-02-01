@@ -58,34 +58,27 @@ export default function ArticlesScreen({ navigation }) {
   const [selectedSource, setSelectedSource] = useState(null);
   const [selectedSubject, setSelectedSubject] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedDate, setSelectedDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [sortOrder, setSortOrder] = useState('desc'); // 'desc' or 'asc'
 
   const handleDateChange = (event, dateOrString) => {
     setShowDatePicker(false);
 
-    // On Web, dateOrString might be event.target.value (string) or a Date object from the component
-    let finalDate = null;
-
+    // On Web, dateOrString might be a string from TextInput onChange
+    // On Mobile, it's a Date object
     if (dateOrString instanceof Date) {
       const year = dateOrString.getFullYear();
       const month = String(dateOrString.getMonth() + 1).padStart(2, '0');
       const day = String(dateOrString.getDate()).padStart(2, '0');
-      finalDate = `${year}-${month}-${day}`;
-    } else if (typeof dateOrString === 'string' && dateOrString) {
-      finalDate = dateOrString; // Already YYYY-MM-DD from input type="date"
-    } else if (event?.target?.value) {
-      finalDate = event.target.value;
-    }
-
-    if (finalDate) {
-      setSelectedDate(finalDate);
+      setSelectedDate(`${year}-${month}-${day}`);
+    } else if (typeof dateOrString === 'string') {
+      setSelectedDate(dateOrString);
     }
   };
 
   const clearDateFilter = () => {
-    setSelectedDate(null);
+    setSelectedDate('');
   };
 
   const toggleSortOrder = () => {
@@ -101,15 +94,13 @@ export default function ArticlesScreen({ navigation }) {
       }
       setError(null);
 
-      console.log('Fetching articles from Supabase...');
+      console.log(`[Articles] Fetching with date: ${selectedDate}, sort: ${sortOrder}`);
 
       // Build query
       let query = supabase
         .from('articles')
         .select('*')
-        .eq('is_published', true)
-        .order('published_date', { ascending: sortOrder === 'asc', nullsFirst: false })
-        .order('created_at', { ascending: sortOrder === 'asc' });
+        .eq('is_published', true);
 
       // Apply filters
       if (selectedSource) {
@@ -118,6 +109,7 @@ export default function ArticlesScreen({ navigation }) {
       if (selectedSubject && selectedSubject !== 'All') {
         query = query.eq('subject', selectedSubject);
       }
+
       if (selectedDate) {
         // Filter by date (handling timestamp boundaries)
         const startOfDay = `${selectedDate} 00:00:00`;
@@ -126,7 +118,11 @@ export default function ArticlesScreen({ navigation }) {
           .lte('published_date', endOfDay);
       }
 
-      const { data, error: fetchError } = await query.limit(100);
+      // Final ordering
+      query = query.order('published_date', { ascending: sortOrder === 'asc', nullsFirst: false })
+        .order('created_at', { ascending: sortOrder === 'asc' });
+
+      const { data, error: fetchError } = await query.limit(50);
 
       if (fetchError) {
         console.error('Supabase error:', fetchError);
@@ -329,19 +325,18 @@ export default function ArticlesScreen({ navigation }) {
           {Platform.OS === 'web' ? (
             <View style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 2, flexDirection: 'row', alignItems: 'center' }]}>
               <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} style={{ marginRight: 8 }} />
-              <input
+              <TextInput
+                // @ts-ignore
                 type="date"
-                value={selectedDate || ''}
+                value={selectedDate}
                 onChange={(e) => handleDateChange(e, e.target.value)}
                 style={{
-                  border: 'none',
-                  background: 'transparent',
+                  borderWidth: 0,
+                  backgroundColor: 'transparent',
                   color: isDark ? '#FFFFFF' : '#000000',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  width: '100%'
+                  fontSize: 14,
+                  flex: 1,
+                  outlineWidth: 0,
                 }}
               />
             </View>
@@ -368,11 +363,11 @@ export default function ArticlesScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
 
-          {selectedDate && (
+          {selectedDate ? (
             <TouchableOpacity style={styles.clearDateBtn} onPress={clearDateFilter}>
               <Ionicons name="close-circle" size={20} color={theme.colors.error} />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
 
         {Platform.OS !== 'web' && showDatePicker && (
