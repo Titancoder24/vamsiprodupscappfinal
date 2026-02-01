@@ -49,7 +49,7 @@ const SOURCE_LOGOS = {
   'PIB': require('../../assets/logos/pib.png'),
 };
 
-export default function ArticlesScreen({ navigation }) {
+export default function NewsFeedScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const { horizontalPadding } = useWebStyles();
   const [articles, setArticles] = useState([]);
@@ -287,7 +287,7 @@ export default function ArticlesScreen({ navigation }) {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Articles</Text>
+        <Text style={[styles.headerTitle, { color: theme.colors.text }]}>News Feed</Text>
         <View style={{ width: 40 }} />
       </View>
 

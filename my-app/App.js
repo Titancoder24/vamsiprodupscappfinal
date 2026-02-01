@@ -21,11 +21,11 @@ import ConfigScreen from './src/screens/ConfigScreen';
 import QuestionsListScreen from './src/screens/QuestionsListScreen';
 import TestScreen from './src/screens/TestScreen';
 import ResultScreen from './src/screens/ResultScreen';
-import EssayScreen from './src/screens/EssayScreen';
+import MainsAnswerEvaluationScreen from './src/screens/MainsAnswerEvaluationScreen';
 import QuestionBankScreen from './src/screens/QuestionBankScreen';
 import ProgressScreen from './src/screens/ProgressScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import ArticlesScreen from './src/screens/ArticlesScreen';
+import NewsFeedScreen from './src/screens/NewsFeedScreen';
 import ArticleDetailScreen from './src/screens/ArticleDetailScreen';
 import QuestionPaperScreen from './src/screens/QuestionPaperScreen';
 import QuestionSetListScreen from './src/screens/QuestionSetListScreen';
@@ -56,7 +56,7 @@ import {
   NoteListScreen,
   NoteEditorScreen,
   NotePreviewScreen,
-  UPSCNotesScreen,
+  UploadNotesScreen,
   WebClipperScreen,
   CreateNoteScreen,
   NoteDetailScreen,
@@ -64,7 +64,7 @@ import {
 } from './src/features/Notes';
 
 // PDF MCQ Screens
-import { PDFGeneratorScreen, PDFMCQListScreen, AIMCQGeneratorScreen, AIMCQListScreen } from './src/features/PDFMCQ';
+import { GenerateMCQsFromPDFScreen, PDFMCQListScreen, AIMCQsGenerateScreen, AIMCQListScreen } from './src/features/PDFMCQ';
 
 // Coming Soon Screen
 import ComingSoonScreen from './src/screens/ComingSoonScreen';
@@ -118,7 +118,7 @@ const MainNavigator = () => (
     <Stack.Screen name="QuestionsList" component={QuestionsListScreen} />
     <Stack.Screen name="Test" component={TestScreen} />
     <Stack.Screen name="Result" component={ResultScreen} />
-    <Stack.Screen name="Essay" component={EssayScreen} />
+    <Stack.Screen name="Essay" component={MainsAnswerEvaluationScreen} />
     <Stack.Screen name="QuestionBank" component={QuestionBankScreen} />
     <Stack.Screen name="Progress" component={ProgressScreen} />
     <Stack.Screen name="Settings" component={SettingsScreen} />
@@ -135,7 +135,7 @@ const MainNavigator = () => (
     <Stack.Screen name="EnvironmentCards" component={EnvironmentCardsScreen} />
     <Stack.Screen name="ScienceTechView" component={ScienceTechViewScreen} />
     {/* Articles Screens */}
-    <Stack.Screen name="Articles" component={ArticlesScreen} />
+    <Stack.Screen name="Articles" component={NewsFeedScreen} />
     <Stack.Screen name="ArticleDetail" component={ArticleDetailScreen} />
     {/* Mind Map Screens */}
     <Stack.Screen name="MindMap" component={MindMapListScreen} />
@@ -144,7 +144,7 @@ const MainNavigator = () => (
     <Stack.Screen name="AIMindMap" component={AIMindMapListScreen} />
     <Stack.Screen name="AIMindMapEditor" component={AIMindMapScreen} />
     {/* Notes Screens */}
-    <Stack.Screen name="Notes" component={UPSCNotesScreen} />
+    <Stack.Screen name="Notes" component={UploadNotesScreen} />
     <Stack.Screen name="WebClipperScreen" component={WebClipperScreen} />
     <Stack.Screen name="CreateNoteScreen" component={CreateNoteScreen} />
     <Stack.Screen name="NoteDetailScreen" component={NoteDetailScreen} />
@@ -152,10 +152,10 @@ const MainNavigator = () => (
     <Stack.Screen name="NotePreview" component={NotePreviewScreen} />
     <Stack.Screen name="AINotesMaker" component={AINotesMakerScreen} />
     {/* PDF MCQ Generator */}
-    <Stack.Screen name="PDFMCQGenerator" component={PDFGeneratorScreen} />
+    <Stack.Screen name="PDFMCQGenerator" component={GenerateMCQsFromPDFScreen} />
     <Stack.Screen name="PDFMCQList" component={PDFMCQListScreen} />
     {/* AI MCQ Generator (without PDF upload) */}
-    <Stack.Screen name="AIMCQGenerator" component={AIMCQGeneratorScreen} />
+    <Stack.Screen name="AIMCQGenerator" component={AIMCQsGenerateScreen} />
     <Stack.Screen name="AIMCQList" component={AIMCQListScreen} />
     <Stack.Screen name="QuestionPaper" component={QuestionPaperScreen} />
     <Stack.Screen name="QuestionSetList" component={QuestionSetListScreen} />

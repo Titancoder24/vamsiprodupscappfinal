@@ -345,7 +345,7 @@ const AIMindMapScreen: React.FC<AIMindMapScreenProps> = ({ navigation, route }) 
 
         <View style={styles.headerCenter}>
           <Text style={[styles.headerTitle, { color: colors.text }]} numberOfLines={1}>
-            {mindMap?.title || 'Mind Map'}
+            {mindMap?.title || 'AI Mind Map'}
           </Text>
         </View>
 

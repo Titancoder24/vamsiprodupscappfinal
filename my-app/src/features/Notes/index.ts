@@ -1,5 +1,5 @@
 // Main Screens
-export { UPSCNotesScreen } from './screens/UPSCNotesScreen';
+export { UploadNotesScreen } from './screens/UploadNotesScreen';
 export { WebClipperScreen } from './screens/WebClipperScreen';
 export { CreateNoteScreen } from './screens/CreateNoteScreen';
 export { NoteDetailScreen } from './screens/NoteDetailScreen';

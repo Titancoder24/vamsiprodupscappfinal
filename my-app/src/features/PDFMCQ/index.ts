@@ -11,9 +11,9 @@
  */
 
 // Screens
-export { default as PDFGeneratorScreen } from './screens/PDFGeneratorScreen';
+export { default as GenerateMCQsFromPDFScreen } from './screens/GenerateMCQsFromPDFScreen';
 export { default as PDFMCQListScreen } from './screens/PDFMCQListScreen';
-export { default as AIMCQGeneratorScreen } from './screens/AIMCQGeneratorScreen';
+export { default as AIMCQsGenerateScreen } from './screens/AIMCQsGenerateScreen';
 export { default as AIMCQListScreen } from './screens/AIMCQListScreen';
 
 // Utilities

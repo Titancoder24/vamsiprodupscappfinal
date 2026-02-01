@@ -28,7 +28,7 @@ import { LowCreditBanner } from '../hooks/useAIFeature';
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const MODEL = 'google/gemini-3-flash-preview';
 
-export default function EssayScreen({ navigation }) {
+export default function MainsAnswerEvaluationScreen({ navigation }) {
   const { theme, isDark } = useTheme();
   const { horizontalPadding, isWeb } = useWebStyles();
   const { credits, hasEnoughCredits, useCredits: deductCredits } = useCredits();

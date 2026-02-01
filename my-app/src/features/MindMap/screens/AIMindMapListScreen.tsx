@@ -151,7 +151,7 @@ const AIMindMapListScreen: React.FC<AIMindMapListScreenProps> = ({ navigation })
     >
       <View style={[styles.cardIcon, { backgroundColor: item.mermaidCode ? colors.primaryLight : colors.surfaceSecondary }]}>
         <MaterialCommunityIcons
-          name={item.mermaidCode ? 'brain' : 'brain-outline'}
+          name="brain"
           size={24}
           color={item.mermaidCode ? colors.primary : colors.textTertiary}
         />
@@ -243,7 +243,7 @@ const AIMindMapListScreen: React.FC<AIMindMapListScreenProps> = ({ navigation })
 
         <View style={styles.headerCenter}>
           <MaterialCommunityIcons name="brain" size={24} color={colors.primary} />
-          <Text style={[styles.headerTitle, { color: colors.text }]}>AI Mind Maps</Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>AI Mind Map</Text>
           <View style={[styles.countBadge, { backgroundColor: colors.primaryLight }]}>
             <Text style={[styles.countText, { color: colors.primary }]}>{mindMaps.length}</Text>
           </View>

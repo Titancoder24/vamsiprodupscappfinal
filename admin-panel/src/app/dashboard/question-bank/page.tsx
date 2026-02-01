@@ -62,7 +62,7 @@ export default function QuestionSetsPage() {
         <div className="max-w-6xl mx-auto space-y-8">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900">Question Banks</h1>
+                    <h1 className="text-3xl font-bold text-slate-900">Question Bank</h1>
                     <p className="text-slate-500 mt-1">Manage creating question sets and adding questions to them</p>
                 </div>
                 <button

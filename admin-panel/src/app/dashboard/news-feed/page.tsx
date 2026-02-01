@@ -31,7 +31,7 @@ interface FullArticle extends Article {
 
 type ViewMode = 'list' | 'scrape' | 'create' | 'edit' | 'preview';
 
-export default function ArticlesPage() {
+export default function NewsFeedPage() {
     const [articles, setArticles] = useState<Article[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<ViewMode>('list');
@@ -753,7 +753,7 @@ export default function ArticlesPage() {
         <div>
             <div className="flex justify-between items-center mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Articles</h1>
+                    <h1 className="text-3xl font-bold text-gray-900">News Feed</h1>
                     <p className="text-gray-600 mt-2">Manage UPSC-related articles</p>
                 </div>
                 <div className="flex gap-3">

@@ -56,7 +56,7 @@ const TABS = [
     { key: 'current_affairs', label: 'Current Affairs', icon: 'newspaper-outline' },
 ];
 
-export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) => {
+export const UploadNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) => {
     // State
     const [notes, setNotes] = useState<LocalNote[]>([]);
     const [tags, setTags] = useState<LocalTag[]>([]);
@@ -970,4 +970,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default UPSCNotesScreen;
+export default UploadNotesScreen;

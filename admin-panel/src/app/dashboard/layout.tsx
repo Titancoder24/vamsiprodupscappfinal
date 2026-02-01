@@ -23,10 +23,10 @@ const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Users', href: '/dashboard/users', icon: Users },
     { name: 'Maps', href: '/dashboard/maps', icon: Map },
-    { name: 'Articles', href: '/dashboard/articles', icon: FileText },
+    { name: 'News Feed', href: '/dashboard/news-feed', icon: FileText },
     { name: 'Roadmap', href: '/dashboard/roadmap', icon: Route },
     { name: 'References', href: '/dashboard/references', icon: BookOpen },
-    { name: 'Question Paper', href: '/dashboard/question-paper', icon: FileQuestion },
+    { name: 'Question Bank', href: '/dashboard/question-bank', icon: FileQuestion },
     { name: 'Push Notifications', href: '/dashboard/push-notifications', icon: Bell },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];

@@ -355,7 +355,7 @@ ${mcqs.map((m, i) => {
 
 
 // ===================== MAIN COMPONENT =====================
-export default function AIMCQGeneratorScreen() {
+export default function AIMCQsGenerateScreen() {
     const { theme, isDark } = useTheme();
     const { horizontalPadding } = useWebStyles();
     const navigation = useNavigation<any>();

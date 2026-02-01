@@ -77,14 +77,14 @@ export default function DashboardPage() {
             value: stats?.totalArticles || 0,
             icon: FileText,
             color: 'from-purple-500 to-purple-600',
-            href: '/dashboard/articles',
+            href: '/dashboard/news-feed',
         },
         {
             name: 'Published Articles',
             value: stats?.publishedArticles || 0,
             icon: Eye,
             color: 'from-amber-500 to-amber-600',
-            href: '/dashboard/articles',
+            href: '/dashboard/news-feed',
         },
     ];
 
@@ -194,7 +194,7 @@ export default function DashboardPage() {
                             </div>
                         </Link>
                         <Link
-                            href="/dashboard/articles"
+                            href="/dashboard/news-feed"
                             className="flex items-center gap-3 p-4 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
                         >
                             <Globe className="w-8 h-8 text-purple-400" />

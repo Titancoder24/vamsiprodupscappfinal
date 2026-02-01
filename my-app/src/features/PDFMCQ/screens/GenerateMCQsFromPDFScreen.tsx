@@ -20,6 +20,7 @@ import {
     Alert,
     TextInput,
     Platform,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -989,7 +990,7 @@ function extractOption(content: string, letter: string, nextLetter: string): str
 }
 
 // ===================== MAIN COMPONENT =====================
-export default function PDFGeneratorScreen() {
+export default function GenerateMCQsFromPDFScreen() {
     const { theme, isDark } = useTheme();
     const { horizontalPadding } = useWebStyles();
     const navigation = useNavigation<any>();
@@ -1789,6 +1790,15 @@ export default function PDFGeneratorScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Bug Report Widget */}
+            <TouchableOpacity
+                style={styles.bugReportFloating}
+                onPress={() => Linking.openURL('mailto:team@prepassist.in?subject=Bug Report - PDF MCQ Generator')}
+            >
+                <Ionicons name="bug-outline" size={18} color="#FFF" />
+                <Text style={styles.bugReportFloatingText}>Report Bug</Text>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 }
@@ -2200,5 +2210,28 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    bugReportFloating: {
+        position: 'absolute',
+        bottom: 24,
+        right: 20,
+        backgroundColor: '#4B5563',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        borderRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+        zIndex: 1000,
+    },
+    bugReportFloatingText: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: '600',
     },
 });
