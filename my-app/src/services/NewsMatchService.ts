@@ -1,9 +1,15 @@
 /**
- * News Match Service - Intelligent Topic Matching (200,000,000% Reliable Version)
+ * News Match Service - Intelligent Topic Matching (HYBRID & DETERMINISTIC)
+ * 
+ * Strategy:
+ * 1. Read FULL CONTENT of all user notes.
+ * 2. Read TITLES of all recent news.
+ * 3. Perform aggressive keyword matching locally (0ms latency).
+ * 4. This ensures "10s" notification effectively.
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getAllNotes, getAllTags, LocalTag } from '../features/Notes/services/localNotesStorage';
+import { getAllNotes, getAllTags } from '../features/Notes/services/localNotesStorage';
 import { MOBILE_API_URL } from '../config/api';
 
 const STORAGE_KEY = '@upsc_news_matches';
@@ -30,84 +36,44 @@ export interface UserStudyTopic {
 }
 
 /**
- * Enhanced Entity Extraction from Note text
+ * Intelligent Keyword Extraction from Note Text
+ * - Removes stop words
+ * - Finds unique significant terms
  */
-const extractEntities = (text: string): string[] => {
+const extractSignificantTerms = (text: string): string[] => {
     if (!text) return [];
-    // Extract capitalized phrases (potential entities)
-    const entities = text.match(/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/g) || [];
-    return Array.from(new Set(entities.map(e => e.toLowerCase().trim()))).filter(e => e.length > 3 && !isCommonWord(e));
-};
 
-/**
- * Get all user's study topics from their notes (Titles AND Content) and tags
- */
-export const getUserStudyTopics = async (): Promise<UserStudyTopic[]> => {
-    const topics: UserStudyTopic[] = [];
-    const addedKeywords = new Set<string>();
+    // 1. Clean text (remove special chars, lowercase)
+    const clean = text.toLowerCase().replace(/[^a-z0-9\s]/g, '');
 
-    const addKeyword = (word: string, color: string, source: UserStudyTopic['source']) => {
-        const kw = word.toLowerCase().trim();
-        if (kw.length > 3 && !addedKeywords.has(kw) && !isCommonWord(kw)) {
-            topics.push({ keyword: kw, tagColor: color, source });
-            addedKeywords.add(kw);
-        }
-    };
+    // 2. Split
+    const words = clean.split(/\s+/);
 
-    try {
-        // 1. Tags
-        const allTags = await getAllTags();
-        for (const tag of allTags) addKeyword(tag.name, tag.color, 'tag');
-
-        // 2. Notes (Titles & Content Deep Extraction)
-        const notes = await getAllNotes();
-        for (const note of notes) {
-            // Title
-            if (note.title && note.title !== 'Untitled') {
-                addKeyword(note.title, '#6B7280', 'note_title');
-                // Title words
-                note.title.split(/\s+/).forEach(w => addKeyword(w, '#6B7280', 'note_title'));
-            }
-
-            // Content Entities (The secret sauce for 100% reliability)
-            const entities = extractEntities(note.content);
-            entities.forEach(entity => addKeyword(entity, '#94A3B8', 'note_content'));
-
-            // Explicitly search for common UPSC keywords if they exist in content
-            const commonUPSC = ['aadhar', 'aadhaar', 'gst', 'isro', 'rbi', 'upsc', 'constitution', 'parliament', 'budget'];
-            commonUPSC.forEach(kw => {
-                if (note.content.toLowerCase().includes(kw)) addKeyword(kw, '#94A3B8', 'note_content');
-            });
-        }
-
-        return topics;
-    } catch (error) {
-        console.error('[NewsMatch] Topic extraction error:', error);
-        return [];
-    }
+    // 3. Filter
+    return words.filter(w => w.length > 3 && !isCommonWord(w));
 };
 
 const COMMON_WORDS = new Set([
     'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'his', 'how',
     'its', 'may', 'new', 'now', 'old', 'see', 'way', 'who', 'boy', 'did', 'get', 'let', 'put', 'say', 'she', 'too', 'use', 'with',
     'from', 'have', 'this', 'will', 'your', 'that', 'they', 'been', 'note', 'notes', 'study', 'chapter', 'unit', 'page', 'book',
-    'about', 'important', 'topic', 'lesson', 'class', 'exam', 'india', 'government', 'indian', 'state'
+    'about', 'important', 'topic', 'lesson', 'class', 'exam', 'india', 'government', 'indian', 'state', 'what', 'when', 'where'
 ]);
 
 const isCommonWord = (word: string): boolean => COMMON_WORDS.has(word.toLowerCase());
 
-/**
- * Comprehensive Match Logic: Zero Miss Policy
- */
 export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
     try {
-        console.log('[Knowledge Radar] Deep Scanning User Database...');
+        console.log('[Knowledge Radar] Starting Fast Deterministic Scan...');
 
-        const topics = await getUserStudyTopics();
-        if (topics.length === 0) return [];
+        // 1. Get ALL User Notes (Full Content)
+        const notes = await getAllNotes();
+        const tags = await getAllTags();
 
-        // Increase limit to 100 for maximum coverage
-        const response = await fetch(`${MOBILE_API_URL}/articles?page=1&limit=100`);
+        if (notes.length === 0 && tags.length === 0) return [];
+
+        // 2. Fetch Latest News (Titles Only basically, but we get object)
+        const response = await fetch(`${MOBILE_API_URL}/articles?page=1&limit=50`);
         if (!response.ok) throw new Error('API failure');
         const data = await response.json();
         const articles = data.articles || [];
@@ -115,46 +81,97 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
         const matches: MatchedArticle[] = [];
         const processedArticleIds = new Set<number>();
 
+        // 3. Comprehensive Synonym Map for UPSC
         const synonymMap: Record<string, string[]> = {
             'aadhar': ['aadhaar', 'uidai', 'biometric', 'uid'],
             'aadhaar': ['aadhar', 'uidai', 'biometric', 'uid'],
-            'gst': ['goods and services tax', 'indirect tax', 'gst council'],
-            'isro': ['space agency', 'satellite', 'launch', 'pslv', 'gslv', 'somnath'],
-            'rbi': ['reserve bank', 'monetary policy', 'inflation', 'repo rate'],
-            'polity': ['constitution', 'parliament', 'article', 'supreme court', 'judiciary'],
-            'economy': ['gdp', 'budget', 'fiscal', 'economic survey', 'tax'],
+            'gst': ['goods and services tax', 'indirect tax'],
+            'isro': ['space', 'satellite', 'launch', 'pslv', 'gslv', 'chandrayaan', 'gaganyaan'],
+            'rbi': ['reserve bank', 'monetary policy', 'repo rate'],
+            'polity': ['constitution', 'parliament', 'article', 'supreme court'],
+            'economy': ['gdp', 'inflation', 'budget', 'fiscal'],
+            'farm': ['agriculture', 'msp', 'kisan'],
+            'election': ['eci', 'poll', 'voter', 'evm'],
         };
 
-        for (const article of articles) {
-            const articleText = `${article.title} ${article.summary || ''} ${article.content_text || ''}`.toLowerCase();
+        // 4. THE MATCHING ENGINE (Note Content vs News Title)
 
-            for (const topic of topics) {
-                const keyword = topic.keyword;
-                const variants = [keyword, ...(synonymMap[keyword] || [])];
+        // Pre-process notes into a giant keyword set for speed?
+        // No, we need to know WHICH note matched.
 
-                // Fuzzy Match with Word Boundary Sensitivity
-                const isMatch = variants.some(v => {
-                    if (v.length < 3) return false;
-                    return articleText.includes(v);
-                });
+        for (const note of notes) {
+            // Extract keywords from this specific note (Title + Content)
+            const noteKeywords = new Set([
+                ...extractSignificantTerms(note.title),
+                ...extractSignificantTerms(note.content)
+            ]);
 
-                if (isMatch) {
-                    console.log(`[Knowledge Radar] MATCH FOUND: "${keyword}" in article "${article.title}"`);
+            for (const article of articles) {
+                if (processedArticleIds.has(article.id)) continue;
+
+                const newsTitle = article.title.toLowerCase();
+
+                // DOES NEWS TITLE CONTAIN ANY KEYWORD FROM THIS NOTE?
+                let matchedKeyword = '';
+
+                // Check direct keywords
+                for (const kw of noteKeywords) {
+                    // Direct match
+                    if (newsTitle.includes(kw)) {
+                        matchedKeyword = kw;
+                        break;
+                    }
+                    // Synonym match
+                    if (synonymMap[kw]) {
+                        if (synonymMap[kw].some(syn => newsTitle.includes(syn))) {
+                            matchedKeyword = kw;
+                            break;
+                        }
+                    }
+                }
+
+                if (matchedKeyword) {
+                    console.log(`[Knowledge Radar] MATCH: Note "${note.title}" mentions "${matchedKeyword}" -> Found in News "${article.title}"`);
+
                     matches.push({
-                        noteId: 1,
-                        noteTitle: topic.keyword.charAt(0).toUpperCase() + topic.keyword.slice(1),
+                        noteId: note.id,
+                        noteTitle: note.title,
                         articleId: article.id,
                         articleTitle: article.title,
                         articleSummary: article.summary || '',
                         articleSource: article.source,
-                        matchReason: `Critical update for your ${topic.source.replace('_', ' ')}: "${topic.keyword}"`,
-                        matchedTag: topic.keyword,
-                        tagColor: topic.tagColor,
+                        matchReason: `Your note mentions "${matchedKeyword}", which appears in this news title.`,
+                        matchedTag: matchedKeyword,
+                        tagColor: '#3B82F6',
                         matchedAt: new Date().toISOString(),
                         isRead: false,
                     });
                     processedArticleIds.add(article.id);
-                    break;
+                }
+            }
+        }
+
+        // Also check Tags
+        for (const tag of tags) {
+            const tagKw = tag.name.toLowerCase();
+            for (const article of articles) {
+                if (processedArticleIds.has(article.id)) continue;
+                const newsTitle = article.title.toLowerCase();
+                if (newsTitle.includes(tagKw) || (synonymMap[tagKw] && synonymMap[tagKw].some(s => newsTitle.includes(s)))) {
+                    matches.push({
+                        noteId: -1,
+                        noteTitle: `Tag: ${tag.name}`,
+                        articleId: article.id,
+                        articleTitle: article.title,
+                        articleSummary: article.summary || '',
+                        articleSource: article.source,
+                        matchReason: `New article matches your tag "${tag.name}"`,
+                        matchedTag: tag.name,
+                        tagColor: tag.color,
+                        matchedAt: new Date().toISOString(),
+                        isRead: false,
+                    });
+                    processedArticleIds.add(article.id);
                 }
             }
         }
