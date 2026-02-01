@@ -14,7 +14,10 @@ import {
     Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../features/Reference/theme/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
+import InsightSupportModal from '../../../components/InsightSupportModal';
 import {
     getAllNotes,
     getAllTags,
@@ -51,6 +54,8 @@ const TAG_COLORS = [
 ];
 
 export const NoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+    const { theme, isDark } = useTheme();
+    const [showInsightSupport, setShowInsightSupport] = useState(false);
     const [notes, setNotes] = useState<LocalNote[]>([]);
     const [tags, setTags] = useState<LocalTag[]>([]);
     const [loading, setLoading] = useState(true);
@@ -531,6 +536,26 @@ export const NoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                     </View>
                 </View>
             </Modal>
+
+            {/* AI Insight Support Modal */}
+            <InsightSupportModal
+                visible={showInsightSupport}
+                onClose={() => setShowInsightSupport(false)}
+            />
+
+            {/* Floating AI Support Button */}
+            <TouchableOpacity
+                style={[styles.floatingAiButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setShowInsightSupport(true)}
+            >
+                <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.primary + 'CC']}
+                    style={styles.floatingAiGradient}
+                >
+                    <Ionicons name="sparkles" size={24} color="#FFF" />
+                    <View style={styles.aiBadge} />
+                </LinearGradient>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 };
@@ -1010,6 +1035,37 @@ const styles = StyleSheet.create({
         fontSize: 15,
         fontWeight: '700',
         color: '#fff',
+    },
+    floatingAiButton: {
+        position: 'absolute',
+        bottom: 100, // Above the regular FAB
+        right: 20,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    floatingAiGradient: {
+        width: 50,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    aiBadge: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#FF3B30',
+        borderWidth: 1.5,
+        borderColor: '#FFF',
     },
 });
 

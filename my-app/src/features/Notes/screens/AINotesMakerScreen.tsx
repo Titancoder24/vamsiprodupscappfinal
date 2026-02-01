@@ -16,6 +16,8 @@ import {
     KeyboardAvoidingView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTheme } from '../../../features/Reference/theme/ThemeContext';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -45,6 +47,7 @@ import { fetchCurrentAffairs, Article } from '../services/currentAffairsService'
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
 import { FlatList, RefreshControl } from 'react-native';
+import InsightSupportModal from '../../../components/InsightSupportModal';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -59,6 +62,7 @@ const SOURCE_TYPES = {
 type SourceType = keyof typeof SOURCE_TYPES;
 
 export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+    const { theme, isDark } = useTheme();
     // ========== STATE ==========
     // View State
     const [activeTab, setActiveTab] = useState<'notes' | 'topics' | 'summaries'>('topics');
@@ -146,6 +150,8 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             setLoading(false);
         }
     };
+
+    const [showInsightSupport, setShowInsightSupport] = useState(false);
 
     // ========== TAG MANAGEMENT ==========
     const handleCreateTag = async () => {
@@ -465,7 +471,7 @@ Generate a professional, exam-oriented summary. NO emojis, NO markdown.`;
                     'X-Title': 'PrepAssist AI Notes',
                 },
                 body: JSON.stringify({
-                    model: 'google/gemini-3-flash-preview',
+                    model: 'google/gemini-2.0-flash-001',
                     messages: [{ role: 'user', content: prompt }],
                     temperature: 0.7,
                     max_tokens: 4000,
@@ -520,6 +526,28 @@ Generate a professional, exam-oriented summary. NO emojis, NO markdown.`;
 
             existingSummaries.unshift(newSummary);
             await setItem('@upsc_ai_summaries', JSON.stringify(existingSummaries));
+
+            // ALSO save as a regular note so it's persistent and visible in UPSC Note Maker
+            try {
+                // Determine source type and tags
+                const summaryTags = newSummary.tags && newSummary.tags.length > 0
+                    ? newSummary.tags
+                    : tags.filter(t => summaryTagIds.includes(t.id));
+
+                const summaryAsNote = {
+                    title: `[AI] ${summaryTitle}`,
+                    content: summaryText,
+                    sourceType: 'current_affairs' as const,
+                    tags: summaryTags,
+                    blocks: [{ id: `ai-sum-${Date.now()}`, type: 'paragraph' as const, content: summaryText }],
+                    isPinned: true // Auto-pin AI summaries for visibility
+                };
+
+                const savedNote = await createNote(summaryAsNote);
+                console.log('[AINotes] Also saved summary as a regular study note:', savedNote.id);
+            } catch (noteErr) {
+                console.error('[AINotes] Failed to save summary as regular note:', noteErr);
+            }
 
             console.log('[AINotes] Summary saved!');
 
@@ -1824,6 +1852,26 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
             {renderNoteEditorModal()}
             {renderSummaryModal()}
             {renderSummaryDetailModal()}
+            {/* AI Insight Support Modal */}
+            <InsightSupportModal
+                visible={showInsightSupport}
+                onClose={() => setShowInsightSupport(false)}
+            />
+
+            {/* Floating AI Support Button */}
+            <TouchableOpacity
+                style={[styles.floatingAiButton, { backgroundColor: theme.colors.primary }]}
+                onPress={() => setShowInsightSupport(true)}
+            >
+                <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.primary + 'CC']}
+                    style={styles.floatingAiGradient}
+                >
+                    <Ionicons name="sparkles" size={24} color="#FFF" />
+                    <View style={styles.aiBadge} />
+                </LinearGradient>
+            </TouchableOpacity>
+
         </SafeAreaView>
     );
 };
@@ -2486,6 +2534,37 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#64748B',
         marginBottom: 4,
+    },
+    floatingAiButton: {
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    floatingAiGradient: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    aiBadge: {
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#FF3B30',
+        borderWidth: 1.5,
+        borderColor: '#FFF',
     },
 });
 
