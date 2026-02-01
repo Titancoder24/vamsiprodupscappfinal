@@ -139,8 +139,8 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: AsyncStorage,
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false,
-    flowType: 'pkce', // Use PKCE flow for better security and CORS handling
+    detectSessionInUrl: Platform.OS === 'web', // Enable for web redirects
+    flowType: 'pkce',
   },
 });
 

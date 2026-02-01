@@ -282,7 +282,7 @@ export const AuthProvider = ({ children }) => {
       console.log('[AuthContext] Email confirmation required - returning user for verification');
       return data.user;
     } catch (error) {
-      console.error('[AuthContext] Error in signUpWithEmail:', error);
+      console.error('[AuthContext] signUpWithEmail Error:', error);
       throw error;
     }
   };

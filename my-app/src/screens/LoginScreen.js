@@ -75,10 +75,10 @@ export default function LoginScreen({ navigation }) {
 
         // If no user returned or email not confirmed, show the check email message
         if (!result || !result.email_confirmed_at) {
-          setSuccessMessage('Verification email sent! Please check your inbox.');
+          setSuccessMessage('Account created! Verification email sent.');
           Alert.alert(
             'Verify Your Email',
-            'We have sent a verification link to your email. Please check your inbox and click the link to activate your account.',
+            'Please check your inbox and click the link to activate your account.',
             [{
               text: 'OK', onPress: () => {
                 setIsSignUp(false);
@@ -86,6 +86,8 @@ export default function LoginScreen({ navigation }) {
               }
             }]
           );
+        } else {
+          setSuccessMessage('Successfully signed up! Logging you in...');
         }
       } else {
         // Login with Password
@@ -93,22 +95,17 @@ export default function LoginScreen({ navigation }) {
       }
     } catch (err) {
       console.error('[Login] Auth Error:', err);
-      let errorMessage = 'Authentication failed. Please check your credentials.';
+      let errorMessage = err?.message || 'Authentication failed. Please check your credentials.';
 
-      if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err?.message) {
-        errorMessage = err.message;
-      }
-
-      // Better context for specific errors
-      if (errorMessage.includes('database error saving next auth_user')) {
+      if (errorMessage.includes('database error')) {
         errorMessage = 'This email might already be in use. Try logging in.';
       } else if (errorMessage.includes('Redirect URL')) {
         errorMessage = 'Configuration error: Redirect URL not allowed. Please contact support.';
       }
 
-      showError(errorMessage);
+      setError(errorMessage);
+      if (Platform.OS === 'web') alert('Auth Error: ' + errorMessage);
+      setTimeout(() => setError(''), 5000);
     } finally {
       setIsLoading(false);
       setLoadingType(null);
