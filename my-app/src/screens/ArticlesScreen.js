@@ -321,52 +321,48 @@ export default function ArticlesScreen({ navigation }) {
           {FILTERS.sources.map(source => renderSourceCard(source))}
         </View>
 
-        {/* Date & Sort Row */}
+        {/* Date Picker Row */}
         <View style={styles.dateFilterRow}>
           {Platform.OS === 'web' ? (
-            <View style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 2, flexDirection: 'row', alignItems: 'center' }]}>
-              <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} style={{ marginRight: 8 }} />
-              <TextInput
+            <TouchableOpacity
+              style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 1 }]}
+              onPress={() => {
                 // @ts-ignore
+                document.getElementById('web-date-picker')?.showPicker?.() || document.getElementById('web-date-picker')?.click();
+              }}
+            >
+              <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
+              <Text style={[styles.dateButtonText, { color: theme.colors.text, marginLeft: 8 }]}>
+                {selectedDate ? formatDate(selectedDate) : 'Pick Date'}
+              </Text>
+              <input
+                id="web-date-picker"
                 type="date"
                 value={selectedDate}
                 onChange={(e) => handleDateChange(e, e.target.value)}
                 style={{
-                  borderWidth: 0,
-                  backgroundColor: 'transparent',
-                  color: isDark ? '#FFFFFF' : '#000000',
-                  fontSize: 14,
-                  flex: 1,
-                  outlineWidth: 0,
+                  position: 'absolute',
+                  width: 0,
+                  height: 0,
+                  opacity: 0,
                 }}
               />
-            </View>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
-              style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 2 }]}
+              style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 1 }]}
               onPress={() => setShowDatePicker(true)}
             >
               <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
               <Text style={[styles.dateButtonText, { color: theme.colors.text, marginLeft: 8 }]}>
-                {selectedDate || 'Pick Date'}
+                {selectedDate ? formatDate(selectedDate) : 'Pick Date'}
               </Text>
             </TouchableOpacity>
           )}
 
-          {/* Sort Button */}
-          <TouchableOpacity
-            style={[styles.sortButton, { backgroundColor: theme.colors.surface, flex: 1 }]}
-            onPress={toggleSortOrder}
-          >
-            <Ionicons name="swap-vertical" size={16} color={theme.colors.primary} />
-            <Text style={[styles.dateButtonText, { color: theme.colors.text, marginLeft: 4 }]}>
-              {sortOrder === 'desc' ? 'Newest' : 'Oldest'}
-            </Text>
-          </TouchableOpacity>
-
           {selectedDate ? (
             <TouchableOpacity style={styles.clearDateBtn} onPress={clearDateFilter}>
-              <Ionicons name="close-circle" size={20} color={theme.colors.error} />
+              <Ionicons name="close-circle" size={24} color={theme.colors.error} />
             </TouchableOpacity>
           ) : null}
         </View>
