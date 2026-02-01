@@ -79,9 +79,19 @@ export default function CreditsBadge({ compact = false }: CreditsBadgeProps) {
                     credits
                 </Text>
             </View>
-            <View style={[styles.planBadge, { backgroundColor: getPlanColor() }]}>
-                <Text style={styles.planText}>{getPlanLabel()}</Text>
-            </View>
+
+            {/* CTA Button for low credits or free plan */}
+            {(credits < 10 || planType === 'free') && (
+                <View style={[styles.planBadge, { backgroundColor: theme.colors.primary }]}>
+                    <Text style={styles.planText}>+ GET CREDITS</Text>
+                </View>
+            )}
+
+            {!(credits < 10 || planType === 'free') && (
+                <View style={[styles.planBadge, { backgroundColor: getPlanColor() }]}>
+                    <Text style={styles.planText}>{getPlanLabel()}</Text>
+                </View>
+            )}
         </TouchableOpacity>
     );
 }

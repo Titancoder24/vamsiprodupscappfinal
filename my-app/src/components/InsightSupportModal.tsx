@@ -22,6 +22,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 interface Props {
     visible: boolean;
     onClose: () => void;
+    onCheckCredits?: () => boolean;
 }
 
 interface ChatMessage {
@@ -29,7 +30,7 @@ interface ChatMessage {
     content: string;
 }
 
-const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
+const InsightSupportModal: React.FC<Props> = ({ visible, onClose, onCheckCredits }) => {
     const { theme, isDark } = useTheme();
     const [status, setStatus] = useState<InsightStatus | null>(null);
     const [loading, setLoading] = useState(true);
