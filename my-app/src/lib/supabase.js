@@ -142,9 +142,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
     flowType: 'pkce', // Use PKCE flow for better security and CORS handling
   },
-  global: {
-    fetch: customFetch,
-  },
 });
 
 console.log('Supabase client initialized');

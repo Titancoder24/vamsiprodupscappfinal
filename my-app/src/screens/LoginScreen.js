@@ -26,6 +26,7 @@ export default function LoginScreen({ navigation }) {
   const [name, setName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
@@ -64,16 +65,26 @@ export default function LoginScreen({ navigation }) {
       setLoadingType('email');
       setError('');
 
+      console.log(`[Login] Attempting ${isSignUp ? 'SignUp' : 'SignIn'} for: ${email}`);
+
       if (isSignUp) {
         // Sign Up with Email + Password
         const result = await signUpWithEmail(email.trim().toLowerCase(), password, name.trim());
 
+        console.log('[Login] SignUp Result:', !!result);
+
         // If no user returned or email not confirmed, show the check email message
         if (!result || !result.email_confirmed_at) {
+          setSuccessMessage('Verification email sent! Please check your inbox.');
           Alert.alert(
             'Verify Your Email',
             'We have sent a verification link to your email. Please check your inbox and click the link to activate your account.',
-            [{ text: 'OK', onPress: () => setIsSignUp(false) }]
+            [{
+              text: 'OK', onPress: () => {
+                setIsSignUp(false);
+                setSuccessMessage('');
+              }
+            }]
           );
         }
       } else {
@@ -81,12 +92,22 @@ export default function LoginScreen({ navigation }) {
         await signInWithEmail(email.trim().toLowerCase(), password);
       }
     } catch (err) {
-      let errorMessage = 'Failed to sign in. Please check your credentials.';
+      console.error('[Login] Auth Error:', err);
+      let errorMessage = 'Authentication failed. Please check your credentials.';
+
       if (typeof err === 'string') {
         errorMessage = err;
       } else if (err?.message) {
         errorMessage = err.message;
       }
+
+      // Better context for specific errors
+      if (errorMessage.includes('database error saving next auth_user')) {
+        errorMessage = 'This email might already be in use. Try logging in.';
+      } else if (errorMessage.includes('Redirect URL')) {
+        errorMessage = 'Configuration error: Redirect URL not allowed. Please contact support.';
+      }
+
       showError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -151,6 +172,14 @@ export default function LoginScreen({ navigation }) {
               <View style={styles.errorContainer}>
                 <Ionicons name="alert-circle" size={18} color="#DC2626" />
                 <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {/* Success Message */}
+            {successMessage ? (
+              <View style={[styles.errorContainer, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                <Text style={[styles.errorText, { color: '#16A34A' }]}>{successMessage}</Text>
               </View>
             ) : null}
 
