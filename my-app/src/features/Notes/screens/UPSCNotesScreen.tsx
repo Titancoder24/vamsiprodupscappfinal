@@ -91,7 +91,7 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
             InsightAgent.checkNoteStatus().then(res => {
                 if (res.status === 'updates_available') setAiInsightStatus('updates');
             });
-        }, 10 * 1000); // 10 SECONDS (User Requested Speed)
+        }, 60 * 1000); // 60 SECONDS (1 Minute Cycle)
         return () => clearInterval(interval);
     }, []);
 
