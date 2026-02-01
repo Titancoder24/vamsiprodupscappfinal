@@ -26,6 +26,9 @@ import {
 } from '../services/localNotesStorage';
 import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
 import { Modal } from 'react-native';
+import InsightSupportModal from '../../../components/InsightSupportModal';
+import { InsightAgent } from '../../../services/InsightAgent';
+import { useTheme } from '../../../features/Reference/theme/ThemeContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -65,6 +68,9 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
     const [showTagFilter, setShowTagFilter] = useState(false);
     const [newsMatches, setNewsMatches] = useState<MatchedArticle[]>([]);
     const [showNotifications, setShowNotifications] = useState(false);
+    const [showInsightSupport, setShowInsightSupport] = useState(false);
+    const [aiInsightStatus, setAiInsightStatus] = useState<'none' | 'updates'>('none');
+    const { theme } = useTheme();
 
     // Load data on mount
     useEffect(() => {
@@ -95,6 +101,15 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
             } catch (err) {
                 console.error("Failed to check news matches", err);
             }
+
+            // AI Insight background check (Silent)
+            InsightAgent.checkNoteStatus().then(res => {
+                if (res.status === 'updates_available') {
+                    setAiInsightStatus('updates');
+                } else {
+                    setAiInsightStatus('none');
+                }
+            }).catch(e => console.log('[UPSCNotes] Background check failed', e));
         } catch (error) {
             console.error('Error loading notes:', error);
             Alert.alert('Error', 'Failed to load notes');
@@ -515,6 +530,26 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
                     <Ionicons name="add" size={28} color="#FFFFFF" />
                 </LinearGradient>
             </TouchableOpacity>
+
+            {/* AI Insight Support Modal */}
+            <InsightSupportModal
+                visible={showInsightSupport}
+                onClose={() => setShowInsightSupport(false)}
+            />
+
+            {/* Floating AI Support Button */}
+            <TouchableOpacity
+                style={[styles.floatingAiButton, { backgroundColor: theme.colors.primary, bottom: 90 }]}
+                onPress={() => setShowInsightSupport(true)}
+            >
+                <LinearGradient
+                    colors={[theme.colors.primary, theme.colors.primary + 'CC']}
+                    style={styles.floatingAiGradient}
+                >
+                    <Ionicons name="sparkles" size={24} color="#FFF" />
+                    {aiInsightStatus === 'updates' && <View style={styles.aiBadge} />}
+                </LinearGradient>
+            </TouchableOpacity>
         </SafeAreaView>
     );
 };
@@ -876,6 +911,37 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    floatingAiButton: {
+        position: 'absolute',
+        bottom: 20,
+        right: 24,
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+    },
+    floatingAiGradient: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    aiBadge: {
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#FF3B30',
+        borderWidth: 1.5,
+        borderColor: '#FFF',
     },
 });
 
