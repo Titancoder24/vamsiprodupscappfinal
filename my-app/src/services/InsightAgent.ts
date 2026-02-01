@@ -154,4 +154,50 @@ Output ONLY valid JSON:
             };
         }
     }
+    /**
+     * CHAT CAPABILITY
+     * Allows the user to ask questions about the updates or news.
+     */
+    static async chatWithAgent(message: string, history: any[], context: any): Promise<string> {
+        try {
+            if (!OPENROUTER_API_KEY) return "I can't connect to my brain right now. Check your API key.";
+
+            const systemPrompt = `You are PrepAssist AI, a helpful UPSC tutor.
+You have access to the user's notes and the latest news articles.
+The user has just received an update notification about potential connections between their notes and the news.
+Your goal is to explain these connections, answer questions, and help them update their notes.
+
+CONTEXT:
+${JSON.stringify(context)}
+
+Be concise, encouraging, and highly specific to UPSC preparation.`;
+
+            const messages = [
+                { role: 'system', content: systemPrompt },
+                ...history,
+                { role: 'user', content: message }
+            ];
+
+            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    'HTTP-Referer': 'https://prepassist.in',
+                    'X-Title': 'PrepAssist UPSC',
+                },
+                body: JSON.stringify({
+                    model: 'google/gemini-2.0-flash-001',
+                    messages: messages,
+                }),
+            });
+
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content || "I didn't catch that. Could you say it again?";
+
+        } catch (error) {
+            console.error('[OmniscientChat] Failed:', error);
+            return "I'm having trouble connecting right now. Please try again.";
+        }
+    }
 }
