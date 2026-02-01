@@ -137,6 +137,7 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}
+                enabled={Platform.OS !== 'web'}
             >
                 <TouchableOpacity
                     activeOpacity={1}
@@ -173,8 +174,10 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                     {/* Chat Content */}
                     <ScrollView
                         ref={scrollViewRef}
+                        style={{ flex: 1 }}
                         contentContainerStyle={styles.scrollContent}
                         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+                        showsVerticalScrollIndicator={false}
                     >
                         {loading && (
                             <View style={styles.loadingContainer}>
