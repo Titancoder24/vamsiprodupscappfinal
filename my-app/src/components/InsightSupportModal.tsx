@@ -16,6 +16,19 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { InsightAgent, InsightStatus } from '../services/InsightAgent';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+interface Props {
+    visible: boolean;
+    onClose: () => void;
+}
+
+interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
 const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
     const { theme, isDark } = useTheme();
     const [status, setStatus] = useState<InsightStatus | null>(null);
@@ -53,18 +66,14 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
     const checkStatus = async () => {
         setLoading(true);
         try {
-            const [aiResult, radarMatches] = await Promise.all([
-                InsightAgent.checkNoteStatus(),
-                checkNewsMatches()
-            ]);
+            const aiResult = await InsightAgent.checkNoteStatus();
             setStatus(aiResult);
-            setNewsMatches(radarMatches);
 
             // Initial AI Greeting based on Intelligence
-            if (aiResult.status === 'updates_available' || radarMatches.length > 0) {
+            if (aiResult.status === 'updates_available') {
                 setMessages([{
                     role: 'assistant',
-                    content: `I found ${aiResult.updates.length + radarMatches.length} potential updates for your notes based on the latest news. Would you like me to explain them?`
+                    content: `I found ${aiResult.updates.length} potential updates for your notes based on the latest news. Would you like me to explain them?`
                 }]);
             } else {
                 setMessages([{
@@ -97,7 +106,6 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
             // Context Aggregation
             const context = {
                 updates: status?.updates || [],
-                matches: newsMatches,
                 summary: status?.message
             };
 
