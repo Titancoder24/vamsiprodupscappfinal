@@ -49,7 +49,7 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
         if (visible) {
             setInternalVisible(true);
             Animated.spring(slideAnim, {
-                toValue: SCREEN_HEIGHT * 0.1,
+                toValue: 0, // Animate to natural position (0 offset)
                 tension: 40,
                 friction: 8,
                 useNativeDriver: true,
