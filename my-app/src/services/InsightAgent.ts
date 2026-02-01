@@ -67,14 +67,14 @@ export class InsightAgent {
                 };
             }
 
-            // 2. Fetch Latest 50 Articles (Full Text)
-            // We fetch more articles to ensure we catch everything relevant in the recent cycle
-            console.log('[OmniscientAgent] Fetching latest 50 news articles...');
+            // 2. Fetch Latest 100 Articles (Full Text)
+            // Increased limit to 100 to cast a wider net
+            console.log('[OmniscientAgent] Fetching latest 100 news articles...');
             const { data: articles, error } = await supabase
                 .from('articles')
                 .select('id, title, summary, content_text')
                 .order('created_at', { ascending: false })
-                .limit(50);
+                .limit(100);
 
             if (error || !articles || articles.length === 0) {
                 console.log('[OmniscientAgent] No recent articles found.');
@@ -86,18 +86,17 @@ export class InsightAgent {
             }
 
             // 3. OMNISCIENT PAYLOAD CONSTRUCTION
-            // We do NOT filter. We send EVERYTHING.
-
             const notesPayload = allNotes.map(n => ({
                 id: n.id,
                 title: n.title,
-                content: n.content || '' // FULL CONTENT of notes
+                content: n.content || ''
             }));
 
             const newsPayload = articles.map(a => ({
                 id: a.id,
-                title: a.title, // Only Title as requested
-                summary: (a.summary || '').substring(0, 150) // Tiny context helper
+                title: a.title,
+                // We prioritize the summary for speed, but fallback to content if needed
+                text: (a.summary || a.content_text || '').substring(0, 500)
             }));
 
             // 4. AI Analysis via OpenRouter
@@ -111,33 +110,34 @@ export class InsightAgent {
             const systemPrompt = `You are the UPSC "Omniscient" Intelligence Agent. 
 Your goal is to cross-reference the User's ENTIRE Note Database against the Latest News Corpus.
 
-TASK:
-1. READ every single note provided in the User Knowledge Base.
-2. READ every single news article provided in the News Corpus.
-3. IDENTIFY ANY connection, update, conflict, or relevant development using purely semantic understanding.
+*** CRITICAL INSTRUCTION: BE HYPER-SENSITIVE ***
+You are NOT looking for "conflicts". You are looking for ANY RELEVANCE.
+If a news article is even REMOTELY related to a note, proper noun, or concept in the user's notes, FLAG IT.
 
-CRITERIA FOR MATCHING (Be extremely proactive):
-- Direct concept updates (e.g., User has note on "Aadhar", News is about "UIDAI amendment").
-- Indirect policy impacts (e.g., User has note on "Banking", News is about "RBI Repo Rate").
-- Contextual relevance (e.g., User has note on "History of Mughals", News is about "ASI excavation of Mughal site").
-- Acronym Resolution (e.g., "UCC" matches "Uniform Civil Code").
+TASK:
+1. READ every single note provided.
+2. READ every single news article provided.
+3. MATCH them based on:
+   - Shared Keywords (e.g., Note: "Monetary Policy" <-> News: "RBI Hike")
+   - Entity Matches (e.g., Note: "Modi" <-> News: "PM visits France")
+   - Thematic Overlap (e.g., Note: "Agriculture" <-> News: "MSP Prices")
 
 OUTPUT RULES:
-- If a match is found, status MUST be "updates_available".
-- "message" must be a single, punchy 1-2 sentence summary of the most critical update.
-- "reason" in the updates array must explicitly state WHY this news matters to that specific note.
+- If ANY match is found, status MUST be "updates_available".
+- "message" must be: "I found [X] relevant news updates for your notes."
+- "reason" must explain the link simply (e.g., "News mentions RBI, relevant to your Economy note.")
 
 Output ONLY valid JSON:
 {
   "status": "ok" | "updates_available",
-  "message": "Strict 1-2 sentence summary.",
+  "message": "Summary string",
   "updates": [
     {
-      "noteId": "id of the matched note",
-      "noteTitle": "title of the matched note",
-      "articleId": "id of the matched article",
-      "articleTitle": "title of the matched article",
-      "reason": "Clear explanation of the link."
+      "noteId": "id",
+      "noteTitle": "title",
+      "articleId": "id",
+      "articleTitle": "title",
+      "reason": "Why this matches"
     }
   ]
 }`;
