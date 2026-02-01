@@ -64,7 +64,7 @@ const isCommonWord = (word: string): boolean => COMMON_WORDS.has(word.toLowerCas
 
 export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
     try {
-        console.log('[Knowledge Radar] Starting Fast Deterministic Scan...');
+        console.log('[Knowledge Radar] Starting Fast Deterministic Scan (Hybrid Mode)...');
 
         // 1. Get ALL User Notes (Full Content)
         const notes = await getAllNotes();
@@ -95,9 +95,6 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
         };
 
         // 4. THE MATCHING ENGINE (Note Content vs News Title)
-
-        // Pre-process notes into a giant keyword set for speed?
-        // No, we need to know WHICH note matched.
 
         for (const note of notes) {
             // Extract keywords from this specific note (Title + Content)
