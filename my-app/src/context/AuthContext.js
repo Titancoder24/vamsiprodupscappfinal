@@ -341,7 +341,9 @@ export const AuthProvider = ({ children }) => {
       console.log('[AuthContext] Sending magic link to:', email);
 
       const options = {
-        emailRedirectTo: 'upscprep://auth/callback',
+        emailRedirectTo: Platform.OS === 'web'
+          ? `${window.location.origin}/auth/callback`
+          : 'upscprep://auth/callback',
       };
 
       // If name is provided, add it to user metadata

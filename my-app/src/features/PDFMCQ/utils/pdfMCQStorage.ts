@@ -194,21 +194,25 @@ export const clearAllPDFMCQSessions = async (): Promise<boolean> => {
     }
 };
 
-/**
- * Calculate score for a session
- */
 export const calculateSessionScore = (session: PDFMCQSession): {
     answered: number;
     correct: number;
     total: number;
     percentage: number;
 } => {
+    if (!session || !session.mcqs) {
+        return { answered: 0, correct: 0, total: 0, percentage: 0 };
+    }
+
     const total = session.mcqs.length;
-    const answered = Object.keys(session.userAnswers).length;
+    const answered = session.userAnswers ? Object.keys(session.userAnswers).length : 0;
 
     let correct = 0;
     session.mcqs.forEach((mcq, index) => {
-        if (session.userAnswers[index] === mcq.correctAnswer) {
+        if (session.userAnswers && session.userAnswers[index + 1] === mcq.correctAnswer) {
+            correct++;
+        } else if (session.userAnswers && session.userAnswers[index] === mcq.correctAnswer) {
+            // Handle both 0-based and 1-based indexing for backward compatibility
             correct++;
         }
     });

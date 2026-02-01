@@ -35,10 +35,11 @@ const PLAN_CREDITS = {
 async function getUserIdByEmail(supabase: any, email: string): Promise<string | null> {
     if (!email) return null;
     try {
+        console.log(`[Webhook] Looking up user for email: ${email}`);
         const { data, error } = await supabase
             .from('user_lookup')
             .select('id')
-            .eq('email', email.toLowerCase())
+            .eq('email', email.toLowerCase().trim())
             .maybeSingle();
 
         if (error) {
@@ -46,6 +47,7 @@ async function getUserIdByEmail(supabase: any, email: string): Promise<string | 
             return null;
         }
 
+        console.log(`[Webhook] User lookup result for ${email}: ${data?.id || 'NOT FOUND'}`);
         return data?.id || null;
     } catch (err) {
         console.error(`[Webhook] User lookup exception for ${email}:`, err);
@@ -53,12 +55,7 @@ async function getUserIdByEmail(supabase: any, email: string): Promise<string | 
     }
 }
 
-function isUUID(str: string): boolean {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i; // Basic check
-    return str ? str.length === 36 : false;
-}
-
-serve(async (req) => {
+serve(async (req: any) => {
     // Handle CORS preflight
     if (req.method === "OPTIONS") {
         return new Response("ok", { headers: corsHeaders });
@@ -69,12 +66,23 @@ serve(async (req) => {
         const payload = await req.json();
         const { type, data } = payload;
 
-        console.log(`[Webhook] Processing ${type} event (ID: ${data?.payment_id || data?.subscription_id})`);
+        console.log(`[Webhook] PAYLOAD TYPE: ${type}`);
+        console.log(`[Webhook] PAYLOAD DATA:`, JSON.stringify(data, null, 2));
 
         // Create Supabase client with service role key for full DB access
         const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
         const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+        // ===================== DEBUG LOGGING =====================
+        try {
+            await supabase.from('webhook_logs').insert({
+                event_type: type,
+                payload: payload
+            });
+        } catch (logError) {
+            console.error("[Webhook] Failed to write to debug log:", logError);
+        }
 
         // ===================== IDEMPOTENCY CHECK =====================
         if (type.includes('payment') && data.payment_id) {
@@ -113,6 +121,8 @@ serve(async (req) => {
                 // We only handle one-time credit purchases here
                 if (!data.subscription_id) {
                     await handlePaymentCompleted(supabase, data);
+                } else {
+                    console.log(`[Webhook] Skipping payment event for subscription (handled by subscription events)`);
                 }
                 break;
 
@@ -129,7 +139,7 @@ serve(async (req) => {
             { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
         );
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("[Webhook] Global Error:", error);
         return new Response(
             JSON.stringify({ error: error.message }),
@@ -140,8 +150,14 @@ serve(async (req) => {
 
 // Handle new subscription
 async function handleSubscriptionCreated(supabase: any, data: any) {
-    const { product_id, subscription_id, payment_id } = data;
+    let { product_id, subscription_id, payment_id } = data;
     const customerEmail = data.customer?.email || data.customer_email;
+
+    // Robustly find product_id if not at top level
+    if (!product_id && data.product_cart && Array.isArray(data.product_cart) && data.product_cart.length > 0) {
+        product_id = data.product_cart[0].product_id;
+        console.log(`[Webhook] Extracted product_id ${product_id} from product_cart (Sub)`);
+    }
 
     if (!customerEmail) {
         console.error("[Webhook] No customer email in subscription event");
@@ -182,15 +198,17 @@ async function handleSubscriptionCreated(supabase: any, data: any) {
     }
 
     // Unified atomic RPC call for Provisioning + History + Audit
-    await supabase.rpc('add_credits', {
+    const { error: rpcError } = await supabase.rpc('add_credits', {
         p_user_id: userId,
-        p_credits: credits,
+        p_credits: Math.round(credits),
         p_transaction_type: 'subscription_credit',
         p_payment_id: payment_id || `sub_${subscription_id}`,
         p_description: `${planType.toUpperCase()} Plan subscription started`,
-        p_amount_inr: planType === 'pro' ? 699 : 399,
+        p_amount_inr: Math.round(planType === 'pro' ? 699 : 399),
         p_payment_method: data.payment_method || 'unknown'
     });
+
+    if (rpcError) console.error(`[Webhook] RPC Error in sub created:`, rpcError);
 }
 
 // Handle renewal
@@ -222,15 +240,17 @@ async function handleSubscriptionRenewed(supabase: any, data: any) {
         .eq("dodo_subscription_id", subscription_id);
 
     // Use atomic RPC for renewal
-    await supabase.rpc('add_credits', {
+    const { error: rpcError } = await supabase.rpc('add_credits', {
         p_user_id: sub.user_id,
-        p_credits: credits,
+        p_credits: Math.round(credits),
         p_transaction_type: 'subscription_credit',
         p_payment_id: payment_id,
         p_description: 'Monthly subscription renewal credits',
-        p_amount_inr: sub.plan_type === 'pro' ? 699 : 399,
+        p_amount_inr: Math.round(sub.plan_type === 'pro' ? 699 : 399),
         p_payment_method: data.payment_method || 'unknown'
     });
+
+    if (rpcError) console.error(`[Webhook] RPC Error in renewal:`, rpcError);
 }
 
 // Handle cancellation
@@ -250,12 +270,19 @@ async function handleSubscriptionCancelled(supabase: any, data: any) {
 
 // Handle one-time purchase
 async function handlePaymentCompleted(supabase: any, data: any) {
-    const { product_id, payment_id, total_amount } = data;
+    let { product_id, payment_id, total_amount } = data;
     const customerEmail = data.customer?.email || data.customer_email;
+
+    // Robustly find product_id if not at top level (Dodo often puts it in product_cart)
+    if (!product_id && data.product_cart && Array.isArray(data.product_cart) && data.product_cart.length > 0) {
+        product_id = data.product_cart[0].product_id;
+        console.log(`[Webhook] Extracted product_id ${product_id} from product_cart`);
+    }
+
     const credits = PACKAGE_CREDITS[product_id];
 
     if (!credits) {
-        console.log(`[Webhook] Payment completed for non-credit product: ${product_id}`);
+        console.log(`[Webhook] Payment completed for non-credit product: ${product_id || 'UNKNOWN'}`);
         return;
     }
 
@@ -265,18 +292,26 @@ async function handlePaymentCompleted(supabase: any, data: any) {
         return;
     }
 
-    console.log(`[Webhook] Adding ${credits} credits to user ${userId} for payment ${payment_id}`);
+    const amountInr = total_amount ? Math.round(total_amount / 100) : 0;
+    console.log(`[Webhook] Adding ${credits} credits to user ${userId} for payment ${payment_id} (Amount: ${amountInr})`);
 
     // Unified atomic RPC call for purchase
     const { data: result, error: rpcError } = await supabase.rpc('add_credits', {
         p_user_id: userId,
-        p_credits: credits,
+        p_credits: Math.round(credits),
         p_transaction_type: 'purchase',
         p_payment_id: payment_id,
         p_description: `Purchased ${credits} credits pack`,
-        p_amount_inr: total_amount ? total_amount / 100 : 0,
+        p_amount_inr: amountInr,
         p_payment_method: data.payment_method || 'unknown'
     });
+
+    if (rpcError) {
+        console.error("[Webhook] RPC error adding credits:", rpcError);
+        return;
+    }
+
+    console.log(`[Webhook] Successfully added credits for payment ${payment_id}`);
 }
 
 // Handle failure
@@ -284,6 +319,8 @@ async function handlePaymentFailed(supabase: any, data: any) {
     const { payment_id, product_id, failure_reason } = data;
     const customerEmail = data.customer?.email || data.customer_email;
     const userId = await getUserIdByEmail(supabase, customerEmail);
+
+    console.log(`[Webhook] Payment FAILED: ${payment_id} (${failure_reason})`);
 
     await supabase.from("payment_history").insert({
         user_id: userId || '00000000-0000-0000-0000-000000000000', // System user or anonymous

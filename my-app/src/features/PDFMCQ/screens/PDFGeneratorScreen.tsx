@@ -24,7 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 // @ts-ignore
 import { getMobileApiEndpoint } from '../../../config/api';
 // @ts-ignore
@@ -39,10 +39,11 @@ if (Platform.OS !== 'web') {
 }
 
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
-import { savePDFMCQSession, getAllPDFMCQSessions, PDFMCQSession } from '../utils/pdfMCQStorage';
+import { savePDFMCQSession, getAllPDFMCQSessions, getPDFMCQSession, updatePDFMCQSession, PDFMCQSession, calculateSessionScore } from '../utils/pdfMCQStorage';
 import useCredits from '../../../hooks/useCredits';
 import { supabase } from '../../../lib/supabase';
 import { canBypassCredits } from '../../../utils/devMode';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ===================== CONFIGURATION =====================
 const CONFIG = {
@@ -64,7 +65,7 @@ interface MCQ {
     optionC: string;
     optionD: string;
     correctAnswer: string;
-    explanation: string;
+    explanation?: string;
 }
 
 interface PickedFile {
@@ -991,6 +992,8 @@ export default function PDFGeneratorScreen() {
     const { theme, isDark } = useTheme();
     const { horizontalPadding } = useWebStyles();
     const navigation = useNavigation<any>();
+    const route = useRoute<any>();
+    const { sessionId } = route.params || {};
 
     // Credit checking (5 credits for PDF MCQ)
     const { credits, hasEnoughCredits, useCredits: deductCredits, loading } = useCredits();
@@ -1020,72 +1023,49 @@ export default function PDFGeneratorScreen() {
     useEffect(() => {
         const loadHistory = async () => {
             try {
-                const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-                const stored = await AsyncStorage.getItem(PDF_SCORES_KEY);
-                if (stored) {
-                    const scores = JSON.parse(stored);
-                    setPdfHistory(scores);
-                }
+                const data = await getAllPDFMCQSessions();
+                setPdfHistory(data || []);
             } catch (e) {
                 console.log('Error loading history:', e);
+                setPdfHistory([]);
             }
         };
         loadHistory();
-    }, []);
+    }, [stage]);
 
-    // Save score to AsyncStorage
-    const handleSaveScore = async () => {
-        const { correct, answered } = getScore();
-
-        if (answered === 0) {
-            Alert.alert('No Answers', 'Please answer some questions before saving.');
-            return;
+    // Handle session loading from params
+    useEffect(() => {
+        if (sessionId) {
+            loadSession(sessionId);
         }
+    }, [sessionId]);
 
-        setIsSaving(true);
+    const loadSession = async (id: string) => {
         try {
-            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            const session = await getPDFMCQSession(id);
+            if (session) {
+                console.log('[PDF-MCQ] Resuming session:', id);
+                // Ensure MCQs have IDs for the UI logic
+                const mcqsWithIds = (session.mcqs || []).map((m, i) => ({
+                    ...m,
+                    id: i + 1
+                }));
+                setMcqs(mcqsWithIds);
+                setSelectedAnswers(session.userAnswers || {});
 
-            // Get PDF filename
-            let fileName = 'PDF Practice';
-            if (statusMessage.includes('Selected:')) {
-                const match = statusMessage.match(/Selected:\s*(.*?)\s*\(/);
-                if (match && match[1]) fileName = match[1];
-            } else if (currentSession && currentSession.pdfName) {
-                fileName = currentSession.pdfName;
+                // Show results for already answered questions
+                const results: any = {};
+                if (session.userAnswers) {
+                    Object.keys(session.userAnswers).forEach(k => {
+                        results[k] = true;
+                    });
+                }
+                setShowResults(results);
+                setCurrentSession(session);
+                setStage('complete');
             }
-
-            const percentage = (correct / answered) * 100;
-
-            // Create new score entry
-            const newScore = {
-                id: Date.now().toString(),
-                file_name: fileName,
-                total_questions: mcqs.length,
-                correct_answers: correct,
-                score_percentage: percentage,
-                created_at: new Date().toISOString()
-            };
-
-            // Get existing scores
-            const stored = await AsyncStorage.getItem(PDF_SCORES_KEY);
-            let scores = stored ? JSON.parse(stored) : [];
-
-            // Add new score at the beginning
-            scores = [newScore, ...scores].slice(0, 50); // Keep max 50 entries
-
-            // Save to AsyncStorage
-            await AsyncStorage.setItem(PDF_SCORES_KEY, JSON.stringify(scores));
-
-            // Update state
-            setPdfHistory(scores);
-
-            Alert.alert('Success', 'Your score has been saved locally!');
-        } catch (error: any) {
-            console.error('Save error:', error);
-            Alert.alert('Error', 'Failed to save score. Please try again.');
-        } finally {
-            setIsSaving(false);
+        } catch (e) {
+            console.error('[PDF-MCQ] Error loading session:', e);
         }
     };
 
@@ -1094,7 +1074,7 @@ export default function PDFGeneratorScreen() {
         const { answered } = getScore();
         if (mcqs.length > 0 && answered === mcqs.length && !hasSavedCurrentTest && !isSaving) {
             setHasSavedCurrentTest(true);
-            handleSaveScore();
+            // Points already saved to session storage via handleOptionSelect calls which would call update
         }
     }, [showResults, mcqs.length, hasSavedCurrentTest, isSaving]);
 
@@ -1257,10 +1237,27 @@ export default function PDFGeneratorScreen() {
         }
     };
 
-    const handleOptionSelect = (mcqId: number, option: string) => {
+    const handleOptionSelect = async (mcqId: number, option: string) => {
         if (showResults[mcqId]) return;
-        setSelectedAnswers(prev => ({ ...prev, [mcqId]: option }));
-        setShowResults(prev => ({ ...prev, [mcqId]: true }));
+
+        const newSelected = { ...selectedAnswers, [mcqId]: option };
+        const newResults = { ...showResults, [mcqId]: true };
+
+        setSelectedAnswers(newSelected);
+        setShowResults(newResults);
+
+        // Update local session storage
+        if (currentSession) {
+            try {
+                const { updatePDFMCQSession } = require('../utils/pdfMCQStorage');
+                await updatePDFMCQSession(currentSession.id, {
+                    userAnswers: newSelected,
+                    completed: Object.keys(newSelected).length === mcqs.length
+                });
+            } catch (e) {
+                console.warn('[PDF-MCQ] Failed to update session store:', e);
+            }
+        }
     };
 
     const handleReset = () => {
@@ -1277,8 +1274,10 @@ export default function PDFGeneratorScreen() {
     const getScore = () => {
         let correct = 0;
         let answered = 0;
+        if (!mcqs || !Array.isArray(mcqs)) return { correct, answered };
+
         mcqs.forEach(mcq => {
-            if (selectedAnswers[mcq.id]) {
+            if (mcq && mcq.id && selectedAnswers && selectedAnswers[mcq.id]) {
                 answered++;
                 if (selectedAnswers[mcq.id] === mcq.correctAnswer) {
                     correct++;
@@ -1545,44 +1544,61 @@ export default function PDFGeneratorScreen() {
                             )}
 
                             {/* Table Rows */}
-                            {pdfHistory.map((item, index) => (
-                                <View key={item.id} style={{
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    padding: 12,
-                                    borderBottomWidth: index === pdfHistory.length - 1 ? 0 : 1,
-                                    borderBottomColor: theme.colors.border
-                                }}>
-                                    <View style={{ flex: 2, flexDirection: 'row', alignItems: 'center' }}>
-                                        <View style={{
-                                            width: 32, height: 32, borderRadius: 8,
-                                            backgroundColor: item.score_percentage >= 70 ? '#10B98115' : item.score_percentage >= 40 ? '#F59E0B15' : '#EF444415',
-                                            alignItems: 'center', justifyContent: 'center', marginRight: 10
-                                        }}>
-                                            <Ionicons name="document-text" size={16} color={item.score_percentage >= 70 ? '#10B981' : item.score_percentage >= 40 ? '#F59E0B' : '#EF4444'} />
+                            {pdfHistory.map((item, index) => {
+                                const score = calculateSessionScore(item);
+                                const dateStr = item.createdAt || new Date().toISOString();
+
+                                return (
+                                    <View key={item.id || index} style={{
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        padding: 12,
+                                        borderBottomWidth: index === pdfHistory.length - 1 ? 0 : 1,
+                                        borderBottomColor: theme.colors.border
+                                    }}>
+                                        <TouchableOpacity
+                                            style={{ flex: 2, flexDirection: 'row', alignItems: 'center' }}
+                                            onPress={() => {
+                                                setMcqs(item.mcqs || []);
+                                                setSelectedAnswers(item.userAnswers || {});
+                                                // If answered, show results
+                                                const results: any = {};
+                                                Object.keys(item.userAnswers || {}).forEach(k => results[k] = true);
+                                                setShowResults(results);
+                                                setCurrentSession(item);
+                                                setStage('complete');
+                                            }}
+                                        >
+                                            <View style={{
+                                                width: 32, height: 32, borderRadius: 8,
+                                                backgroundColor: score.percentage >= 70 ? '#10B98115' : score.percentage >= 40 ? '#F59E0B15' : '#EF444415',
+                                                alignItems: 'center', justifyContent: 'center', marginRight: 10
+                                            }}>
+                                                <Ionicons name="document-text" size={16} color={score.percentage >= 70 ? '#10B981' : score.percentage >= 40 ? '#F59E0B' : '#EF4444'} />
+                                            </View>
+                                            <Text style={{ fontSize: 14, fontWeight: '500', color: theme.colors.text }} numberOfLines={1}>
+                                                {item.pdfName || 'Untitled PDF'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                        <View style={{ flex: 1, alignItems: 'center' }}>
+                                            <View style={{
+                                                paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
+                                                backgroundColor: score.percentage >= 70 ? '#10B98120' : score.percentage >= 40 ? '#F59E0B20' : '#EF444420'
+                                            }}>
+                                                <Text style={{
+                                                    fontSize: 13, fontWeight: '700',
+                                                    color: score.percentage >= 70 ? '#10B981' : score.percentage >= 40 ? '#F59E0B' : '#EF4444'
+                                                }}>
+                                                    {score.answered}/{score.total} ({score.percentage}%)
+                                                </Text>
+                                            </View>
                                         </View>
-                                        <Text style={{ fontSize: 14, fontWeight: '500', color: theme.colors.text }} numberOfLines={1}>
-                                            {item.file_name}
+                                        <Text style={{ flex: 1, fontSize: 12, color: theme.colors.textSecondary, textAlign: 'right' }}>
+                                            {new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                         </Text>
                                     </View>
-                                    <View style={{ flex: 1, alignItems: 'center' }}>
-                                        <View style={{
-                                            paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12,
-                                            backgroundColor: item.score_percentage >= 70 ? '#10B98120' : item.score_percentage >= 40 ? '#F59E0B20' : '#EF444420'
-                                        }}>
-                                            <Text style={{
-                                                fontSize: 13, fontWeight: '700',
-                                                color: item.score_percentage >= 70 ? '#10B981' : item.score_percentage >= 40 ? '#F59E0B' : '#EF4444'
-                                            }}>
-                                                {item.correct_answers}/{item.total_questions} ({Math.round(item.score_percentage)}%)
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <Text style={{ flex: 1, fontSize: 12, color: theme.colors.textSecondary, textAlign: 'right' }}>
-                                        {new Date(item.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                                    </Text>
-                                </View>
-                            ))}
+                                );
+                            })}
                         </View>
                     </View>
                 )}
