@@ -49,7 +49,7 @@ const QuestionSetListScreen = ({ navigation }) => {
                 >
                     <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.title, { color: theme.colors.text }]}>Question Banks</Text>
+                <Text style={[styles.title, { color: theme.colors.text }]}>Question Bank</Text>
                 <View style={{ width: 40 }} />
             </View>
 
@@ -61,7 +61,7 @@ const QuestionSetListScreen = ({ navigation }) => {
                 <View style={styles.emptyContainer}>
                     <Ionicons name="library-outline" size={64} color={theme.colors.textSecondary} />
                     <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-                        No question banks available
+                        No question bank available
                     </Text>
                 </View>
             ) : (

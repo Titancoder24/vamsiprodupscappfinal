@@ -1366,7 +1366,7 @@ export default function PDFGeneratorScreen() {
                     <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-                    PDF to MCQ Generator
+                    Generate MCQs from PDF
                 </Text>
                 <TouchableOpacity
                     style={[styles.savedBtn, { backgroundColor: theme.colors.primaryLight }]}

@@ -70,7 +70,7 @@ const QuestionPaperScreen = ({ navigation, route }) => {
                     <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>
-                    {title || 'Question Paper'}
+                    {title || 'Question Bank'}
                 </Text>
                 <TouchableOpacity
                     style={[styles.backButton, { backgroundColor: theme.colors.surface }]}

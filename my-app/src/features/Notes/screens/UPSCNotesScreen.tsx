@@ -438,7 +438,7 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
                 >
                     <Ionicons name="chevron-back" size={24} color="#1F2937" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>UPSC Notes</Text>
+                <Text style={styles.headerTitle}>Upload Notes</Text>
                 <TouchableOpacity
                     onPress={() => navigation.navigate('WebClipperScreen')}
                     style={styles.clipButton}

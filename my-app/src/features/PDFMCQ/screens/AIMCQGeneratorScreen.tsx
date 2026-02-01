@@ -456,7 +456,7 @@ export default function AIMCQGeneratorScreen() {
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={24} color={theme.colors.text} />
                 </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>AI MCQ Generator</Text>
+                <Text style={[styles.headerTitle, { color: theme.colors.text }]}>AI MCQs Generate</Text>
                 <TouchableOpacity
                     style={[styles.savedBtn, { backgroundColor: theme.colors.primaryLight }]}
                     onPress={() => navigation.navigate('AIMCQList')}

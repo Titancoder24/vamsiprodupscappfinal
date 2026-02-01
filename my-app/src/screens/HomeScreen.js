@@ -99,11 +99,11 @@ export default function HomeScreen({ navigation }) {
       gradient: ['#8B5CF6', '#7C3AED'],
       screen: 'Articles',
     },
-    // 2. MCQ Generator
+    // 2. AI MCQs Generate
     {
       id: 'aimcq',
       icon: 'create-outline',
-      title: 'MCQ Generator',
+      title: 'AI MCQs Generate',
       desc: 'Generate by topic',
       gradient: ['#007AFF', '#0055D4'],
       screen: 'AIMCQGenerator',
@@ -117,29 +117,29 @@ export default function HomeScreen({ navigation }) {
       gradient: ['#06B6D4', '#0891B2'],
       screen: 'AIMindMap',
     },
-    // 4. PDF to MCQ
+    // 4. Generate MCQs from PDF
     {
       id: 'pdfmcq',
       icon: 'document-attach-outline',
-      title: 'PDF to MCQ',
+      title: 'Generate MCQs from PDF',
       desc: 'Generate from PDF',
       gradient: ['#FF2D55', '#FF375F'],
       screen: 'PDFMCQGenerator',
     },
-    // 5. AI Mains Writing
+    // 5. Mains Answer Evaluation
     {
       id: 'essay',
       icon: 'document-text-outline',
-      title: 'AI Mains Writing',
+      title: 'Mains Answer Evaluation',
       desc: 'Practice mains answer writing',
       gradient: ['#FF9500', '#E68600'],
       screen: 'Essay',
     },
-    // 6. Notes
+    // 6. Upload Notes
     {
       id: 'notes',
       icon: 'create-outline',
-      title: 'Notes',
+      title: 'Upload Notes',
       desc: 'Create & organize notes',
       gradient: ['#6366F1', '#8B5CF6'],
       screen: 'Notes',
@@ -153,11 +153,11 @@ export default function HomeScreen({ navigation }) {
       gradient: ['#10B981', '#059669'],
       screen: 'AINotesMaker',
     },
-    // 8. Question Paper
+    // 8. Question Bank
     {
       id: 'questionpaper',
       icon: 'documents-outline',
-      title: 'Question Paper',
+      title: 'Question Bank',
       desc: 'Practice Questions',
       gradient: ['#F59E0B', '#D97706'],
       screen: 'QuestionSetList',

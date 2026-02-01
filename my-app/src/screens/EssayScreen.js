@@ -663,7 +663,7 @@ Return ONLY valid JSON, no markdown blocks or explanation.`;
             <View style={[styles.titleIcon, { backgroundColor: theme.colors.primary + '12' }]}>
               <Ionicons name="document-text" size={28} color={theme.colors.primary} />
             </View>
-            <Text style={[styles.title, { color: theme.colors.text }]}>Essay Evaluation</Text>
+            <Text style={[styles.title, { color: theme.colors.text }]}>Mains Answer Evaluation</Text>
             <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
               AI-powered feedback for UPSC Mains
             </Text>
