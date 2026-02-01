@@ -11,12 +11,12 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { InsightAgent, InsightStatus } from '../services/InsightAgent';
 import { checkNewsMatches, MatchedArticle } from '../services/NewsMatchService';
-import Markdown from 'react-native-markdown-display';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -211,9 +211,9 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                                 {msg.role === 'user' ? (
                                     <Text style={styles.userText}>{msg.content}</Text>
                                 ) : (
-                                    <Markdown style={{ body: { color: theme.colors.text } }}>
+                                    <Text style={{ color: theme.colors.text, fontSize: 15, lineHeight: 22 }}>
                                         {msg.content}
-                                    </Markdown>
+                                    </Text>
                                 )}
                             </View>
                         ))}
