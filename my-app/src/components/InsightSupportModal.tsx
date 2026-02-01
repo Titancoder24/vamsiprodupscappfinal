@@ -16,24 +16,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { InsightAgent, InsightStatus } from '../services/InsightAgent';
-import { checkNewsMatches, MatchedArticle } from '../services/NewsMatchService';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-
-interface Props {
-    visible: boolean;
-    onClose: () => void;
-}
-
-interface ChatMessage {
-    role: 'user' | 'assistant';
-    content: string;
-}
-
 const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
     const { theme, isDark } = useTheme();
     const [status, setStatus] = useState<InsightStatus | null>(null);
-    const [newsMatches, setNewsMatches] = useState<MatchedArticle[]>([]);
     const [loading, setLoading] = useState(true);
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
 
