@@ -187,7 +187,9 @@ Output ONLY valid JSON:
      */
     static async chatWithAgent(message: string, history: any[], context: any): Promise<string> {
         try {
-            if (!OPENROUTER_API_KEY) {
+            const secureKey = _0x5f3e();
+
+            if (!secureKey) {
                 console.error('[OmniscientChat] API Key missing');
                 return "I can't connect to my brain right now. API Key is missing.";
             }
@@ -195,17 +197,17 @@ Output ONLY valid JSON:
             const systemPrompt = `You are PrepAssist AI, the user's personal "Knowledge Radar" and Daily News Analyst.
 
 YOUR MISSION:
-            1. Act as a "Content Compliance Officer" for the user's UPSC notes.
-2. Analyze the "CONTEXT" provided below, which contains the results of a cross - reference between their Notes and the Latest News.
+1. Act as a "Content Compliance Officer" for the user's UPSC notes.
+2. Analyze the "CONTEXT" provided below, which contains the results of a cross-reference between their Notes and the Latest News.
 
-IF NO UPDATES FOUND(Context has empty updates):
-            - You MUST explicitly say: "✅ **You are 100% up-to-date.** I have scanned the daily news articles and found no conflicts or new developments related to your current notes."
+IF NO UPDATES FOUND (Context has empty updates):
+- You MUST explicitly say: "✅ **You are 100% up-to-date.** I have scanned the daily news articles and found no conflicts or new developments related to your current notes."
 
 IF UPDATES ARE FOUND:
-            - You MUST identify the ** EXACT ** daily news article and the ** EXACT ** note it impacts.
+- You MUST identify the **EXACT** daily news article and the **EXACT** note it impacts.
 - Format: "⚠️ **Update Required**: The new article '[Article Title]' suggests a change to your note '[Note Title]'."
 
-            CONTEXT(Live Scan Results):
+CONTEXT (Live Scan Results):
 ${JSON.stringify(context)}
 
 Be professional, precise, and act like a smart news anchor giving a personalized briefing.`;
@@ -220,7 +222,7 @@ Be professional, precise, and act like a smart news anchor giving a personalized
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${OPENROUTER_API_KEY} `,
+                    'Authorization': `Bearer ${secureKey}`,
                     'Content-Type': 'application/json',
                     'HTTP-Referer': 'https://prepassist.in',
                     'X-Title': 'PrepAssist UPSC',
