@@ -169,29 +169,37 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
         const matches: MatchedArticle[] = [];
         const processedArticleIds = new Set<number>();
 
-        // Synonyms for common UPSC terms
-        const synonyms: Record<string, string[]> = {
-            'aadhar': ['aadhaar'],
-            'aadhaar': ['aadhar'],
-            'gst': ['goods and services tax'],
-            'mgnrega': ['nrega'],
-            'isro': ['indian space research organisation'],
-            'rbi': ['reserve bank of india'],
-            'sc': ['supreme court'],
-            'hc': ['high court'],
+        // Exhaustive Synonyms for robust UPSC matching
+        const synonymMap: Record<string, string[]> = {
+            'aadhar': ['aadhaar', 'uidai', 'unique identification', 'biometric identity'],
+            'aadhaar': ['aadhar', 'uidai', 'unique identification', 'biometric identity'],
+            'gst': ['goods and services tax', 'indirect tax', 'gst council', 'gstn'],
+            'rbi': ['reserve bank', 'monetary policy', 'central bank', 'shaktikanta das'],
+            'isro': ['space agency', 'satellite', 'launch vehicle', 'pslv', 'gslv', 'somnath'],
+            'judiciary': ['supreme court', 'high court', 'sc', 'hc', 'cji', 'justice'],
+            'sc': ['supreme court', 'judiciary'],
+            'hc': ['high court', 'judiciary'],
+            'environment': ['climate change', 'cop28', 'pollution', 'ecology', 'biodiversity'],
+            'economy': ['gdp', 'inflation', 'fiscal', 'monetary', 'budget', 'economic survey'],
+            'polity': ['constitution', 'parliament', 'bill', 'act', 'election', 'democracy'],
         };
 
         for (const article of articles) {
             if (processedArticleIds.has(article.id)) continue;
 
-            const articleText = `${article.title} ${article.summary || ''}`.toLowerCase();
+            const articleText = `${article.title} ${article.summary || ''} ${article.content_text || ''}`.toLowerCase();
 
             // Check each topic against this article
             for (const topic of topics) {
                 const keyword = topic.keyword;
-                const relatedKeywords = [keyword, ...(synonyms[keyword] || [])];
+                const relatedKeywords = [keyword, ...(synonymMap[keyword] || [])];
 
-                const isMatch = relatedKeywords.some(revisedKeyword => articleText.includes(revisedKeyword));
+                // Fuzzy/Substring Match
+                const isMatch = relatedKeywords.some(revisedKeyword => {
+                    // Check if keyword is present as a whole word or significant substring
+                    const regex = new RegExp(`\\b${revisedKeyword}\\b`, 'i');
+                    return regex.test(articleText) || articleText.includes(revisedKeyword);
+                });
 
                 if (isMatch) {
                     matches.push({
@@ -201,7 +209,7 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
                         articleTitle: article.title,
                         articleSummary: article.summary || '',
                         articleSource: article.source,
-                        matchReason: `Matched topic: "${topic.keyword}"`,
+                        matchReason: `Knowledge Match: "${topic.keyword}"`,
                         matchedTag: topic.keyword,
                         tagColor: topic.tagColor,
                         matchedAt: new Date().toISOString(),

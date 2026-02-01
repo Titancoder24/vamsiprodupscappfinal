@@ -46,29 +46,46 @@ export class InsightAgent {
                 };
             }
 
-            // 3. INTELLIGENT SELECTION: Find relevant notes regardless of date
-            // Combine article titles into one searchable string
-            const newsKeywords = articles.map(a => a.title.toLowerCase()).join(' ');
+            // 3. INTELLIGENT SELECTION: High-precision keyword matching
+            // Combine article titles and summaries into a rich search space
+            const newsSpace = articles.map(a => `${a.title} ${a.summary || ''}`).join(' ').toLowerCase();
 
-            // Priority 1: Direct or Fuzzy keyword matches (e.g., Aadhar/Aadhaar)
+            // Common UPSC Synonyms for exhaustive matching
+            const synonymMap: Record<string, string[]> = {
+                'aadhar': ['aadhaar', 'uidai', 'biometric'],
+                'aadhaar': ['aadhar', 'uidai', 'biometric'],
+                'gst': ['goods and services tax', 'indirect tax'],
+                'rbi': ['reserve bank', 'monetary policy'],
+                'isro': ['space', 'satellite', 'launch vehicle', 'pslv', 'gslv'],
+                'constitution': ['preamble', 'article', 'fundamental rights'],
+            };
+
             const relevantNotes = allNotes.filter(note => {
                 const title = note.title.toLowerCase();
-                // Check direct match
-                if (newsKeywords.includes(title)) return true;
-                // Check if title words exist in news (Aadhar fuzzy check)
-                const titleWords = title.split(/\s+/).filter(w => w.length > 3);
-                return titleWords.some(word =>
-                    newsKeywords.includes(word) ||
-                    (word === 'aadhar' && newsKeywords.includes('aadhaar')) ||
-                    (word === 'aadhaar' && newsKeywords.includes('aadhar'))
-                );
+                const content = note.content.toLowerCase().substring(0, 500);
+
+                // Strategy A: Word-level matching in Title or Content
+                const wordsToCheck = title.split(/\s+/).concat(content.split(/\s+/)).filter(w => w.length > 3);
+
+                return wordsToCheck.some(word => {
+                    // Check direct word in news space
+                    if (newsSpace.includes(word)) return true;
+
+                    // Check synonyms
+                    const synonyms = synonymMap[word] || [];
+                    if (synonyms.some(s => newsSpace.includes(s))) return true;
+
+                    return false;
+                });
             });
 
-            // Priority 2: Fill rest with most recent notes until we hit 50
-            const finalNotesSet = [...relevantNotes];
-            const recentNotes = allNotes.slice(0, 50);
-            for (const note of recentNotes) {
-                if (finalNotesSet.length >= 60) break;
+            // Priority: Always include the most relevant matches first
+            const finalNotesSet = [...relevantNotes].slice(0, 20); // Top relevant 20
+
+            // Fill the rest with general recent context
+            const recentNotesContext = allNotes.slice(0, 30);
+            for (const note of recentNotesContext) {
+                if (finalNotesSet.length >= 50) break;
                 if (!finalNotesSet.find(n => n.id === note.id)) {
                     finalNotesSet.push(note);
                 }
@@ -85,22 +102,28 @@ export class InsightAgent {
             }
 
             const systemPrompt = `You are a UPSC AI Assistant. Compare the student's notes with recent news articles.
-Your goal is to be extremely proactive. If a news article mentions a topic related to a student's note (even if not a direct conflict), suggest it as an update if it provides newer data, a new perspective, or a recent development.
+Your goal is to be a high-precision Knowledge Radar. 
 
-If anything provides an update OR conflicts with an older fact in the notes, identify the match.
-If everything is consistent, say everything is fine.
+Link the student's notes with news if there is:
+1. A factual update (e.g., New Aadhar app vs student's general Aadhar note).
+2. A keyword connection (e.g., Space mission matches student's ISRO note).
+3. A policy change (e.g., New Bill matches student's Polity note).
 
-CRITICAL: The "message" field in your JSON output must be exactly 1 or 2 sentences ONLY. No more.
+CRITICAL:
+- The "message" field in your JSON output must be exactly 1 or 2 sentences ONLY.
+- If match found, name the note title clearly in the reason.
 
 Output ONLY a JSON object:
 {
   "status": "ok" | "updates_available",
-  "message": "A strictly 1-2 sentence overview message about why these updates matter for UPSC",
-  "updates": [{"noteId": "...", "noteTitle": "...", "articleId": "...", "articleTitle": "...", "reason": "..."}]
+  "message": "A strictly 1-2 sentence high-impact summary",
+  "updates": [{"noteId": "...", "noteTitle": "...", "articleId": "...", "articleTitle": "...", "reason": "E.g. Your Aadhar note needs update with the new UIDAI biometric app features."}]
 }`;
 
-            const userPrompt = `Student Notes (Selected for relevance): ${JSON.stringify(finalNotesSet.map(n => ({ id: n.id, title: n.title, content: n.content.substring(0, 500) })))}
-Recent News (Last 20): ${JSON.stringify(articles.map(a => ({ id: a.id, title: a.title, summary: a.summary })))}`;
+            const userPrompt = `Student Context: ${JSON.stringify(finalNotesSet.map(n => ({ id: n.id, title: n.title, content: n.content.substring(0, 600) })))}
+Recent Daily News: ${JSON.stringify(articles.map(a => ({ id: a.id, title: a.title, summary: a.summary })))}`;
+
+            console.log(`[InsightAgent] Sending ${finalNotesSet.length} notes and ${articles.length} articles to AI`);
 
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
