@@ -16,5 +16,5 @@ export const isDev = (): boolean => {
 };
 
 // Credits bypass for dev
-export const getDevCredits = () => isDev() ? 9999 : 0;
+export const getDevCredits = () => isDev() ? 10 : 0;
 export const canBypassCredits = () => isDev();

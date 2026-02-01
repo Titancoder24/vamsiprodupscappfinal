@@ -151,6 +151,8 @@ export function LowCreditBanner({ isDark = false }: { isDark?: boolean }) {
     const navigation = useNavigation<any>();
     const { credits, loading } = useCredits();
 
+    console.log('[LowCreditBanner] Credits:', credits, 'Loading:', loading);
+
     // Explicitly show if credits < 50
     if (loading || credits >= 50) return null;
 

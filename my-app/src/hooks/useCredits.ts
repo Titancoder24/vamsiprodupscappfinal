@@ -45,6 +45,7 @@ export function useCredits() {
     const fetchCredits = useCallback(async () => {
         // Dev mode bypass
         if (canBypassCredits()) {
+            console.log('[Credits] Dev mode bypass detected. Credits:', getDevCredits());
             setCredits(getDevCredits());
             setPlanType('pro');
             setLoading(false);

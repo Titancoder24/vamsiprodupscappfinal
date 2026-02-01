@@ -30,6 +30,7 @@ import { Modal } from 'react-native';
 import InsightSupportModal from '../../../components/InsightSupportModal';
 import { InsightAgent } from '../../../services/InsightAgent';
 import { useTheme } from '../../../features/Reference/theme/ThemeContext';
+import { LowCreditBanner } from '../../../hooks/useAIFeature';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -71,7 +72,7 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
     const [showNotifications, setShowNotifications] = useState(false);
     const [showInsightSupport, setShowInsightSupport] = useState(false);
     const [aiInsightStatus, setAiInsightStatus] = useState<'none' | 'updates'>('none');
-    const { theme } = useTheme();
+    const { theme, isDark } = useTheme();
 
     // Reload data on focus
     useFocusEffect(
@@ -518,6 +519,9 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
                     </View>
                 </View>
             </Modal>
+
+            {/* Credits Warning */}
+            <LowCreditBanner isDark={isDark} />
 
             <FlatList
                 data={filteredNotes}
