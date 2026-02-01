@@ -11,6 +11,7 @@ import {
   Image,
   Linking,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
