@@ -95,6 +95,11 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
         setLoading(false);
     };
 
+    const handleManualScan = () => {
+        setMessages([{ role: 'user', content: "Scan my notes against the latest news." }]);
+        checkStatus();
+    };
+
     const handleSend = async () => {
         if (!inputText.trim()) return;
 
@@ -166,9 +171,33 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                                 </Text>
                             </View>
                         </View>
-                        <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-                            <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <TouchableOpacity
+                                onPress={handleManualScan}
+                                style={{
+                                    backgroundColor: theme.colors.primary + '20',
+                                    paddingHorizontal: 12,
+                                    paddingVertical: 6,
+                                    borderRadius: 20,
+                                    flexDirection: 'row',
+                                    gap: 6,
+                                    alignItems: 'center'
+                                }}
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <ActivityIndicator size="small" color={theme.colors.primary} />
+                                ) : (
+                                    <>
+                                        <Ionicons name="scan-outline" size={16} color={theme.colors.primary} />
+                                        <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.primary }}>Scan News</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                                <Ionicons name="close" size={24} color={theme.colors.textSecondary} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
 
                     {/* Chat Content */}
