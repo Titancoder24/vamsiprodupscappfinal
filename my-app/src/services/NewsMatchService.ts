@@ -169,6 +169,18 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
         const matches: MatchedArticle[] = [];
         const processedArticleIds = new Set<number>();
 
+        // Synonyms for common UPSC terms
+        const synonyms: Record<string, string[]> = {
+            'aadhar': ['aadhaar'],
+            'aadhaar': ['aadhar'],
+            'gst': ['goods and services tax'],
+            'mgnrega': ['nrega'],
+            'isro': ['indian space research organisation'],
+            'rbi': ['reserve bank of india'],
+            'sc': ['supreme court'],
+            'hc': ['high court'],
+        };
+
         for (const article of articles) {
             if (processedArticleIds.has(article.id)) continue;
 
@@ -176,22 +188,27 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
 
             // Check each topic against this article
             for (const topic of topics) {
-                if (articleText.includes(topic.keyword)) {
+                const keyword = topic.keyword;
+                const relatedKeywords = [keyword, ...(synonyms[keyword] || [])];
+
+                const isMatch = relatedKeywords.some(revisedKeyword => articleText.includes(revisedKeyword));
+
+                if (isMatch) {
                     matches.push({
-                        noteId: 0, // Will be linked if from a specific note
+                        noteId: 0,
                         noteTitle: topic.source === 'tag' ? `Tag: ${topic.keyword}` : topic.keyword,
                         articleId: article.id,
                         articleTitle: article.title,
                         articleSummary: article.summary || '',
                         articleSource: article.source,
-                        matchReason: `Matched: "${topic.keyword}"`,
+                        matchReason: `Matched topic: "${topic.keyword}"`,
                         matchedTag: topic.keyword,
                         tagColor: topic.tagColor,
                         matchedAt: new Date().toISOString(),
                         isRead: false,
                     });
                     processedArticleIds.add(article.id);
-                    break; // One match per article
+                    break;
                 }
             }
         }

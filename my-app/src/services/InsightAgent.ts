@@ -20,11 +20,10 @@ export interface InsightStatus {
 export class InsightAgent {
     static async checkNoteStatus(): Promise<InsightStatus> {
         try {
-            // 1. Fetch user's local notes - Increase limit to 50 for more comprehensive scanning
-            const notes = await getAllNotes();
-            const recentNotes = notes.slice(0, 50);
+            // 1. Fetch user's local notes
+            const allNotes = await getAllNotes();
 
-            if (!recentNotes || recentNotes.length === 0) {
+            if (!allNotes || allNotes.length === 0) {
                 return {
                     status: 'ok',
                     message: "You haven't taken any notes yet. Start writing to get AI insights!",
@@ -45,6 +44,34 @@ export class InsightAgent {
                     message: "Everything is fine. Your notes are up to date with the latest information.",
                     updates: []
                 };
+            }
+
+            // 3. INTELLIGENT SELECTION: Find relevant notes regardless of date
+            // Combine article titles into one searchable string
+            const newsKeywords = articles.map(a => a.title.toLowerCase()).join(' ');
+
+            // Priority 1: Direct or Fuzzy keyword matches (e.g., Aadhar/Aadhaar)
+            const relevantNotes = allNotes.filter(note => {
+                const title = note.title.toLowerCase();
+                // Check direct match
+                if (newsKeywords.includes(title)) return true;
+                // Check if title words exist in news (Aadhar fuzzy check)
+                const titleWords = title.split(/\s+/).filter(w => w.length > 3);
+                return titleWords.some(word =>
+                    newsKeywords.includes(word) ||
+                    (word === 'aadhar' && newsKeywords.includes('aadhaar')) ||
+                    (word === 'aadhaar' && newsKeywords.includes('aadhar'))
+                );
+            });
+
+            // Priority 2: Fill rest with most recent notes until we hit 50
+            const finalNotesSet = [...relevantNotes];
+            const recentNotes = allNotes.slice(0, 50);
+            for (const note of recentNotes) {
+                if (finalNotesSet.length >= 60) break;
+                if (!finalNotesSet.find(n => n.id === note.id)) {
+                    finalNotesSet.push(note);
+                }
             }
 
             // 3. AI Analysis via OpenRouter
@@ -72,7 +99,7 @@ Output ONLY a JSON object:
   "updates": [{"noteId": "...", "noteTitle": "...", "articleId": "...", "articleTitle": "...", "reason": "..."}]
 }`;
 
-            const userPrompt = `Student Notes (Last 50): ${JSON.stringify(recentNotes.map(n => ({ id: n.id, title: n.title, content: n.content.substring(0, 400) })))}
+            const userPrompt = `Student Notes (Selected for relevance): ${JSON.stringify(finalNotesSet.map(n => ({ id: n.id, title: n.title, content: n.content.substring(0, 500) })))}
 Recent News (Last 20): ${JSON.stringify(articles.map(a => ({ id: a.id, title: a.title, summary: a.summary })))}`;
 
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
