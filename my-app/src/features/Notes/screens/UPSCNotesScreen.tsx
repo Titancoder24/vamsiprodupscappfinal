@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
     View,
     Text,
@@ -72,10 +73,12 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
     const [aiInsightStatus, setAiInsightStatus] = useState<'none' | 'updates'>('none');
     const { theme } = useTheme();
 
-    // Load data on mount
-    useEffect(() => {
-        loadData();
-    }, []);
+    // Reload data on focus
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [])
+    );
 
     // Filter notes when search/tab/tags change
     useEffect(() => {
@@ -96,14 +99,17 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
 
             // Check for news matches
             try {
+                console.log('[UPSCNotes] Starting Knowledge Radar scan...');
                 const matches = await checkNewsMatches();
                 setNewsMatches(matches);
+                console.log(`[UPSCNotes] Scan complete. Found ${matches.length} matches.`);
             } catch (err) {
                 console.error("Failed to check news matches", err);
             }
 
             // AI Insight background check (Silent)
             InsightAgent.checkNoteStatus().then(res => {
+                console.log('[UPSCNotes] AI Insight status:', res.status, res.message);
                 if (res.status === 'updates_available') {
                     setAiInsightStatus('updates');
                 } else {
@@ -547,7 +553,7 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
                     style={styles.floatingAiGradient}
                 >
                     <Ionicons name="sparkles" size={24} color="#FFF" />
-                    {aiInsightStatus === 'updates' && <View style={styles.aiBadge} />}
+                    {(aiInsightStatus === 'updates' || newsMatches.length > 0) && <View style={styles.aiBadge} />}
                 </LinearGradient>
             </TouchableOpacity>
         </SafeAreaView>

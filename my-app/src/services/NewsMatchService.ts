@@ -11,7 +11,7 @@ import { MOBILE_API_URL } from '../config/api';
 
 const STORAGE_KEY = '@upsc_news_matches';
 const LAST_CHECK_KEY = '@upsc_last_news_check';
-const CHECK_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const CHECK_INTERVAL_MS = 60 * 1000; // REDUCED TO 1 MINUTE
 
 export interface MatchedArticle {
     noteId: number;
@@ -42,7 +42,7 @@ export const getUserStudyTopics = async (): Promise<UserStudyTopic[]> => {
     const addedKeywords = new Set<string>();
 
     try {
-        // 1. Get all tags (including user-created ones)
+        // 1. Get all tags
         const allTags = await getAllTags();
         for (const tag of allTags) {
             const keyword = tag.name.toLowerCase().trim();
@@ -57,17 +57,22 @@ export const getUserStudyTopics = async (): Promise<UserStudyTopic[]> => {
             }
         }
 
-        // 2. Get topics from note titles
+        // 2. Get topics from note titles & content
         const notes = await getAllNotes();
         for (const note of notes) {
-            // Add note title words as topics
             if (note.title && note.title !== 'Untitled') {
-                // Extract meaningful words (3+ chars)
-                const words = note.title
-                    .toLowerCase()
-                    .split(/\s+/)
-                    .filter(w => w.length > 3 && !isCommonWord(w));
+                const title = note.title.toLowerCase().trim();
+                if (title && !addedKeywords.has(title)) {
+                    topics.push({
+                        keyword: title,
+                        tagColor: '#6B7280',
+                        source: 'note_title',
+                    });
+                    addedKeywords.add(title);
+                }
 
+                // Add title words
+                const words = title.split(/\s+/).filter(w => w.length > 3 && !isCommonWord(w));
                 for (const word of words) {
                     if (!addedKeywords.has(word)) {
                         topics.push({
@@ -78,35 +83,9 @@ export const getUserStudyTopics = async (): Promise<UserStudyTopic[]> => {
                         addedKeywords.add(word);
                     }
                 }
-
-                // Also add full title as phrase
-                const fullTitle = note.title.toLowerCase().trim();
-                if (fullTitle.length > 4 && !addedKeywords.has(fullTitle)) {
-                    topics.push({
-                        keyword: fullTitle,
-                        tagColor: '#6B7280',
-                        source: 'note_title',
-                    });
-                    addedKeywords.add(fullTitle);
-                }
-            }
-
-            // Add note tags
-            for (const tag of note.tags) {
-                const keyword = tag.name.toLowerCase().trim();
-                if (!addedKeywords.has(keyword)) {
-                    topics.push({
-                        keyword,
-                        tagId: tag.id,
-                        tagColor: tag.color,
-                        source: 'tag',
-                    });
-                    addedKeywords.add(keyword);
-                }
             }
         }
 
-        console.log(`[NewsMatch] Found ${topics.length} study topics`);
         return topics;
     } catch (error) {
         console.error('[NewsMatch] Error getting topics:', error);
@@ -114,9 +93,6 @@ export const getUserStudyTopics = async (): Promise<UserStudyTopic[]> => {
     }
 };
 
-/**
- * Common words to ignore
- */
 const COMMON_WORDS = new Set([
     'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'can',
     'had', 'her', 'was', 'one', 'our', 'out', 'has', 'his', 'how',
@@ -136,18 +112,7 @@ const isCommonWord = (word: string): boolean => {
  */
 export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
     try {
-        // Check if we need to fetch (rate limiting)
-        const lastCheck = await AsyncStorage.getItem(LAST_CHECK_KEY);
-        const cachedMatches = await AsyncStorage.getItem(STORAGE_KEY);
-
-        if (lastCheck && cachedMatches) {
-            const elapsed = Date.now() - parseInt(lastCheck);
-            if (elapsed < CHECK_INTERVAL_MS) {
-                console.log('[NewsMatch] Using cached matches');
-                const parsed = JSON.parse(cachedMatches);
-                return parsed.filter((m: MatchedArticle) => !m.isRead);
-            }
-        }
+        console.log('[NewsMatch] Starting refresh...');
 
         // 1. Get user's study topics
         const topics = await getUserStudyTopics();
@@ -157,54 +122,36 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
         }
 
         // 2. Fetch latest news articles
-        const response = await fetch(`${MOBILE_API_URL}/articles?page=1&limit=100`);
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
+        const response = await fetch(`${MOBILE_API_URL}/articles?page=1&limit=50`);
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
 
         const data = await response.json();
         const articles = data.articles || [];
 
-        // 3. Match logic - find articles that mention user's topics
+        // 3. Match logic
         const matches: MatchedArticle[] = [];
         const processedArticleIds = new Set<number>();
 
-        // Exhaustive Synonyms for robust UPSC matching
         const synonymMap: Record<string, string[]> = {
-            'aadhar': ['aadhaar', 'uidai', 'unique identification', 'biometric identity'],
-            'aadhaar': ['aadhar', 'uidai', 'unique identification', 'biometric identity'],
-            'gst': ['goods and services tax', 'indirect tax', 'gst council', 'gstn'],
-            'rbi': ['reserve bank', 'monetary policy', 'central bank', 'shaktikanta das'],
-            'isro': ['space agency', 'satellite', 'launch vehicle', 'pslv', 'gslv', 'somnath'],
-            'judiciary': ['supreme court', 'high court', 'sc', 'hc', 'cji', 'justice'],
-            'sc': ['supreme court', 'judiciary'],
-            'hc': ['high court', 'judiciary'],
-            'environment': ['climate change', 'cop28', 'pollution', 'ecology', 'biodiversity'],
-            'economy': ['gdp', 'inflation', 'fiscal', 'monetary', 'budget', 'economic survey'],
-            'polity': ['constitution', 'parliament', 'bill', 'act', 'election', 'democracy'],
+            'aadhar': ['aadhaar', 'uidai', 'biometric'],
+            'aadhaar': ['aadhar', 'uidai', 'biometric'],
+            'gst': ['goods and services tax'],
+            'isro': ['space', 'satellite', 'pslv'],
         };
 
         for (const article of articles) {
-            if (processedArticleIds.has(article.id)) continue;
-
             const articleText = `${article.title} ${article.summary || ''} ${article.content_text || ''}`.toLowerCase();
 
-            // Check each topic against this article
             for (const topic of topics) {
                 const keyword = topic.keyword;
-                const relatedKeywords = [keyword, ...(synonymMap[keyword] || [])];
+                const variants = [keyword, ...(synonymMap[keyword] || [])];
 
-                // Fuzzy/Substring Match
-                const isMatch = relatedKeywords.some(revisedKeyword => {
-                    // Check if keyword is present as a whole word or significant substring
-                    const regex = new RegExp(`\\b${revisedKeyword}\\b`, 'i');
-                    return regex.test(articleText) || articleText.includes(revisedKeyword);
-                });
+                const isMatch = variants.some(v => articleText.includes(v));
 
                 if (isMatch) {
                     matches.push({
-                        noteId: 0,
-                        noteTitle: topic.source === 'tag' ? `Tag: ${topic.keyword}` : topic.keyword,
+                        noteId: 1,
+                        noteTitle: topic.keyword,
                         articleId: article.id,
                         articleTitle: article.title,
                         articleSummary: article.summary || '',
@@ -221,44 +168,27 @@ export const checkNewsMatches = async (): Promise<MatchedArticle[]> => {
             }
         }
 
-        // 4. Cache results
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(matches));
-        await AsyncStorage.setItem(LAST_CHECK_KEY, Date.now().toString());
-
-        console.log(`[NewsMatch] Found ${matches.length} matching articles`);
+        console.log(`[NewsMatch] Found ${matches.length} matches`);
         return matches;
+
     } catch (error) {
-        console.error('[NewsMatch] Error checking matches:', error);
-        // Return cached if available
-        const cached = await AsyncStorage.getItem(STORAGE_KEY);
-        if (cached) {
-            return JSON.parse(cached).filter((m: MatchedArticle) => !m.isRead);
-        }
+        console.error('[NewsMatch] Error:', error);
         return [];
     }
 };
 
-/**
- * Mark a match as read
- */
 export const markMatchAsRead = async (articleId: number): Promise<void> => {
     try {
         const cached = await AsyncStorage.getItem(STORAGE_KEY);
         if (cached) {
             const matches: MatchedArticle[] = JSON.parse(cached);
-            const updated = matches.map(m =>
-                m.articleId === articleId ? { ...m, isRead: true } : m
-            );
+            const updated = matches.map(m => m.articleId === articleId ? { ...m, isRead: true } : m);
             await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
         }
-    } catch (error) {
-        console.error('[NewsMatch] Error marking as read:', error);
-    }
+    } catch (e) { }
 };
 
-/**
- * Get unread match count
- */
 export const getUnreadMatchCount = async (): Promise<number> => {
     try {
         const cached = await AsyncStorage.getItem(STORAGE_KEY);
@@ -267,22 +197,13 @@ export const getUnreadMatchCount = async (): Promise<number> => {
             return matches.filter(m => !m.isRead).length;
         }
         return 0;
-    } catch (error) {
-        return 0;
-    }
+    } catch (e) { return 0; }
 };
 
-/**
- * Clear all matches (for testing)
- */
 export const clearAllMatches = async (): Promise<void> => {
-    await AsyncStorage.multiRemove([STORAGE_KEY, LAST_CHECK_KEY]);
+    await AsyncStorage.removeItem(STORAGE_KEY);
 };
 
-/**
- * Force refresh matches (bypass cache)
- */
 export const forceRefreshMatches = async (): Promise<MatchedArticle[]> => {
-    await AsyncStorage.removeItem(LAST_CHECK_KEY);
     return checkNewsMatches();
 };

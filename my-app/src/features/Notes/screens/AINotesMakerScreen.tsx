@@ -1879,7 +1879,7 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                     style={styles.floatingAiGradient}
                 >
                     <Ionicons name="sparkles" size={24} color="#FFF" />
-                    {aiInsightStatus === 'updates' && <View style={styles.aiBadge} />}
+                    {(aiInsightStatus === 'updates' || newsMatches.length > 0) && <View style={styles.aiBadge} />}
                 </LinearGradient>
             </TouchableOpacity>
 
