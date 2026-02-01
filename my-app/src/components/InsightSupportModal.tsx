@@ -14,6 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../features/Reference/theme/ThemeContext';
 import { InsightAgent, InsightStatus } from '../services/InsightAgent';
+import { checkNewsMatches, MatchedArticle } from '../services/NewsMatchService';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -45,6 +46,7 @@ const TypingText: React.FC<{ text: string; style: any }> = ({ text, style }) => 
 const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
     const { theme, isDark } = useTheme();
     const [status, setStatus] = useState<InsightStatus | null>(null);
+    const [newsMatches, setNewsMatches] = useState<MatchedArticle[]>([]);
     const [loading, setLoading] = useState(true);
     const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -90,8 +92,16 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
 
     const checkStatus = async () => {
         setLoading(true);
-        const result = await InsightAgent.checkNoteStatus();
-        setStatus(result);
+        try {
+            const [aiResult, radarMatches] = await Promise.all([
+                InsightAgent.checkNoteStatus(),
+                checkNewsMatches()
+            ]);
+            setStatus(aiResult);
+            setNewsMatches(radarMatches);
+        } catch (error) {
+            console.error('[InsightModal] Failed to fetch intelligence:', error);
+        }
         setLoading(false);
     };
 
@@ -160,28 +170,70 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                             {status?.status === 'updates_available' && (
                                 <View style={styles.updateList}>
                                     <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
-                                        NEWS UPDATES FOR YOUR NOTES
+                                        AI GENIUS UPDATES
                                     </Text>
                                     {status.updates.map((update, idx) => (
                                         <View
-                                            key={idx}
+                                            key={`ai-${idx}`}
                                             style={[styles.updateCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
                                         >
                                             <View style={styles.updateCardHeader}>
-                                                <Ionicons name="document-text" size={16} color={theme.colors.primary} />
+                                                <Ionicons name="bulb" size={16} color="#F59E0B" />
                                                 <Text style={[styles.noteTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                                                    Ref: {update.noteTitle}
+                                                    Topic: {update.noteTitle}
                                                 </Text>
                                             </View>
                                             <Text style={[styles.updateReason, { color: theme.colors.text }]}>
                                                 {update.reason}
                                             </Text>
-                                            <TouchableOpacity style={[styles.checkBtn, { backgroundColor: theme.colors.primary + '15' }]}>
-                                                <Text style={[styles.checkBtnText, { color: theme.colors.primary }]}>Read New Update</Text>
-                                                <Ionicons name="arrow-forward" size={14} color={theme.colors.primary} />
+                                            <TouchableOpacity style={[styles.checkBtn, { backgroundColor: '#F59E0B15' }]}>
+                                                <Text style={[styles.checkBtnText, { color: '#F59E0B' }]}>Analyze Insight</Text>
+                                                <Ionicons name="sparkles" size={14} color="#F59E0B" />
                                             </TouchableOpacity>
                                         </View>
                                     ))}
+                                </View>
+                            )}
+
+                            {newsMatches.length > 0 && (
+                                <View style={[styles.updateList, { marginTop: 24 }]}>
+                                    <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
+                                        KNOWLEDGE RADAR HITS
+                                    </Text>
+                                    {newsMatches.map((match, idx) => (
+                                        <View
+                                            key={`radar-${idx}`}
+                                            style={[styles.updateCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
+                                        >
+                                            <View style={styles.updateCardHeader}>
+                                                <Ionicons name="radio" size={16} color="#3B82F6" />
+                                                <Text style={[styles.noteTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                                                    Ref Note: {match.noteTitle}
+                                                </Text>
+                                            </View>
+                                            <Text style={[styles.articleTitle, { color: theme.colors.text }]}>
+                                                {match.articleTitle}
+                                            </Text>
+                                            <Text style={[styles.updateReason, { color: theme.colors.textSecondary, fontSize: 13 }]}>
+                                                {match.matchReason}
+                                            </Text>
+                                            <TouchableOpacity style={[styles.checkBtn, { backgroundColor: '#3B82F615' }]}>
+                                                <Text style={[styles.checkBtnText, { color: '#3B82F6' }]}>Read Article</Text>
+                                                <Ionicons name="newspaper-outline" size={14} color="#3B82F6" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+
+                            {status?.status === 'ok' && newsMatches.length === 0 && (
+                                <View style={styles.okContainer}>
+                                    <View style={[styles.okCircle, { backgroundColor: '#10B98120' }]}>
+                                        <Ionicons name="checkmark-circle" size={40} color="#10B981" />
+                                    </View>
+                                    <Text style={[styles.okText, { color: theme.colors.textSecondary }]}>
+                                        Deep scan complete. Your notes are 100% aligned with the latest UPSC developments.
+                                    </Text>
                                 </View>
                             )}
 
@@ -311,6 +363,11 @@ const styles = StyleSheet.create({
         fontSize: 14,
         lineHeight: 20,
         fontWeight: '500',
+    },
+    articleTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        marginBottom: 4,
     },
     checkBtn: {
         flexDirection: 'row',

@@ -162,6 +162,18 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         }
     };
 
+    // Live Heartbeat: Auto-scan for news every 5 mins
+    useEffect(() => {
+        const interval = setInterval(() => {
+            console.log('[AINotes-Heartbeat] Proactive scan cycle...');
+            checkNewsMatches().then(matches => setNewsMatches(matches));
+            InsightAgent.checkNoteStatus().then(res => {
+                if (res.status === 'updates_available') setAiInsightStatus('updates');
+            });
+        }, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, []);
+
     const [showInsightSupport, setShowInsightSupport] = useState(false);
 
     // ========== TAG MANAGEMENT ==========

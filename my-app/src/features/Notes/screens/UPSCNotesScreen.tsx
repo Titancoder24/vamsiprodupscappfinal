@@ -80,6 +80,21 @@ export const UPSCNotesScreen: React.FC<UPSCNotesScreenProps> = ({ navigation }) 
         }, [])
     );
 
+    // Live Heartbeat: Auto-scan for news every 5 mins while focused
+    useEffect(() => {
+        const interval = setInterval(() => {
+            console.log('[Heartbeat] Proactive background scan starting...');
+            checkNewsMatches().then(matches => {
+                setNewsMatches(matches);
+                console.log(`[Heartbeat] Scan complete. ${matches.length} active updates.`);
+            });
+            InsightAgent.checkNoteStatus().then(res => {
+                if (res.status === 'updates_available') setAiInsightStatus('updates');
+            });
+        }, 5 * 60 * 1000); // 5 minutes
+        return () => clearInterval(interval);
+    }, []);
+
     // Filter notes when search/tab/tags change
     useEffect(() => {
         filterNotes();
