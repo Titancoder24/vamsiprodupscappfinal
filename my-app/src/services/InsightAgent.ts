@@ -66,13 +66,13 @@ export class InsightAgent {
             const notesPayload = allNotes.map(n => ({
                 id: n.id,
                 title: n.title,
-                content: n.content || '' // Sending FULL content
+                content: n.content || '' // FULL CONTENT of notes
             }));
 
             const newsPayload = articles.map(a => ({
                 id: a.id,
-                title: a.title,
-                text: (a.content_text || a.summary || '').substring(0, 5000) // Truncate individual articles only if absurdly large
+                title: a.title, // Only Title as requested
+                summary: (a.summary || '').substring(0, 150) // Tiny context helper
             }));
 
             // 4. AI Analysis via OpenRouter
