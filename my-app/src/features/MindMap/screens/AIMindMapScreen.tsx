@@ -36,6 +36,8 @@ import {
   Message,
 } from '../services/openRouterApi';
 import { Input } from '../../../components/Input';
+import { LowCreditBanner } from '../../../hooks/useAIFeature';
+import useCredits from '../../../hooks/useCredits';
 
 interface AIMindMapScreenProps {
   navigation: any;
@@ -363,6 +365,9 @@ const AIMindMapScreen: React.FC<AIMindMapScreenProps> = ({ navigation, route }) 
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Credits Warning */}
+      <LowCreditBanner isDark={isDark} />
 
       {/* Content */}
       {viewMode === 'chat' ? (

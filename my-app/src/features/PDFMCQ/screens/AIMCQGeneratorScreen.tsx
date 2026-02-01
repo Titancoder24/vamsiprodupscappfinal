@@ -31,7 +31,7 @@ import { useTheme } from '../../Reference/theme/ThemeContext';
 // @ts-ignore
 import { useWebStyles } from '../../../components/WebContainer';
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
-import { useAIFeature, CreditInfoBanner } from '../../../hooks/useAIFeature';
+import { useAIFeature, CreditInfoBanner, LowCreditBanner } from '../../../hooks/useAIFeature';
 import {
     createMCQSession,
     saveMCQSession,
@@ -477,6 +477,9 @@ export default function AIMCQGeneratorScreen() {
                         All generated MCQs are stored locally on your device. Nothing is uploaded to any server.
                     </Text>
                 </View>
+
+                {/* Credits Warning */}
+                <LowCreditBanner isDark={isDark} />
 
                 {/* Form */}
                 {mcqs.length === 0 && !isLoading && (

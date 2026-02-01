@@ -22,6 +22,7 @@ import { saveEssayAttempt, getEssayAttempts } from '../utils/storage';
 import { OPENROUTER_API_KEY } from '../utils/secureKey';
 import { SmartTextInput } from '../components/SmartTextInput';
 import useCredits from '../hooks/useCredits';
+import { LowCreditBanner } from '../hooks/useAIFeature';
 
 // OpenRouter Configuration
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -668,6 +669,9 @@ Return ONLY valid JSON, no markdown blocks or explanation.`;
             </Text>
           </View>
         </View>
+
+        {/* Credits Warning */}
+        <LowCreditBanner isDark={isDark} />
 
         {/* Topic Input */}
         <View style={styles.section}>

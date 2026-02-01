@@ -41,6 +41,7 @@ if (Platform.OS !== 'web') {
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { savePDFMCQSession, getAllPDFMCQSessions, getPDFMCQSession, updatePDFMCQSession, PDFMCQSession, calculateSessionScore } from '../utils/pdfMCQStorage';
 import useCredits from '../../../hooks/useCredits';
+import { LowCreditBanner } from '../../../hooks/useAIFeature';
 import { supabase } from '../../../lib/supabase';
 import { canBypassCredits } from '../../../utils/devMode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1387,6 +1388,9 @@ export default function PDFGeneratorScreen() {
                         All generated MCQs are stored locally on your device. Nothing is uploaded to any server.
                     </Text>
                 </View>
+
+                {/* Credits Warning */}
+                <LowCreditBanner isDark={isDark} />
 
                 {/* Upload Card (when no MCQs) */}
                 {mcqs.length === 0 && (

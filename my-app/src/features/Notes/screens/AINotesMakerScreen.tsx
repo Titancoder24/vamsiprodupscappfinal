@@ -51,6 +51,7 @@ import InsightSupportModal from '../../../components/InsightSupportModal';
 import { InsightAgent } from '../../../services/InsightAgent';
 import useCredits from '../../../hooks/useCredits'; // Corrected path
 import PayWallPopup from '../../../components/PayWallPopup';
+import { LowCreditBanner } from '../../../hooks/useAIFeature';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -1845,25 +1846,8 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                 </View>
             </Modal>
 
-            {/* Premium Dashboard Card (Visible if low credits) */}
-            {credits < 5 && (
-                <View style={{ marginHorizontal: 16, marginTop: 16, marginBottom: 8, padding: 16, backgroundColor: '#EFF6FF', borderRadius: 12, borderWidth: 1, borderColor: '#BFDBFE', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 16, fontWeight: '700', color: '#1E40AF', marginBottom: 4 }}>
-                            Running Low on AI Credits?
-                        </Text>
-                        <Text style={{ fontSize: 13, color: '#3B82F6' }}>
-                            You have {credits} credits left. Top up to keep using Insight Agent & Summaries.
-                        </Text>
-                    </View>
-                    <TouchableOpacity
-                        onPress={() => navigation.navigate('Billing')}
-                        style={{ backgroundColor: '#2563EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}
-                    >
-                        <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13 }}>Get Credits</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+            {/* Premium Dashboard Card (Visible if low credits < 50) */}
+            <LowCreditBanner isDark={isDark} />
 
             {/* Stats Bar */}
             <View style={styles.statsBar}>

@@ -143,6 +143,49 @@ export function CreditInfoBanner({ feature, isDark = false }: CreditInfoBannerPr
     );
 }
 
+/**
+ * Running Low on Credits Banner
+ * Visible when user has < 50 credits
+ */
+export function LowCreditBanner({ isDark = false }: { isDark?: boolean }) {
+    const navigation = useNavigation<any>();
+    const { credits, loading } = useCredits();
+
+    // Explicitly show if credits < 50
+    if (loading || credits >= 50) return null;
+
+    return (
+        <View style={{
+            marginHorizontal: 16,
+            marginTop: 16,
+            marginBottom: 8,
+            padding: 16,
+            backgroundColor: isDark ? '#1A2942' : '#EFF6FF',
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: isDark ? '#2563EB' : '#BFDBFE',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+        }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontSize: 16, fontWeight: '700', color: isDark ? '#FFF' : '#1E40AF', marginBottom: 4 }}>
+                    Running Low on AI Credits?
+                </Text>
+                <Text style={{ fontSize: 13, color: isDark ? '#BFDBFE' : '#3B82F6' }}>
+                    You have {credits} credits left. Top up to keep using all AI features.
+                </Text>
+            </View>
+            <TouchableOpacity
+                onPress={() => navigation.navigate('Billing')}
+                style={{ backgroundColor: '#2563EB', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 }}
+            >
+                <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13 }}>Get Credits</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     banner: {
         flexDirection: 'row',
