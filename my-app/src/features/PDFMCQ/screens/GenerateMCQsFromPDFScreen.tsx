@@ -2215,7 +2215,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 24,
         right: 20,
-        backgroundColor: '#4B5563',
+        backgroundColor: '#6366F1',
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
