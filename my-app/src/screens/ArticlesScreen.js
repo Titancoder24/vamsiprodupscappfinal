@@ -60,21 +60,36 @@ export default function ArticlesScreen({ navigation }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [sortOrder, setSortOrder] = useState('desc'); // 'desc' or 'asc'
 
-  const handleDateChange = (event, date) => {
+  const handleDateChange = (event, dateOrString) => {
     setShowDatePicker(false);
-    if (date) {
-      // Use local date components to avoid timezone offset issues with toISOString()
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const formattedDate = `${year}-${month}-${day}`;
-      setSelectedDate(formattedDate);
+
+    // On Web, dateOrString might be event.target.value (string) or a Date object from the component
+    let finalDate = null;
+
+    if (dateOrString instanceof Date) {
+      const year = dateOrString.getFullYear();
+      const month = String(dateOrString.getMonth() + 1).padStart(2, '0');
+      const day = String(dateOrString.getDate()).padStart(2, '0');
+      finalDate = `${year}-${month}-${day}`;
+    } else if (typeof dateOrString === 'string' && dateOrString) {
+      finalDate = dateOrString; // Already YYYY-MM-DD from input type="date"
+    } else if (event?.target?.value) {
+      finalDate = event.target.value;
+    }
+
+    if (finalDate) {
+      setSelectedDate(finalDate);
     }
   };
 
   const clearDateFilter = () => {
     setSelectedDate(null);
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => (prev === 'desc' ? 'asc' : 'desc'));
   };
 
   const fetchArticles = useCallback(async (refresh = false) => {
@@ -93,8 +108,8 @@ export default function ArticlesScreen({ navigation }) {
         .from('articles')
         .select('*')
         .eq('is_published', true)
-        .order('published_date', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false });
+        .order('published_date', { ascending: sortOrder === 'asc', nullsFirst: false })
+        .order('created_at', { ascending: sortOrder === 'asc' });
 
       // Apply filters
       if (selectedSource) {
@@ -111,14 +126,14 @@ export default function ArticlesScreen({ navigation }) {
           .lte('published_date', endOfDay);
       }
 
-      const { data, error: fetchError } = await query.limit(50);
+      const { data, error: fetchError } = await query.limit(100);
 
       if (fetchError) {
         console.error('Supabase error:', fetchError);
         throw fetchError;
       }
 
-      console.log(`Fetched ${data?.length || 0} articles`);
+      console.log(`Fetched ${data?.length || 0} articles with sort ${sortOrder}`);
       setArticles(data || []);
     } catch (err) {
       setError('Failed to load articles. Please try again.');
@@ -127,7 +142,7 @@ export default function ArticlesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedSource, selectedSubject, selectedDate]);
+  }, [selectedSource, selectedSubject, selectedDate, sortOrder]);
 
   useEffect(() => {
     fetchArticles();
@@ -309,43 +324,49 @@ export default function ArticlesScreen({ navigation }) {
           {FILTERS.sources.map(source => renderSourceCard(source))}
         </View>
 
-        {/* Date Filter */}
+        {/* Date & Sort Row */}
         <View style={styles.dateFilterRow}>
           {Platform.OS === 'web' ? (
-            <View style={[styles.dateButton, { backgroundColor: theme.colors.surface, position: 'relative', overflow: 'hidden' }]}>
+            <View style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 2, flexDirection: 'row', alignItems: 'center' }]}>
               <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} style={{ marginRight: 8 }} />
-              <Text style={[styles.dateButtonText, { color: theme.colors.text }]}>
-                {selectedDate || 'Pick Date'}
-              </Text>
-              <DateTimePicker
-                value={selectedDate ? new Date(selectedDate) : new Date()}
-                mode="date"
-                display="default"
-                onChange={handleDateChange}
+              <input
+                type="date"
+                value={selectedDate || ''}
+                onChange={(e) => handleDateChange(e, e.target.value)}
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  opacity: 0,
+                  border: 'none',
+                  background: 'transparent',
+                  color: isDark ? '#FFFFFF' : '#000000',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  outline: 'none',
                   cursor: 'pointer',
-                  width: '100%',
-                  height: '100%'
+                  width: '100%'
                 }}
               />
             </View>
           ) : (
             <TouchableOpacity
-              style={[styles.dateButton, { backgroundColor: theme.colors.surface }]}
+              style={[styles.dateButton, { backgroundColor: theme.colors.surface, flex: 2 }]}
               onPress={() => setShowDatePicker(true)}
             >
               <Ionicons name="calendar-outline" size={18} color={theme.colors.primary} />
-              <Text style={[styles.dateButtonText, { color: theme.colors.text }]}>
-                {selectedDate || 'dd/mm/yyyy'}
+              <Text style={[styles.dateButtonText, { color: theme.colors.text, marginLeft: 8 }]}>
+                {selectedDate || 'Pick Date'}
               </Text>
             </TouchableOpacity>
           )}
+
+          {/* Sort Button */}
+          <TouchableOpacity
+            style={[styles.sortButton, { backgroundColor: theme.colors.surface, flex: 1 }]}
+            onPress={toggleSortOrder}
+          >
+            <Ionicons name="swap-vertical" size={16} color={theme.colors.primary} />
+            <Text style={[styles.dateButtonText, { color: theme.colors.text, marginLeft: 4 }]}>
+              {sortOrder === 'desc' ? 'Newest' : 'Oldest'}
+            </Text>
+          </TouchableOpacity>
 
           {selectedDate && (
             <TouchableOpacity style={styles.clearDateBtn} onPress={clearDateFilter}>
@@ -476,10 +497,18 @@ const styles = StyleSheet.create({
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 10,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+    marginLeft: 8,
   },
   dateButtonText: {
     fontSize: 14,
