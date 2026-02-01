@@ -67,14 +67,14 @@ export class InsightAgent {
                 };
             }
 
-            // 2. Fetch Latest 100 Articles (Full Text)
-            // Increased limit to 100 to cast a wider net
-            console.log('[OmniscientAgent] Fetching latest 100 news articles...');
+            // 2. Fetch Latest 1000 Articles (Headline Scan)
+            // Massive scale, low bandwidth. Just checking headlines.
+            console.log('[OmniscientAgent] Fetching latest 1000 news headlines...');
             const { data: articles, error } = await supabase
                 .from('articles')
-                .select('id, title, summary, content_text')
+                .select('id, title') // ONLY Titles as requested
                 .order('created_at', { ascending: false })
-                .limit(100);
+                .limit(1000);
 
             if (error || !articles || articles.length === 0) {
                 console.log('[OmniscientAgent] No recent articles found.');
@@ -86,17 +86,17 @@ export class InsightAgent {
             }
 
             // 3. OMNISCIENT PAYLOAD CONSTRUCTION
+            // Strategy: Send LOTS of items, but keep each item brief (Title + short summary)
+
             const notesPayload = allNotes.map(n => ({
                 id: n.id,
                 title: n.title,
-                content: n.content || ''
+                content: (n.content || '').substring(0, 300) // First 300 chars of note is enough for context
             }));
 
             const newsPayload = articles.map(a => ({
                 id: a.id,
-                title: a.title,
-                // We prioritize the summary for speed, but fallback to content if needed
-                text: (a.summary || a.content_text || '').substring(0, 500)
+                title: a.title, // PURE TITLE MATCHING
             }));
 
             // 4. AI Analysis via OpenRouter
@@ -107,25 +107,22 @@ export class InsightAgent {
                 return { status: 'ok', message: "Everything is fine. Keep studying!", updates: [] };
             }
 
-            const systemPrompt = `You are the UPSC "Omniscient" Intelligence Agent. 
-Your goal is to cross-reference the User's ENTIRE Note Database against the Latest News Corpus.
+            const systemPrompt = `You are the UPSC "Headline Scanner".
+Your goal is to cross-reference the User's Notes against 1000 News Headlines.
 
-*** CRITICAL INSTRUCTION: BE HYPER-SENSITIVE ***
-You are NOT looking for "conflicts". You are looking for ANY RELEVANCE.
-If a news article is even REMOTELY related to a note, proper noun, or concept in the user's notes, FLAG IT.
+*** CRITICAL INSTRUCTION: TITLE-ONLY MATCHING ***
+You are analyzing identifying "New Articles" relevant to the user's study topics.
+If a News Headline mentions a topic, person, or policy found in the User's Notes, it is a MATCH.
 
 TASK:
-1. READ every single note provided.
-2. READ every single news article provided.
-3. MATCH them based on:
-   - Shared Keywords (e.g., Note: "Monetary Policy" <-> News: "RBI Hike")
-   - Entity Matches (e.g., Note: "Modi" <-> News: "PM visits France")
-   - Thematic Overlap (e.g., Note: "Agriculture" <-> News: "MSP Prices")
+1. Scan User Notes to understand their study topics.
+2. Scan the 1000 News Headlines.
+3. If a Headline matches a Note topic, FLAG IT as a "New Article".
 
 OUTPUT RULES:
 - If ANY match is found, status MUST be "updates_available".
-- "message" must be: "I found [X] relevant news updates for your notes."
-- "reason" must explain the link simply (e.g., "News mentions RBI, relevant to your Economy note.")
+- "message" must be: "I found [X] new articles for your notes."
+- "reason" must be: "New Article: [Article Title]"
 
 Output ONLY valid JSON:
 {
@@ -137,7 +134,7 @@ Output ONLY valid JSON:
       "noteTitle": "title",
       "articleId": "id",
       "articleTitle": "title",
-      "reason": "Why this matches"
+      "reason": "New Article: [Article Title]"
     }
   ]
 }`;
