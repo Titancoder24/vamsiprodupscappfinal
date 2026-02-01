@@ -199,22 +199,28 @@ const InsightSupportModal: React.FC<Props> = ({ visible, onClose }) => {
                         )}
 
                         {!loading && messages.map((msg, idx) => (
-                            <View
-                                key={idx}
-                                style={[
-                                    styles.bubble,
-                                    msg.role === 'user'
-                                        ? [styles.userBubble, { backgroundColor: theme.colors.primary }]
-                                        : [styles.aiBubble, { backgroundColor: isDark ? '#2D2D30' : '#F0F0F5' }]
-                                ]}
-                            >
-                                {msg.role === 'user' ? (
-                                    <Text style={styles.userText}>{msg.content}</Text>
-                                ) : (
-                                    <Text style={{ color: theme.colors.text, fontSize: 15, lineHeight: 22 }}>
-                                        {msg.content}
+                            <View key={idx} style={{ marginBottom: 12 }}>
+                                <View style={{ marginBottom: 4 }}>
+                                    <Text style={{ fontSize: 10, color: theme.colors.textSecondary, alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                                        {msg.role === 'user' ? 'You' : 'PrepAssist AI'}
                                     </Text>
-                                )}
+                                </View>
+                                <View
+                                    style={[
+                                        styles.bubble,
+                                        msg.role === 'user'
+                                            ? [styles.userBubble, { backgroundColor: theme.colors.primary }]
+                                            : [styles.aiBubble, { backgroundColor: isDark ? '#2D2D30' : '#F0F0F5' }]
+                                    ]}
+                                >
+                                    {msg.role === 'user' ? (
+                                        <Text style={styles.userText}>{msg.content}</Text>
+                                    ) : (
+                                        <Text style={{ color: theme.colors.text, fontSize: 15, lineHeight: 22 }}>
+                                            {msg.content}
+                                        </Text>
+                                    )}
+                                </View>
                             </View>
                         ))}
 
