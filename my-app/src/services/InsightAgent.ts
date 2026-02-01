@@ -160,7 +160,10 @@ Output ONLY valid JSON:
      */
     static async chatWithAgent(message: string, history: any[], context: any): Promise<string> {
         try {
-            if (!OPENROUTER_API_KEY) return "I can't connect to my brain right now. Check your API key.";
+            if (!OPENROUTER_API_KEY) {
+                console.error('[OmniscientChat] API Key missing');
+                return "I can't connect to my brain right now. API Key is missing.";
+            }
 
             const systemPrompt = `You are PrepAssist AI, the user's personal "Knowledge Radar" and Daily News Analyst.
 
@@ -170,12 +173,10 @@ YOUR MISSION:
 
 IF NO UPDATES FOUND (Context has empty updates):
 - You MUST explicitly say: "✅ **You are 100% up-to-date.** I have scanned the daily news articles and found no conflicts or new developments related to your current notes."
-- Reassure them that their current material is valid.
 
 IF UPDATES ARE FOUND:
 - You MUST identify the **EXACT** daily news article and the **EXACT** note it impacts.
-- Format it clearly: "⚠️ **Update Required**: The new article '[Article Title]' suggests a change to your note '[Note Title]'."
-- Provide the specific information they need to add (the "missing link").
+- Format: "⚠️ **Update Required**: The new article '[Article Title]' suggests a change to your note '[Note Title]'."
 
 CONTEXT (Live Scan Results):
 ${JSON.stringify(context)}
@@ -188,6 +189,7 @@ Be professional, precise, and act like a smart news anchor giving a personalized
                 { role: 'user', content: message }
             ];
 
+            console.log('[OmniscientChat] Sending request to OpenRouter...');
             const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -203,11 +205,24 @@ Be professional, precise, and act like a smart news anchor giving a personalized
             });
 
             const data = await response.json();
-            return data.choices?.[0]?.message?.content || "I didn't catch that. Could you say it again?";
+
+            if (!response.ok) {
+                console.error('[OmniscientChat] API Error:', data);
+                const errorMsg = data.error?.message || 'Unknown API Error';
+                return `Connection Error: ${errorMsg}. Please check your API Key or try again.`;
+            }
+
+            const content = data.choices?.[0]?.message?.content;
+            if (!content) {
+                console.error('[OmniscientChat] Empty response:', data);
+                return "Received empty response from AI agent.";
+            }
+
+            return content;
 
         } catch (error) {
             console.error('[OmniscientChat] Failed:', error);
-            return "I'm having trouble connecting right now. Please try again.";
+            return "I'm having trouble connecting right now. Please check your internet connection.";
         }
     }
 }
