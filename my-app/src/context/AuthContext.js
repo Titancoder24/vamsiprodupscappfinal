@@ -234,24 +234,30 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Supabase sign up with email and password
-  const signUpWithEmail = async (email, password, name) => {
+  const signUpWithEmail = async (email, password, name, phone = '') => {
     try {
       console.log('[AuthContext] Signing up with Supabase:', email);
 
-      const { data, error } = await supabase.auth.signUp({
+      const signUpOptions = {
         email,
         password,
         options: {
           data: {
             name: name,
             full_name: name,
+            phone: phone || null,
           },
           // Use proper redirect URL based on platform
           emailRedirectTo: Platform.OS === 'web'
             ? `${window.location.origin}/auth/callback`
             : 'upscprep://auth/callback',
         },
-      });
+      };
+
+      // Note: Phone is stored in user_metadata (options.data.phone)
+      // The auth.users.phone column requires phone auth/verification to be enabled
+
+      const { data, error } = await supabase.auth.signUp(signUpOptions);
 
       if (error) {
         console.error('[AuthContext] Sign up error:', error.message);
@@ -287,30 +293,83 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const sendPasswordResetEmail = async (email) => {
+  // Send OTP for password reset
+  const sendPasswordOTP = async (email) => {
     try {
-      console.log('[AuthContext] Sending password reset email to:', email);
+      console.log('[AuthContext] Sending password reset OTP to:', email);
 
-      // Use proper redirect URL based on platform
-      const redirectTo = Platform.OS === 'web'
-        ? `${window.location.origin}/auth/reset-password`
-        : 'upscprep://reset-password';
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo,
+      // Use signInWithOtp with shouldCreateUser: false to only work for existing users
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false, // Only send OTP to existing users
+        },
       });
 
       if (error) {
-        console.error('[AuthContext] Password reset error:', error.message);
+        console.error('[AuthContext] Password reset OTP error:', error.message);
+        // If user doesn't exist, give a generic message for security
+        if (error.message.includes('User not found') || error.message.includes('Signups not allowed')) {
+          throw new Error('If an account exists with this email, a verification code has been sent.');
+        }
         throw new Error(error.message);
       }
 
-      console.log('[AuthContext] Password reset email sent successfully');
+      console.log('[AuthContext] Password reset OTP sent successfully');
       return true;
     } catch (error) {
-      console.error('[AuthContext] Error in sendPasswordResetEmail:', error);
+      console.error('[AuthContext] Error in sendPasswordOTP:', error);
       throw error;
     }
+  };
+
+  // Verify OTP and reset password
+  const verifyOTPAndResetPassword = async (email, token, newPassword) => {
+    try {
+      console.log('[AuthContext] Verifying OTP for:', email);
+
+      // First, verify the OTP to get a session
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email', // Using email OTP type
+      });
+
+      if (verifyError) {
+        console.error('[AuthContext] OTP verification error:', verifyError.message);
+        throw new Error(verifyError.message || 'Invalid or expired verification code');
+      }
+
+      if (!data?.session) {
+        throw new Error('Verification failed. Please try again.');
+      }
+
+      console.log('[AuthContext] OTP verified, updating password');
+
+      // Now update the password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) {
+        console.error('[AuthContext] Password update error:', updateError.message);
+        throw new Error(updateError.message || 'Failed to update password');
+      }
+
+      // Sign out after password reset so user can login with new password
+      await supabase.auth.signOut();
+
+      console.log('[AuthContext] Password reset successful');
+      return true;
+    } catch (error) {
+      console.error('[AuthContext] Error in verifyOTPAndResetPassword:', error);
+      throw error;
+    }
+  };
+
+  const sendPasswordResetEmail = async (email) => {
+    // Keep for backward compatibility, but now uses OTP
+    return sendPasswordOTP(email);
   };
 
   // Reset password with new password (after clicking reset link)
@@ -427,6 +486,8 @@ export const AuthProvider = ({ children }) => {
         signUpWithEmail,
         sendMagicLink,
         sendPasswordResetEmail,
+        sendPasswordOTP,
+        verifyOTPAndResetPassword,
         resetPassword,
         deleteAccount,
         updateUser,

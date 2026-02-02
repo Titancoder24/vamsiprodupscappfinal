@@ -11,6 +11,7 @@ import {
   ScrollView,
   Alert,
   Image,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../context/AuthContext';
@@ -18,17 +19,28 @@ import { SmartTextInput } from '../components/SmartTextInput';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function LoginScreen({ navigation }) {
-  const { signInWithEmail, signUpWithEmail, sendPasswordResetEmail, sendMagicLink } = useAuth();
+  const { signInWithEmail, signUpWithEmail, sendPasswordOTP, verifyOTPAndResetPassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [loadingType, setLoadingType] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
+
+  // Forgot password states
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: email, 2: OTP, 3: new password
+  const [resetEmail, setResetEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -60,6 +72,11 @@ export default function LoginScreen({ navigation }) {
       return;
     }
 
+    if (isSignUp && phone.trim() && !/^[+]?[0-9]{10,15}$/.test(phone.replace(/\s/g, ''))) {
+      showError('Please enter a valid mobile number');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setLoadingType('email');
@@ -69,7 +86,7 @@ export default function LoginScreen({ navigation }) {
 
       if (isSignUp) {
         // Sign Up with Email + Password
-        const result = await signUpWithEmail(email.trim().toLowerCase(), password, name.trim());
+        const result = await signUpWithEmail(email.trim().toLowerCase(), password, name.trim(), phone.trim());
 
         console.log('[Login] SignUp Result:', !!result);
 
@@ -112,23 +129,96 @@ export default function LoginScreen({ navigation }) {
     }
   };
 
-  const handleForgotPassword = async () => {
+  // Helper to mask email (e.g., "no****@gmail.com")
+  const maskEmail = (emailStr) => {
+    if (!emailStr) return '';
+    const [localPart, domain] = emailStr.split('@');
+    if (!domain) return emailStr;
+    const visibleChars = Math.min(2, localPart.length);
+    const masked = localPart.slice(0, visibleChars) + '****';
+    return `${masked}@${domain}`;
+  };
+
+  // Open forgot password modal and send OTP immediately
+  const openForgotPassword = async () => {
     if (!email.trim()) {
       Alert.alert('Email Required', 'Please enter your email address first.');
       return;
     }
 
+    setResetEmail(email.trim().toLowerCase());
+    setForgotStep(2); // Start at OTP step directly
+    setOtpCode('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setForgotError('');
+    setShowForgotModal(true);
+
+    // Send OTP immediately
     try {
-      setIsLoading(true);
-      setLoadingType('forgot');
-      await sendPasswordResetEmail(email.trim().toLowerCase());
-      Alert.alert('Check Your Email', 'If an account exists, a password reset link has been sent.');
+      setForgotLoading(true);
+      await sendPasswordOTP(email.trim().toLowerCase());
+      Alert.alert('Code Sent', `A verification code has been sent to ${maskEmail(email.trim().toLowerCase())}`);
     } catch (err) {
-      Alert.alert('Check Your Email', 'If an account exists, a password reset link has been sent.');
+      setForgotError(err.message || 'Failed to send verification code');
     } finally {
-      setIsLoading(false);
-      setLoadingType(null);
+      setForgotLoading(false);
     }
+  };
+
+  // Resend OTP
+  const handleResendOTP = async () => {
+    try {
+      setForgotLoading(true);
+      setForgotError('');
+      await sendPasswordOTP(resetEmail);
+      Alert.alert('Code Sent', `A new verification code has been sent to ${maskEmail(resetEmail)}`);
+    } catch (err) {
+      setForgotError(err.message || 'Failed to send verification code');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Verify OTP and proceed to new password
+  const handleVerifyOTP = () => {
+    if (!otpCode.trim() || otpCode.length < 6) {
+      setForgotError('Please enter the 6-digit code from your email');
+      return;
+    }
+    setForgotError('');
+    setForgotStep(3);
+  };
+
+  // Step 3: Reset password
+  const handleResetPassword = async () => {
+    if (!newPassword.trim() || newPassword.length < 6) {
+      setForgotError('Password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setForgotError('Passwords do not match');
+      return;
+    }
+
+    try {
+      setForgotLoading(true);
+      setForgotError('');
+      await verifyOTPAndResetPassword(resetEmail.trim().toLowerCase(), otpCode.trim(), newPassword);
+      setShowForgotModal(false);
+      Alert.alert('Success', 'Your password has been reset. Please login with your new password.');
+    } catch (err) {
+      setForgotError(err.message || 'Failed to reset password');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const closeForgotModal = () => {
+    setShowForgotModal(false);
+    setForgotStep(1);
+    setForgotError('');
   };
 
   return (
@@ -183,21 +273,39 @@ export default function LoginScreen({ navigation }) {
             {/* Form */}
             <View style={styles.form}>
               {isSignUp && (
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Full Name</Text>
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
-                    <SmartTextInput
-                      style={styles.input}
-                      placeholder="Enter your name"
-                      placeholderTextColor="#9CA3AF"
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="words"
-                      editable={!isLoading}
-                    />
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Full Name</Text>
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                      <SmartTextInput
+                        style={styles.input}
+                        placeholder="Enter your name"
+                        placeholderTextColor="#9CA3AF"
+                        value={name}
+                        onChangeText={setName}
+                        autoCapitalize="words"
+                        editable={!isLoading}
+                      />
+                    </View>
                   </View>
-                </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Mobile Number <Text style={styles.optionalLabel}>(Optional)</Text></Text>
+                    <View style={styles.inputContainer}>
+                      <Ionicons name="call-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                      <SmartTextInput
+                        style={styles.input}
+                        placeholder="+91 9876543210"
+                        placeholderTextColor="#9CA3AF"
+                        value={phone}
+                        onChangeText={setPhone}
+                        keyboardType="phone-pad"
+                        autoCapitalize="none"
+                        editable={!isLoading}
+                      />
+                    </View>
+                  </View>
+                </>
               )}
 
               <View style={styles.inputGroup}>
@@ -249,15 +357,11 @@ export default function LoginScreen({ navigation }) {
               {/* Forgot Password */}
               {!isSignUp && (
                 <TouchableOpacity
-                  onPress={handleForgotPassword}
+                  onPress={openForgotPassword}
                   style={styles.forgotButton}
                   disabled={isLoading}
                 >
-                  {loadingType === 'forgot' ? (
-                    <ActivityIndicator size="small" color="#6B7280" />
-                  ) : (
-                    <Text style={styles.forgotText}>Forgot password?</Text>
-                  )}
+                  <Text style={styles.forgotText}>Forgot password?</Text>
                 </TouchableOpacity>
               )}
 
@@ -310,6 +414,114 @@ export default function LoginScreen({ navigation }) {
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Forgot Password Modal */}
+      <Modal
+        visible={showForgotModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={closeForgotModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {forgotStep === 2 && 'Enter Verification Code'}
+                {forgotStep === 3 && 'Set New Password'}
+              </Text>
+              <TouchableOpacity onPress={closeForgotModal} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Error Message */}
+            {forgotError ? (
+              <View style={styles.modalErrorContainer}>
+                <Ionicons name="alert-circle" size={16} color="#DC2626" />
+                <Text style={styles.modalErrorText}>{forgotError}</Text>
+              </View>
+            ) : null}
+
+            {/* OTP is sent immediately - no step 1 needed */}
+
+            {/* Step 2: Enter OTP */}
+            {forgotStep === 2 && (
+              <>
+                <Text style={styles.modalSubtitle}>
+                  OTP has been sent to {maskEmail(resetEmail)}
+                </Text>
+                <View style={styles.modalInputContainer}>
+                  <Ionicons name="key-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                  <SmartTextInput
+                    style={styles.modalInput}
+                    placeholder="Enter 8-digit code"
+                    placeholderTextColor="#9CA3AF"
+                    value={otpCode}
+                    onChangeText={setOtpCode}
+                    keyboardType="number-pad"
+                    maxLength={8}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[styles.modalButton, forgotLoading && styles.buttonDisabled]}
+                  onPress={handleVerifyOTP}
+                  disabled={forgotLoading}
+                >
+                  <Text style={styles.modalButtonText}>Verify Code</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleResendOTP} disabled={forgotLoading}>
+                  <Text style={styles.resendText}>
+                    {forgotLoading ? 'Sending...' : 'Resend Code'}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            )}
+
+            {/* Step 3: New Password */}
+            {forgotStep === 3 && (
+              <>
+                <Text style={styles.modalSubtitle}>
+                  Create a new password for your account.
+                </Text>
+                <View style={styles.modalInputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                  <SmartTextInput
+                    style={styles.modalInput}
+                    placeholder="New password"
+                    placeholderTextColor="#9CA3AF"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    secureTextEntry
+                  />
+                </View>
+                <View style={styles.modalInputContainer}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+                  <SmartTextInput
+                    style={styles.modalInput}
+                    placeholder="Confirm password"
+                    placeholderTextColor="#9CA3AF"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    secureTextEntry
+                  />
+                </View>
+                <TouchableOpacity
+                  style={[styles.modalButton, forgotLoading && styles.buttonDisabled]}
+                  onPress={handleResetPassword}
+                  disabled={forgotLoading}
+                >
+                  {forgotLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.modalButtonText}>Reset Password</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -398,6 +610,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
   },
+  optionalLabel: {
+    fontSize: 12,
+    fontWeight: '400',
+    color: '#9CA3AF',
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -476,5 +693,92 @@ const styles = StyleSheet.create({
   footerLink: {
     color: '#6B7280',
     fontWeight: '500',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  modalCloseBtn: {
+    padding: 4,
+  },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  modalInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    height: 52,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  modalInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 16,
+    color: '#1A1A1A',
+  },
+  modalButton: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    height: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalErrorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  modalErrorText: {
+    color: '#DC2626',
+    fontSize: 13,
+    flex: 1,
+  },
+  resendText: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
