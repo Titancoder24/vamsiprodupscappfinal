@@ -1367,7 +1367,7 @@ export default function GenerateMCQsFromPDFScreen() {
                     <Ionicons name="arrow-back" size={22} color={theme.colors.text} />
                 </TouchableOpacity>
                 <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-                    Generate MCQs from PDF
+                    Generate MCQs from PDF (V2)
                 </Text>
                 <TouchableOpacity
                     style={[styles.savedBtn, { backgroundColor: theme.colors.primaryLight }]}
@@ -2226,8 +2226,8 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
-        elevation: 6,
-        zIndex: 1000,
+        zIndex: 9999,
+        elevation: 999,
     },
     bugReportFloatingText: {
         color: '#FFF',
