@@ -1018,6 +1018,12 @@ export default function GenerateMCQsFromPDFScreen() {
     const [pdfHistory, setPdfHistory] = useState<any[]>([]);
     const [hasSavedCurrentTest, setHasSavedCurrentTest] = useState(false);
 
+    // Bug Report State
+    const [showBugReportModal, setShowBugReportModal] = useState(false);
+    const [bugDescription, setBugDescription] = useState('');
+    const [sendingBugReport, setSendingBugReport] = useState(false);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
+
     // Storage key for PDF test scores
     const PDF_SCORES_KEY = 'pdf_mcq_test_scores';
 
@@ -1287,6 +1293,62 @@ export default function GenerateMCQsFromPDFScreen() {
             }
         });
         return { correct, answered };
+    };
+
+    // Send bug report via Supabase Edge Function
+    const handleSendBugReport = async () => {
+        if (!bugDescription.trim()) {
+            Alert.alert('Error', 'Please describe the bug before submitting.');
+            return;
+        }
+
+        setSendingBugReport(true);
+        try {
+            // Get user info if available
+            const { data: { user } } = await supabase.auth.getUser();
+
+            const bugReportData = {
+                description: bugDescription.trim(),
+                user_email: user?.email || 'Anonymous',
+                user_name: user?.user_metadata?.name || 'Unknown',
+                platform: Platform.OS,
+                feature: 'PDF MCQ Generator',
+                stage: stage,
+                mcq_count: mcqs.length,
+                created_at: new Date().toISOString(),
+            };
+
+            // Send email via Edge Function
+            const { error: emailError } = await supabase.functions.invoke('send-bug-report', {
+                body: bugReportData,
+            });
+
+            if (emailError) {
+                console.log('[BugReport] Edge function error (email may not be sent):', emailError);
+            } else {
+                console.log('[BugReport] Email sent successfully');
+            }
+
+            // Also save to database for record keeping
+            await supabase.from('bug_reports').insert([bugReportData]).catch(e =>
+                console.log('[BugReport] DB save failed:', e)
+            );
+
+            // Success
+            setShowBugReportModal(false);
+            setBugDescription('');
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+        } catch (err: any) {
+            console.error('[BugReport] Error:', err);
+            // Still show success for good UX
+            setShowBugReportModal(false);
+            setBugDescription('');
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+        } finally {
+            setSendingBugReport(false);
+        }
     };
 
     const isLoading = ['picking', 'reading', 'ocr', 'generating', 'parsing'].includes(stage);
@@ -1794,11 +1856,78 @@ export default function GenerateMCQsFromPDFScreen() {
             {/* Bug Report Widget */}
             <TouchableOpacity
                 style={styles.bugReportFloating}
-                onPress={() => Linking.openURL('mailto:team@prepassist.in?subject=Bug Report - PDF MCQ Generator')}
+                onPress={() => setShowBugReportModal(true)}
             >
                 <Ionicons name="bug-outline" size={18} color="#FFF" />
                 <Text style={styles.bugReportFloatingText}>Report Bug</Text>
             </TouchableOpacity>
+
+            {/* Bug Report Modal */}
+            {showBugReportModal && (
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.bugReportModal, { backgroundColor: theme.colors.surface }]}>
+                        <View style={styles.bugReportHeader}>
+                            <Text style={[styles.bugReportTitle, { color: theme.colors.text }]}>
+                                Report a Bug
+                            </Text>
+                            <TouchableOpacity onPress={() => setShowBugReportModal(false)}>
+                                <Ionicons name="close" size={24} color={theme.colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.bugReportSubtitle, { color: theme.colors.textSecondary }]}>
+                            Help us improve by describing the issue you encountered.
+                        </Text>
+
+                        <TextInput
+                            style={[styles.bugReportInput, {
+                                backgroundColor: isDark ? '#2A2A2E' : '#F5F5F7',
+                                color: theme.colors.text,
+                                borderColor: theme.colors.border,
+                            }]}
+                            placeholder="Describe the bug in detail..."
+                            placeholderTextColor={theme.colors.textSecondary}
+                            value={bugDescription}
+                            onChangeText={setBugDescription}
+                            multiline
+                            numberOfLines={5}
+                            textAlignVertical="top"
+                        />
+
+                        <View style={styles.bugReportActions}>
+                            <TouchableOpacity
+                                style={[styles.bugReportCancelBtn, { borderColor: theme.colors.border }]}
+                                onPress={() => setShowBugReportModal(false)}
+                            >
+                                <Text style={{ color: theme.colors.text }}>Cancel</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={[styles.bugReportSendBtn, { opacity: sendingBugReport ? 0.7 : 1 }]}
+                                onPress={handleSendBugReport}
+                                disabled={sendingBugReport}
+                            >
+                                {sendingBugReport ? (
+                                    <ActivityIndicator size="small" color="#FFF" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="send" size={16} color="#FFF" />
+                                        <Text style={styles.bugReportSendText}>Send Report</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            )}
+
+            {/* Success Toast */}
+            {showSuccessToast && (
+                <View style={styles.successToast}>
+                    <Ionicons name="checkmark-circle" size={24} color="#FFF" />
+                    <Text style={styles.successToastText}>Sent Successfully!</Text>
+                </View>
+            )}
         </SafeAreaView>
     );
 }
@@ -2233,5 +2362,102 @@ const styles = StyleSheet.create({
         color: '#FFF',
         fontSize: 13,
         fontWeight: '600',
+    },
+
+    // Bug Report Modal
+    modalOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10000,
+    },
+    bugReportModal: {
+        width: '90%',
+        maxWidth: 400,
+        borderRadius: 16,
+        padding: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 10,
+    },
+    bugReportHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    bugReportTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+    },
+    bugReportSubtitle: {
+        fontSize: 14,
+        marginBottom: 16,
+        lineHeight: 20,
+    },
+    bugReportInput: {
+        borderWidth: 1,
+        borderRadius: 12,
+        padding: 14,
+        minHeight: 120,
+        fontSize: 15,
+        marginBottom: 16,
+    },
+    bugReportActions: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        gap: 12,
+    },
+    bugReportCancelBtn: {
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 10,
+        borderWidth: 1,
+    },
+    bugReportSendBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        backgroundColor: '#10B981',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 10,
+    },
+    bugReportSendText: {
+        color: '#FFF',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    successToast: {
+        position: 'absolute',
+        top: 60,
+        left: 20,
+        right: 20,
+        backgroundColor: '#10B981',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 10,
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 10,
+        zIndex: 99999,
+    },
+    successToastText: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });

@@ -917,6 +917,14 @@ setTimeout(function() {
                 </View>
             )}
 
+            {/* Local Storage Notice */}
+            <View style={styles.localStorageNotice}>
+                <Ionicons name="alert-circle" size={20} color="#DC2626" />
+                <Text style={styles.localStorageNoticeText}>
+                    Your notes are stored locally on this device. Clearing browser data or cache will permanently delete all notes. Consider exporting important summaries regularly.
+                </Text>
+            </View>
+
             {/* Create Tag Button */}
             <TouchableOpacity style={styles.createTagBtn} onPress={() => setShowCreateTag(true)}>
                 <Ionicons name="add-circle" size={24} color="#3B82F6" />
@@ -932,34 +940,46 @@ setTimeout(function() {
                     return (
                         <TouchableOpacity
                             key={tag.id}
-                            style={[styles.tagCard, { borderLeftColor: tag.color }]}
+                            style={styles.tagCard}
                             onPress={() => {
                                 setSummaryTagIds([tag.id]);
                                 setActiveTab('notes');
                             }}
+                            activeOpacity={0.8}
                         >
-                            <View style={styles.tagCardHeader}>
-                                <Text style={[styles.tagName, { color: tag.color }]}>{tag.name}</Text>
-                                {alert && alert.count > 0 && (
-                                    <View style={styles.alertBadge}>
-                                        <Text style={styles.alertBadgeText}>{alert.count}</Text>
-                                    </View>
-                                )}
-                            </View>
-                            <Text style={styles.tagNoteCount}>{tagNotes.length} notes</Text>
+                            {/* Colored accent strip at top */}
+                            <View style={[styles.tagCardAccent, { backgroundColor: tag.color }]} />
 
-                            {/* Source breakdown */}
-                            <View style={styles.sourceBreakdown}>
-                                {Object.entries(SOURCE_TYPES).map(([key, config]) => {
-                                    const count = tagNotes.filter(n => n.sourceType === key).length;
-                                    if (count === 0) return null;
-                                    return (
-                                        <View key={key} style={[styles.sourceBadge, { backgroundColor: config.color + '20' }]}>
-                                            <Ionicons name={config.icon as any} size={10} color={config.color} />
-                                            <Text style={[styles.sourceBadgeText, { color: config.color }]}>{count}</Text>
+                            <View style={styles.tagCardContent}>
+                                <View style={styles.tagCardHeader}>
+                                    <View style={[styles.tagIconWrapper, { backgroundColor: tag.color + '15' }]}>
+                                        <Ionicons name="pricetag" size={16} color={tag.color} />
+                                    </View>
+                                    {alert && alert.count > 0 && (
+                                        <View style={styles.alertBadge}>
+                                            <Text style={styles.alertBadgeText}>{alert.count}</Text>
                                         </View>
-                                    );
-                                })}
+                                    )}
+                                </View>
+
+                                <Text style={[styles.tagName, { color: tag.color }]} numberOfLines={1}>
+                                    {tag.name}
+                                </Text>
+                                <Text style={styles.tagNoteCount}>{tagNotes.length} notes</Text>
+
+                                {/* Source breakdown */}
+                                <View style={styles.sourceBreakdown}>
+                                    {Object.entries(SOURCE_TYPES).map(([key, config]) => {
+                                        const count = tagNotes.filter(n => n.sourceType === key).length;
+                                        if (count === 0) return null;
+                                        return (
+                                            <View key={key} style={[styles.sourceBadge, { backgroundColor: config.color + '15' }]}>
+                                                <Ionicons name={config.icon as any} size={10} color={config.color} />
+                                                <Text style={[styles.sourceBadgeText, { color: config.color }]}>{count}</Text>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
                             </View>
                         </TouchableOpacity>
                     );
@@ -1433,7 +1453,7 @@ You can copy content from:
             <View style={styles.modalOverlay}>
                 <View style={[styles.modalContent, { maxHeight: '90%', width: isWeb ? Math.min(width * 0.9, 700) : '95%' }]}>
                     <Text style={styles.modalTitle}>
-                        {summaryStep === 'select-notes' ? '📝 Select Content to Summarize' : '⚡ Configure Summary'}
+                        {summaryStep === 'select-notes' ? ' Select Content to Summarize' : '⚡ Configure Summary'}
                     </Text>
 
                     {summaryStep === 'select-notes' ? (
@@ -1441,7 +1461,7 @@ You can copy content from:
                             {/* My Notes Section */}
                             <View style={{ marginBottom: 20 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                                    <Text style={[styles.inputLabel, { marginBottom: 0 }]}>📚 Your Notes ({notes.length})</Text>
+                                    <Text style={[styles.inputLabel, { marginBottom: 0 }]}> Your Notes ({notes.length})</Text>
                                     <TouchableOpacity onPress={selectAllNotes} style={{ padding: 5 }}>
                                         <Text style={{ color: '#3B82F6', fontSize: 12 }}>Select All</Text>
                                     </TouchableOpacity>
@@ -1504,7 +1524,7 @@ You can copy content from:
                             {/* Current Affairs Section */}
                             <View style={{ marginBottom: 20 }}>
                                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                                    <Text style={[styles.inputLabel, { marginBottom: 0 }]}>📰 Current Affairs ({currentAffairs.length})</Text>
+                                    <Text style={[styles.inputLabel, { marginBottom: 0 }]}> Current Affairs ({currentAffairs.length})</Text>
                                     <TouchableOpacity onPress={selectAllArticles} style={{ padding: 5 }}>
                                         <Text style={{ color: '#10B981', fontSize: 12 }}>Select All</Text>
                                     </TouchableOpacity>
@@ -1561,7 +1581,7 @@ You can copy content from:
                                 backgroundColor: '#F0FDF4', padding: 15, borderRadius: 10, marginBottom: 10,
                                 borderWidth: 1, borderColor: '#BBF7D0'
                             }}>
-                                <Text style={{ fontWeight: '600', color: '#166534', marginBottom: 5 }}>📊 Selected Content</Text>
+                                <Text style={{ fontWeight: '600', color: '#166534', marginBottom: 5 }}> Selected Content</Text>
                                 <Text style={{ color: '#15803D' }}>
                                     {selectedNoteIds.length} notes + {selectedArticleIds.length} current affairs articles
                                 </Text>
@@ -2055,6 +2075,26 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
 
+    // Local Storage Notice
+    localStorageNotice: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 10,
+        backgroundColor: '#FEF2F2',
+        padding: 14,
+        borderRadius: 12,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#FECACA',
+    },
+    localStorageNoticeText: {
+        flex: 1,
+        fontSize: 12,
+        color: '#991B1B',
+        lineHeight: 18,
+        fontWeight: '500',
+    },
+
     // Create Tag Button
     createTagBtn: {
         flexDirection: 'row',
@@ -2078,56 +2118,84 @@ const styles = StyleSheet.create({
     tagsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 12,
+        gap: 10,
     },
     tagCard: {
         width: (width - 44) / 2,
-        backgroundColor: '#FFF',
-        padding: 14,
-        borderRadius: 12,
-        borderLeftWidth: 4,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        padding: 0,
+        borderRadius: 16,
+        borderLeftWidth: 0,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 0, 0, 0.05)',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+        overflow: 'hidden',
+    },
+    tagCardAccent: {
+        height: 4,
+        width: '100%',
+    },
+    tagCardContent: {
+        padding: 14,
+    },
+    tagIconWrapper: {
+        width: 32,
+        height: 32,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     tagCardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
+        alignItems: 'center',
+        marginBottom: 8,
     },
     tagName: {
-        fontSize: 15,
-        fontWeight: '600',
+        fontSize: 16,
+        fontWeight: '700',
+        letterSpacing: 0.3,
     },
     alertBadge: {
         backgroundColor: '#EF4444',
-        borderRadius: 10,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4,
+        elevation: 2,
     },
     alertBadgeText: {
         color: '#FFF',
-        fontSize: 10,
-        fontWeight: '700',
+        fontSize: 11,
+        fontWeight: '800',
     },
     tagNoteCount: {
         fontSize: 13,
         color: '#64748B',
-        marginTop: 4,
+        marginTop: 2,
+        fontWeight: '500',
     },
     sourceBreakdown: {
         flexDirection: 'row',
-        gap: 6,
-        marginTop: 8,
+        gap: 8,
+        marginTop: 12,
+        paddingTop: 10,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0, 0, 0, 0.05)',
     },
     sourceBadge: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         borderRadius: 4,
     },
     sourceBadgeText: {
@@ -2227,55 +2295,76 @@ const styles = StyleSheet.create({
 
     // Note Card
     noteCard: {
-        backgroundColor: '#FFF',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
+        backgroundColor: '#FFFFFF',
+        padding: 0,
+        borderRadius: 16,
+        marginBottom: 14,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(0, 0, 0, 0.06)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+        overflow: 'hidden',
     },
     noteCardHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-        marginBottom: 8,
+        gap: 12,
+        padding: 14,
+        paddingBottom: 0,
     },
     sourceIndicator: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+        width: 36,
+        height: 36,
+        borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
     },
     noteTitle: {
         flex: 1,
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#0F172A',
+        letterSpacing: 0.2,
     },
     notePreview: {
-        fontSize: 14,
+        fontSize: 13,
         color: '#64748B',
         lineHeight: 20,
-        marginBottom: 10,
+        padding: 14,
+        paddingTop: 10,
+        paddingBottom: 10,
     },
     noteTags: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
+        paddingHorizontal: 14,
+        paddingBottom: 12,
     },
     noteTag: {
-        fontSize: 13,
-        fontWeight: '500',
+        fontSize: 12,
+        fontWeight: '600',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     moreTagsText: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#94A3B8',
+        fontWeight: '500',
     },
     sourceUrl: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#94A3B8',
-        marginTop: 8,
+        paddingHorizontal: 14,
+        paddingBottom: 12,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0, 0, 0, 0.05)',
+        paddingTop: 10,
     },
 
     // Generate Button
@@ -2300,64 +2389,91 @@ const styles = StyleSheet.create({
 
     // Section Title
     sectionTitle: {
-        fontSize: 16,
-        fontWeight: '600',
+        fontSize: 17,
+        fontWeight: '700',
         color: '#0F172A',
-        marginBottom: 12,
+        marginBottom: 14,
+        letterSpacing: 0.2,
     },
 
     // Summary Card
     summaryCard: {
-        backgroundColor: '#FFF',
-        padding: 16,
-        borderRadius: 12,
-        marginBottom: 12,
+        backgroundColor: '#FFFFFF',
+        padding: 0,
+        borderRadius: 16,
+        marginBottom: 14,
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: 'rgba(0, 0, 0, 0.06)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 4,
+        overflow: 'hidden',
     },
     summaryCardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 8,
+        padding: 14,
+        paddingBottom: 8,
+        borderBottomWidth: 0,
+        backgroundColor: 'rgba(59, 130, 246, 0.03)',
     },
     summaryTitle: {
         fontSize: 16,
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#0F172A',
         flex: 1,
+        letterSpacing: 0.2,
     },
     summaryDate: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#94A3B8',
+        fontWeight: '500',
+        backgroundColor: 'rgba(0, 0, 0, 0.05)',
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 8,
     },
     summaryTags: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
-        marginBottom: 10,
+        paddingHorizontal: 14,
+        paddingBottom: 10,
     },
     summaryTag: {
-        fontSize: 13,
-        fontWeight: '500',
+        fontSize: 12,
+        fontWeight: '600',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
     summaryPreview: {
-        fontSize: 14,
+        fontSize: 13,
         color: '#64748B',
         lineHeight: 20,
-        marginBottom: 12,
+        paddingHorizontal: 14,
+        paddingBottom: 14,
     },
     summaryActions: {
         flexDirection: 'row',
-        gap: 16,
+        gap: 0,
         borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
-        paddingTop: 12,
+        borderTopColor: 'rgba(0, 0, 0, 0.05)',
+        paddingTop: 0,
     },
     summaryAction: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 12,
+        borderRightWidth: 1,
+        borderRightColor: 'rgba(0, 0, 0, 0.05)',
     },
     summaryActionText: {
         fontSize: 13,
