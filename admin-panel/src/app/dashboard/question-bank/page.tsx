@@ -96,7 +96,7 @@ export default function QuestionSetsPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sets.map((set) => (
                         <Link
-                            href={`/dashboard/question-paper/${set.id}`}
+                            href={`/dashboard/question-bank/${set.id}`}
                             key={set.id}
                             className="group bg-white rounded-xl border border-slate-200 p-6 hover:border-blue-500/50 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 flex flex-col h-full"
                         >
