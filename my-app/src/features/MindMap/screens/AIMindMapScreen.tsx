@@ -38,6 +38,7 @@ import {
 import { Input } from '../../../components/Input';
 import { LowCreditBanner } from '../../../hooks/useAIFeature';
 import useCredits from '../../../hooks/useCredits';
+import { AIDisclaimer } from '../../../components/AIDisclaimer';
 
 interface AIMindMapScreenProps {
   navigation: any;
@@ -368,6 +369,11 @@ const AIMindMapScreen: React.FC<AIMindMapScreenProps> = ({ navigation, route }) 
 
       {/* Credits Warning */}
       <LowCreditBanner isDark={isDark} />
+
+      {/* AI Disclaimer */}
+      <View style={{ paddingHorizontal: 12 }}>
+        <AIDisclaimer variant="compact" />
+      </View>
 
       {/* Content */}
       {viewMode === 'chat' ? (

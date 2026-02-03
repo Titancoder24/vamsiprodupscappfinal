@@ -52,6 +52,7 @@ import { InsightAgent } from '../../../services/InsightAgent';
 import useCredits from '../../../hooks/useCredits'; // Corrected path
 import PayWallPopup from '../../../components/PayWallPopup';
 import { LowCreditBanner } from '../../../hooks/useAIFeature';
+import { AIDisclaimer } from '../../../components/AIDisclaimer';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -1780,6 +1781,11 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                         <Ionicons name="refresh" size={22} color="#64748B" />
                     </TouchableOpacity>
                 </View>
+            </View>
+
+            {/* AI Disclaimer */}
+            <View style={{ paddingHorizontal: 16 }}>
+                <AIDisclaimer variant="compact" />
             </View>
 
             {/* Notifications Modal */}

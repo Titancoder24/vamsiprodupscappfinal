@@ -46,6 +46,7 @@ import { LowCreditBanner } from '../../../hooks/useAIFeature';
 import { supabase } from '../../../lib/supabase';
 import { canBypassCredits } from '../../../utils/devMode';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AIDisclaimer } from '../../../components/AIDisclaimer';
 
 // ===================== CONFIGURATION =====================
 const CONFIG = {
@@ -1484,6 +1485,9 @@ export default function GenerateMCQsFromPDFScreen() {
                         {/* MCQ Count */}
                         <View style={styles.settingsSection}>
                             <Text style={[styles.settingsLabel, { color: theme.colors.textSecondary }]}>CONFIGURATION</Text>
+
+                            {/* AI Disclaimer */}
+                            <AIDisclaimer variant="banner" style={{ marginBottom: 12 }} />
 
                             <View style={[styles.countCard, { backgroundColor: isDark ? '#1A1A1E' : '#FAFAFA', borderColor: theme.colors.border }]}>
                                 <View style={styles.countInfo}>

@@ -40,6 +40,7 @@ import {
     getStorageInfo,
     AIMCQSession
 } from '../utils/aiMCQStorage';
+import { AIDisclaimer } from '../../../components/AIDisclaimer';
 
 // ===================== CONFIGURATION =====================
 const API_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -481,6 +482,9 @@ export default function AIMCQsGenerateScreen() {
 
                 {/* Credits Warning */}
                 <LowCreditBanner isDark={isDark} />
+
+                {/* AI Disclaimer */}
+                <AIDisclaimer variant="banner" style={{ marginBottom: 12 }} />
 
                 {/* Form */}
                 {mcqs.length === 0 && !isLoading && (
