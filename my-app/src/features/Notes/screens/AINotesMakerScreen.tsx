@@ -14,6 +14,8 @@ import {
     Share,
     Dimensions,
     KeyboardAvoidingView,
+    Animated,
+    Easing,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../../features/Reference/theme/ThemeContext';
@@ -70,6 +72,91 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const { theme, isDark } = useTheme();
     const { credits, useCredits: deductCredits, loading: parsingCredits } = useCredits();
     const [showPaywall, setShowPaywall] = useState(false);
+
+    // ========== ONBOARDING STATE ==========
+    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [onboardingStep, setOnboardingStep] = useState(0);
+    const onboardingFade = useState(new Animated.Value(0))[0];
+    const onboardingTranslate = useState(new Animated.Value(20))[0];
+
+    const onboardingSteps = [
+        {
+            title: "Welcome Aspirant! 👋",
+            text: "Let me show you how to build your UPSC Knowledge Graph in 3 simple steps.",
+            tab: "topics" as const,
+            buttonText: "Let's Start"
+        },
+        {
+            title: "Step 1: Create Tags 🏷️",
+            text: "First, create hashtags for different UPSC subjects like #Polity or #IR to organize your learning.",
+            tab: "topics" as const,
+            buttonText: "Got it, Next"
+        },
+        {
+            title: "Step 2: Add Your Notes 📝",
+            text: "Now, enter or paste your notes here. Tag them with the hashtags you created for easy retrieval.",
+            tab: "notes" as const,
+            buttonText: "I'll add notes"
+        },
+        {
+            title: "Step 3: AI Summarize ⚡",
+            text: "Finally, hit the AI Summarize button to combine all notes for a tag into a professional UPSC brief!",
+            tab: "summaries" as const,
+            buttonText: "Complete Tour"
+        }
+    ];
+
+    useEffect(() => {
+        const checkOnboarding = async () => {
+            const { getItem } = await import('../services/storage');
+            const seen = await getItem('@ainotes_onboarding_seen');
+            if (!seen) {
+                setTimeout(() => {
+                    setShowOnboarding(true);
+                    startOnboardingAnimation();
+                }, 1000);
+            }
+        };
+        checkOnboarding();
+    }, []);
+
+    const startOnboardingAnimation = () => {
+        onboardingFade.setValue(0);
+        onboardingTranslate.setValue(10);
+        Animated.parallel([
+            Animated.timing(onboardingFade, {
+                toValue: 1,
+                duration: 500,
+                useNativeDriver: true,
+            }),
+            Animated.timing(onboardingTranslate, {
+                toValue: 0,
+                duration: 500,
+                easing: Easing.out(Easing.back(1)),
+                useNativeDriver: true,
+            })
+        ]).start();
+    };
+
+    const nextOnboardingStep = async () => {
+        if (onboardingStep < onboardingSteps.length - 1) {
+            const nextStep = onboardingStep + 1;
+            setOnboardingStep(nextStep);
+            setActiveTab(onboardingSteps[nextStep].tab);
+            startOnboardingAnimation();
+        } else {
+            // End onboarding
+            Animated.timing(onboardingFade, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }).start(async () => {
+                setShowOnboarding(false);
+                const { setItem } = await import('../services/storage');
+                await setItem('@ainotes_onboarding_seen', 'true');
+            });
+        }
+    };
 
     // Credit Check Helper
     const checkCreditBalance = () => {
@@ -1783,6 +1870,49 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                 </View>
             </View>
 
+            {/* DAP Onboarding Overlay */}
+            {showOnboarding && (
+                <View style={styles.onboardingOverlay} pointerEvents="box-none">
+                    <Animated.View style={[
+                        styles.onboardingCard,
+                        {
+                            opacity: onboardingFade,
+                            transform: [{ translateY: onboardingTranslate }],
+                            backgroundColor: theme.colors.surface || '#FFF'
+                        }
+                    ]}>
+                        <LinearGradient
+                            colors={['#3B82F6', '#2563EB']}
+                            style={styles.onboardingHeaderStrip}
+                        />
+                        <View style={styles.onboardingContent}>
+                            <Text style={[styles.onboardingTitle, { color: theme.colors.text || '#0F172A' }]}>
+                                {onboardingSteps[onboardingStep].title}
+                            </Text>
+                            <Text style={[styles.onboardingText, { color: theme.colors.textSecondary || '#64748B' }]}>
+                                {onboardingSteps[onboardingStep].text}
+                            </Text>
+
+                            <TouchableOpacity
+                                style={styles.onboardingButton}
+                                onPress={nextOnboardingStep}
+                            >
+                                <Text style={styles.onboardingButtonText}>
+                                    {onboardingSteps[onboardingStep].buttonText}
+                                </Text>
+                                <Ionicons name="arrow-forward" size={16} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Pulse indicator */}
+                        <View style={styles.pulseContainer}>
+                            <View style={styles.pulseDot} />
+                            <View style={styles.pulseRing} />
+                        </View>
+                    </Animated.View>
+                </View>
+            )}
+
             {/* AI Disclaimer */}
             <View style={{ paddingHorizontal: 16 }}>
                 <AIDisclaimer variant="compact" />
@@ -2742,6 +2872,87 @@ const styles = StyleSheet.create({
         backgroundColor: '#FF3B30',
         borderWidth: 1.5,
         borderColor: '#FFF',
+    },
+
+    // ONBOARDING STYLES
+    onboardingOverlay: {
+        position: 'absolute',
+        bottom: 120,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        zIndex: 99999,
+    },
+    onboardingCard: {
+        width: '100%',
+        maxWidth: 400,
+        borderRadius: 20,
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+        elevation: 10,
+    },
+    onboardingHeaderStrip: {
+        height: 6,
+        width: '100%',
+    },
+    onboardingContent: {
+        padding: 24,
+    },
+    onboardingTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        marginBottom: 10,
+        letterSpacing: -0.5,
+    },
+    onboardingText: {
+        fontSize: 15,
+        lineHeight: 22,
+        marginBottom: 20,
+    },
+    onboardingButton: {
+        backgroundColor: '#3B82F6',
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        alignSelf: 'flex-start',
+    },
+    onboardingButtonText: {
+        color: '#FFF',
+        fontWeight: '700',
+        fontSize: 15,
+    },
+    pulseContainer: {
+        position: 'absolute',
+        top: 20,
+        right: 20,
+        width: 12,
+        height: 12,
+    },
+    pulseDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#EF4444',
+        position: 'absolute',
+        zIndex: 2,
+    },
+    pulseRing: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        backgroundColor: '#EF4444',
+        position: 'absolute',
+        zIndex: 1,
+        transform: [{ scale: 2 }],
+        opacity: 0.3,
     },
 });
 
