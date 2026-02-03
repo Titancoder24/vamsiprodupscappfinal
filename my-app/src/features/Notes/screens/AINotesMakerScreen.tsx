@@ -107,18 +107,24 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     ];
 
     useEffect(() => {
-        const checkOnboarding = async () => {
-            const { getItem } = await import('../services/storage');
-            const seen = await getItem('@ainotes_onboarding_seen');
-            if (!seen) {
-                setTimeout(() => {
-                    setShowOnboarding(true);
-                    startOnboardingAnimation();
-                }, 1000);
-            }
-        };
-        checkOnboarding();
+        // Show onboarding every time the user comes to this feature
+        setTimeout(() => {
+            setShowOnboarding(true);
+            setOnboardingStep(0);
+            setActiveTab(onboardingSteps[0].tab);
+            startOnboardingAnimation();
+        }, 800);
     }, []);
+
+    const skipOnboarding = () => {
+        Animated.timing(onboardingFade, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+        }).start(() => {
+            setShowOnboarding(false);
+        });
+    };
 
     const startOnboardingAnimation = () => {
         onboardingFade.setValue(0);
@@ -150,10 +156,8 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                 toValue: 0,
                 duration: 300,
                 useNativeDriver: true,
-            }).start(async () => {
+            }).start(() => {
                 setShowOnboarding(false);
-                const { setItem } = await import('../services/storage');
-                await setItem('@ainotes_onboarding_seen', 'true');
             });
         }
     };
@@ -1886,22 +1890,33 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                             style={styles.onboardingHeaderStrip}
                         />
                         <View style={styles.onboardingContent}>
-                            <Text style={[styles.onboardingTitle, { color: theme.colors.text || '#0F172A' }]}>
-                                {onboardingSteps[onboardingStep].title}
-                            </Text>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                                <Text style={[styles.onboardingTitle, { color: theme.colors.text || '#0F172A', flex: 1 }]}>
+                                    {onboardingSteps[onboardingStep].title}
+                                </Text>
+                                <TouchableOpacity onPress={skipOnboarding} style={{ padding: 4 }}>
+                                    <Ionicons name="close" size={24} color="#94A3B8" />
+                                </TouchableOpacity>
+                            </View>
                             <Text style={[styles.onboardingText, { color: theme.colors.textSecondary || '#64748B' }]}>
                                 {onboardingSteps[onboardingStep].text}
                             </Text>
 
-                            <TouchableOpacity
-                                style={styles.onboardingButton}
-                                onPress={nextOnboardingStep}
-                            >
-                                <Text style={styles.onboardingButtonText}>
-                                    {onboardingSteps[onboardingStep].buttonText}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <TouchableOpacity
+                                    style={styles.onboardingButton}
+                                    onPress={nextOnboardingStep}
+                                >
+                                    <Text style={styles.onboardingButtonText}>
+                                        {onboardingSteps[onboardingStep].buttonText}
+                                    </Text>
+                                    <Ionicons name="arrow-forward" size={16} color="#FFF" />
+                                </TouchableOpacity>
+
+                                <Text style={{ fontSize: 13, color: '#94A3B8', fontWeight: '700' }}>
+                                    {onboardingStep + 1} / {onboardingSteps.length}
                                 </Text>
-                                <Ionicons name="arrow-forward" size={16} color="#FFF" />
-                            </TouchableOpacity>
+                            </View>
                         </View>
 
                         {/* Pulse indicator */}
