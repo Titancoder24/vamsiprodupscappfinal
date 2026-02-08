@@ -44,6 +44,7 @@ import {
     AINotebook,
 } from '../services/aiNotesService';
 import { fetchCurrentAffairs, Article } from '../services/currentAffairsService';
+import { summarizeNoteContent } from '../services/aiSummarizer';
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
 import { FlatList, RefreshControl } from 'react-native';
@@ -52,7 +53,7 @@ import { InsightAgent } from '../../../services/InsightAgent';
 import useCredits from '../../../hooks/useCredits'; // Corrected path
 import PayWallPopup from '../../../components/PayWallPopup';
 import { LowCreditBanner } from '../../../hooks/useAIFeature';
-import { AIDisclaimer } from '../../../components/AIDisclaimer';
+import { AIDisclaimer, StorageNotice } from '../../../components/AIDisclaimer';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
@@ -102,6 +103,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [noteContent, setNoteContent] = useState('');
     const [noteSourceType, setNoteSourceType] = useState<SourceType>('manual');
     const [noteSourceUrl, setNoteSourceUrl] = useState('');
+    const [noteSummary, setNoteSummary] = useState('');
     const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 
     // Summary Generation
@@ -199,11 +201,11 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             return;
         }
 
-        const tagName = newTagName.startsWith('#') ? newTagName : `#${newTagName}`;
+        const tagName = newTagName.trim();
 
         try {
             await createTag(
-                tagName.toLowerCase().replace(/\s+/g, ''),
+                tagName.toLowerCase().replace(/\s+/g, '').replace(/^#+/, ''),
                 newTagColor
             );
             setNewTagName('');
@@ -231,6 +233,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             setNoteContent(note.content);
             setNoteSourceType((note.sourceType as SourceType) || 'manual');
             setNoteSourceUrl(note.sourceUrl || '');
+            setNoteSummary(note.summary || '');
             setSelectedTagIds(note.tags.map(t => t.id));
         } else {
             setEditingNote(null);
@@ -238,6 +241,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             setNoteContent('');
             setNoteSourceType('manual');
             setNoteSourceUrl('');
+            setNoteSummary('');
             setSelectedTagIds([]);
         }
         setShowNoteEditor(true);
@@ -273,6 +277,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
                 content: noteContent.trim(),
                 sourceType: noteSourceType,
                 sourceUrl: noteSourceUrl?.trim() || undefined,
+                summary: noteSummary?.trim() || undefined,
                 tags: noteTags,
                 blocks: [{ id: '1', type: 'paragraph' as const, content: noteContent.trim() }],
             };
@@ -293,6 +298,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
             setNoteTitle('');
             setNoteContent('');
             setNoteSourceUrl('');
+            setNoteSummary('');
             setSelectedTagIds([]);
             setEditingNote(null);
 
@@ -301,6 +307,42 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         } catch (error: any) {
             console.error('[AINotes] Error saving note:', error);
             Alert.alert('Save Error', error.message || 'Failed to save note. Please try again.');
+        }
+    };
+
+    const handleGenerateNoteSummary = async () => {
+        if (!noteContent.trim()) {
+            Alert.alert('No Content', 'Please paste or type some content first to summarize.');
+            return;
+        }
+
+        // Feature Gate: Credits
+        if (!checkCreditBalance()) return;
+
+        setGenerating(true);
+        setGeneratingStatus('Summarizing...');
+
+        try {
+            // Deduct Credit (optional but consistent)
+            const deducted = await deductCredits('summary');
+            if (!deducted) {
+                setGenerating(false);
+                return;
+            }
+
+            const response = await summarizeNoteContent(noteContent);
+            if (response.error) {
+                throw new Error(response.error);
+            }
+
+            setNoteSummary(response.summary);
+            Alert.alert('Success', 'Summary generated successfully!');
+        } catch (error: any) {
+            console.error('[AINotes] Error generating individual summary:', error);
+            Alert.alert('Error', error.message || 'Failed to generate summary');
+        } finally {
+            setGenerating(false);
+            setGeneratingStatus('');
         }
     };
 
@@ -918,13 +960,6 @@ setTimeout(function() {
                 </View>
             )}
 
-            {/* Local Storage Notice */}
-            <View style={styles.localStorageNotice}>
-                <Ionicons name="alert-circle" size={20} color="#DC2626" />
-                <Text style={styles.localStorageNoticeText}>
-                    Your notes are stored locally on this device. Clearing browser data or cache will permanently delete all notes. Consider exporting important summaries regularly.
-                </Text>
-            </View>
 
             {/* Create Tag Button */}
             <TouchableOpacity style={styles.createTagBtn} onPress={() => setShowCreateTag(true)}>
@@ -941,19 +976,29 @@ setTimeout(function() {
                     return (
                         <TouchableOpacity
                             key={tag.id}
-                            style={styles.tagCard}
+                            style={[
+                                styles.tagCard,
+                                {
+                                    backgroundColor: tag.color + '12', // More saturated background tint
+                                    borderColor: tag.color + '60',     // Bolder, more colorful border
+                                }
+                            ]}
                             onPress={() => {
                                 setSummaryTagIds([tag.id]);
                                 setActiveTab('notes');
                             }}
                             activeOpacity={0.8}
                         >
-                            {/* Colored accent strip at top */}
+                            {/* Artistic Background Mirror Icon - Increased Visibility */}
+                            <View style={styles.mirrorIcon}>
+                                <Ionicons name="pricetag" size={84} color={tag.color} style={{ opacity: 0.12 }} />
+                            </View>
+
                             <View style={[styles.tagCardAccent, { backgroundColor: tag.color }]} />
 
                             <View style={styles.tagCardContent}>
                                 <View style={styles.tagCardHeader}>
-                                    <View style={[styles.tagIconWrapper, { backgroundColor: tag.color + '15' }]}>
+                                    <View style={[styles.tagIconWrapper, { backgroundColor: tag.color + '25' }]}>
                                         <Ionicons name="pricetag" size={16} color={tag.color} />
                                     </View>
                                     {alert && alert.count > 0 && (
@@ -963,10 +1008,13 @@ setTimeout(function() {
                                     )}
                                 </View>
 
-                                <Text style={[styles.tagName, { color: tag.color }]} numberOfLines={1}>
-                                    {tag.name}
+                                <Text style={[styles.tagName, { color: '#1E293B' }]} numberOfLines={1}>
+                                    {tag.name.replace(/^#+/, '')}
                                 </Text>
-                                <Text style={styles.tagNoteCount}>{tagNotes.length} notes</Text>
+
+                                <View style={[styles.tagNoteCountContainer, { backgroundColor: tag.color + '25' }]}>
+                                    <Text style={[styles.tagNoteCount, { color: tag.color }]}>{tagNotes.length} notes</Text>
+                                </View>
 
                                 {/* Source breakdown */}
                                 <View style={styles.sourceBreakdown}>
@@ -1058,33 +1106,57 @@ setTimeout(function() {
                     return (
                         <TouchableOpacity
                             key={note.id}
-                            style={styles.noteCard}
+                            style={styles.premiumNoteCard}
                             onPress={() => openNoteEditor(note)}
                         >
-                            <View style={styles.noteCardHeader}>
-                                <View style={[styles.sourceIndicator, { backgroundColor: sourceConfig.color }]}>
-                                    <Ionicons name={sourceConfig.icon as any} size={14} color="#FFF" />
+                            <View style={styles.noteCardTopRow}>
+                                <View style={[styles.sourceBadgeTiny, { backgroundColor: sourceConfig.color + '15' }]}>
+                                    <Ionicons name={sourceConfig.icon as any} size={12} color={sourceConfig.color} />
+                                    <Text style={[styles.sourceBadgeTinyText, { color: sourceConfig.color }]}>
+                                        {sourceConfig.label.toUpperCase()}
+                                    </Text>
                                 </View>
-                                <Text style={styles.noteTitle} numberOfLines={1}>{note.title}</Text>
-                                <TouchableOpacity onPress={() => handleDeleteNote(note.id)}>
-                                    <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                                </TouchableOpacity>
+                                <Text style={styles.noteCardDate}>{new Date(note.updatedAt).toLocaleDateString()}</Text>
                             </View>
 
-                            <Text style={styles.notePreview} numberOfLines={2}>{note.content}</Text>
+                            <View style={styles.noteCardMainContent}>
+                                <View style={styles.noteCardHeaderFixed}>
+                                    <Text style={styles.premiumNoteTitle} numberOfLines={1}>{note.title}</Text>
+                                    <TouchableOpacity
+                                        style={styles.deleteNoteBtnSmall}
+                                        onPress={() => handleDeleteNote(note.id)}
+                                    >
+                                        <Ionicons name="trash-outline" size={16} color="#94A3B8" />
+                                    </TouchableOpacity>
+                                </View>
 
-                            <View style={styles.noteTags}>
-                                {note.tags.slice(0, 3).map(tag => (
-                                    <Text key={tag.id} style={[styles.noteTag, { color: tag.color }]}>{tag.name}</Text>
-                                ))}
-                                {note.tags.length > 3 && (
-                                    <Text style={styles.moreTagsText}>+{note.tags.length - 3}</Text>
+                                <Text style={styles.premiumNotePreview} numberOfLines={2}>{note.content}</Text>
+
+                                {note.summary && (
+                                    <View style={styles.premiumSummaryPreview}>
+                                        <Ionicons name="sparkles" size={14} color="#8B5CF6" />
+                                        <Text style={styles.premiumSummaryText} numberOfLines={2}>
+                                            {note.summary}
+                                        </Text>
+                                    </View>
                                 )}
-                            </View>
 
-                            {note.sourceUrl && (
-                                <Text style={styles.sourceUrl} numberOfLines={1}>📎 {note.sourceUrl}</Text>
-                            )}
+                                <View style={styles.noteCardFooter}>
+                                    <View style={styles.noteCardTagsList}>
+                                        {note.tags.slice(0, 3).map(tag => (
+                                            <View key={tag.id} style={[styles.tinyTag, { backgroundColor: tag.color + '15' }]}>
+                                                <Text style={[styles.tinyTagText, { color: tag.color }]}>{tag.name.replace(/^#+/, '')}</Text>
+                                            </View>
+                                        ))}
+                                        {note.tags.length > 3 && (
+                                            <Text style={styles.moreTagsTextSmall}>+{note.tags.length - 3}</Text>
+                                        )}
+                                    </View>
+                                    {note.sourceUrl && (
+                                        <Ionicons name="link" size={12} color="#94A3B8" />
+                                    )}
+                                </View>
+                            </View>
                         </TouchableOpacity>
                     );
                 })}
@@ -1273,7 +1345,7 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                                 <Text style={[styles.summaryActionText, { color: '#8B5CF6' }]}>Share</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.summaryAction} onPress={() => handleDeleteSummary(summary.id)}>
-                                <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                                <Ionicons name="trash-outline" size={18} color="#D97706" />
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -1355,93 +1427,182 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                     </TouchableOpacity>
                 </View>
 
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-                    <ScrollView style={styles.editorBody}>
-                        {/* Source Type Selector */}
-                        <Text style={styles.inputLabel}>Source Type</Text>
-                        <View style={styles.sourceTypeSelector}>
-                            {Object.entries(SOURCE_TYPES).map(([key, config]) => (
-                                <TouchableOpacity
-                                    key={key}
-                                    style={[
-                                        styles.sourceTypeBtn,
-                                        noteSourceType === key && { backgroundColor: config.color, borderColor: config.color }
-                                    ]}
-                                    onPress={() => setNoteSourceType(key as SourceType)}
-                                >
-                                    <Ionicons
-                                        name={config.icon as any}
-                                        size={18}
-                                        color={noteSourceType === key ? '#FFF' : config.color}
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1 }}
+                >
+                    <ScrollView
+                        style={styles.editorBody}
+                        contentContainerStyle={{ paddingBottom: 40 }}
+                        showsVerticalScrollIndicator={false}
+                    >
+                        {/* Section 1: Title View */}
+                        <View style={styles.editorSectionCard}>
+                            <View style={styles.sectionHeader}>
+
+                                <Text style={styles.sectionLabel}>NOTE TITLE</Text>
+                            </View>
+                            <TextInput
+                                style={styles.premiumTitleInput}
+                                placeholder="What's this note about?"
+                                placeholderTextColor="#94A3B8"
+                                value={noteTitle}
+                                onChangeText={setNoteTitle}
+                            />
+                        </View>
+
+                        {/* Section 2: Remaining Content View */}
+                        <View style={styles.editorSectionCard}>
+                            {/* Source Type Section */}
+                            <View style={styles.sectionSubGroup}>
+                                <View style={styles.sectionHeader}>
+                                    <Ionicons name="link-outline" size={18} color="#64748B" />
+                                    <Text style={styles.sectionLabel}>SOURCE TYPE</Text>
+                                </View>
+                                <View style={styles.sourceTypeSelector}>
+                                    {Object.entries(SOURCE_TYPES).map(([key, config]) => (
+                                        <TouchableOpacity
+                                            key={key}
+                                            style={[
+                                                styles.sourceTypeBtn,
+                                                noteSourceType === key && { backgroundColor: config.color, borderColor: config.color }
+                                            ]}
+                                            onPress={() => setNoteSourceType(key as SourceType)}
+                                        >
+                                            <Ionicons
+                                                name={config.icon as any}
+                                                size={16}
+                                                color={noteSourceType === key ? '#FFF' : config.color}
+                                            />
+                                            <Text style={[
+                                                styles.sourceTypeBtnText,
+                                                noteSourceType === key && { color: '#FFF' }
+                                            ]}>{config.label}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                {noteSourceType !== 'manual' && (
+                                    <TextInput
+                                        style={styles.sourceUrlInput}
+                                        placeholder="Paste source URL here (optional)"
+                                        placeholderTextColor="#94A3B8"
+                                        value={noteSourceUrl}
+                                        onChangeText={setNoteSourceUrl}
+                                        autoCapitalize="none"
+                                        keyboardType="url"
                                     />
-                                    <Text style={[
-                                        styles.sourceTypeBtnText,
-                                        noteSourceType === key && { color: '#FFF' }
-                                    ]}>{config.label}</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                                )}
+                            </View>
 
-                        {/* Title */}
-                        <Text style={styles.inputLabel}>Title</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Enter title"
-                            value={noteTitle}
-                            onChangeText={setNoteTitle}
-                        />
+                            <View style={styles.divider} />
 
-                        {/* Source URL (optional) */}
-                        {noteSourceType !== 'manual' && (
-                            <>
-                                <Text style={styles.inputLabel}>Source URL (optional)</Text>
+                            {/* Tags Section */}
+                            <View style={styles.sectionSubGroup}>
+                                <View style={styles.sectionHeader}>
+                                    <Ionicons name="pricetag-outline" size={18} color="#64748B" />
+                                    <Text style={styles.sectionLabel}>HASHTAGS *</Text>
+                                </View>
+                                <View style={styles.tagSelector}>
+                                    {tags.map(tag => (
+                                        <TouchableOpacity
+                                            key={tag.id}
+                                            style={[
+                                                styles.tagSelectorItem,
+                                                selectedTagIds.includes(tag.id) && { backgroundColor: tag.color + '20', borderColor: tag.color }
+                                            ]}
+                                            onPress={() => toggleTagSelection(tag.id)}
+                                        >
+                                            <Text style={[styles.tagSelectorText, { color: tag.color }]}>
+                                                {tag.name.replace(/^#+/, '')}
+                                            </Text>
+                                            {selectedTagIds.includes(tag.id) && (
+                                                <Ionicons name="checkmark-circle" size={14} color={tag.color} />
+                                            )}
+                                        </TouchableOpacity>
+                                    ))}
+                                    <TouchableOpacity
+                                        style={styles.addTagSmallBtn}
+                                        onPress={() => setShowCreateTag(true)}
+                                    >
+                                        <Ionicons name="add" size={16} color="#3B82F6" />
+                                        <Text style={styles.addTagSmallText}>New Tag</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <View style={styles.divider} />
+
+                            {/* Note Content Section */}
+                            <View style={styles.sectionSubGroup}>
+                                <View style={styles.sectionHeader}>
+                                    <Ionicons name="create-outline" size={18} color="#64748B" />
+                                    <Text style={styles.sectionLabel}>NOTE CONTENT</Text>
+                                </View>
                                 <TextInput
-                                    style={styles.input}
-                                    placeholder="https://visionias.in/..."
-                                    value={noteSourceUrl}
-                                    onChangeText={setNoteSourceUrl}
-                                    autoCapitalize="none"
-                                    keyboardType="url"
+                                    style={styles.premiumContentInput}
+                                    placeholder="Paste or type your notes here... 
+You can copy content from Vision IAS, IASBaba, PDFs, or your own materials."
+                                    placeholderTextColor="#94A3B8"
+                                    value={noteContent}
+                                    onChangeText={setNoteContent}
+                                    multiline
+                                    numberOfLines={12}
+                                    textAlignVertical="top"
+                                    selectTextOnFocus={true}
+                                    blurOnSubmit={false}
                                 />
-                            </>
-                        )}
+                            </View>
 
-                        {/* Tags */}
-                        <Text style={styles.inputLabel}>Hashtags *</Text>
-                        <View style={styles.tagSelector}>
-                            {tags.map(tag => (
-                                <TouchableOpacity
-                                    key={tag.id}
-                                    style={[
-                                        styles.tagSelectorItem,
-                                        selectedTagIds.includes(tag.id) && { backgroundColor: tag.color + '30', borderColor: tag.color }
-                                    ]}
-                                    onPress={() => toggleTagSelection(tag.id)}
-                                >
-                                    <Text style={[styles.tagSelectorText, { color: tag.color }]}>{tag.name}</Text>
-                                    {selectedTagIds.includes(tag.id) && (
-                                        <Ionicons name="checkmark" size={14} color={tag.color} />
-                                    )}
-                                </TouchableOpacity>
-                            ))}
+                            {/* AI Summarization Feature (Inside the second card) */}
+                            <View style={styles.aiSummarizationGroup}>
+                                <View style={styles.aiSummarizationHeader}>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <Ionicons name="sparkles" size={18} color="#8B5CF6" />
+                                        <Text style={styles.aiSummarizationTitle}>AI Summarization</Text>
+                                    </View>
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.summarizeBtn,
+                                            (!noteContent.trim() || generating) && { opacity: 0.5 }
+                                        ]}
+                                        onPress={handleGenerateNoteSummary}
+                                        disabled={!noteContent.trim() || generating}
+                                    >
+                                        {generating && generatingStatus === 'Summarizing...' ? (
+                                            <ActivityIndicator size="small" color="#FFF" />
+                                        ) : (
+                                            <>
+                                                <Ionicons name="flash" size={16} color="#FFF" />
+                                                <Text style={styles.summarizeBtnText}>Summarize</Text>
+                                            </>
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
+
+                                {noteSummary ? (
+                                    <View style={styles.summaryResultBox}>
+                                        <Text style={styles.summaryResultTitle}>Summary:</Text>
+                                        <Text style={styles.summaryResultText}>{noteSummary}</Text>
+                                        <TouchableOpacity
+                                            style={styles.clearSummaryBtn}
+                                            onPress={() => setNoteSummary('')}
+                                        >
+                                            <Text style={styles.clearSummaryBtnText}>Clear Summary</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : (
+                                    <View style={styles.summaryPlaceholder}>
+                                        <Text style={styles.summaryPlaceholderText}>
+                                            Click summarize to generate AI bullet points based on your content.
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
                         </View>
 
-                        {/* Content */}
-                        <Text style={styles.inputLabel}>Content (Paste your notes here)</Text>
-                        <TextInput
-                            style={styles.contentInput}
-                            placeholder="Paste or type your notes here...
-
-You can copy content from:
-• Vision IAS articles
-• IASBaba notes  
-• Current Affairs PDFs
-• Your own handwritten notes"
-                            value={noteContent}
-                            onChangeText={setNoteContent}
-                            multiline
-                            textAlignVertical="top"
-                        />
+                        <AIDisclaimer style={{ paddingHorizontal: 16, marginTop: 2, marginVertical: 2 }} />
+                        <StorageNotice style={{ paddingHorizontal: 16, marginTop: 8, marginVertical: 2 }} />
                     </ScrollView>
                 </KeyboardAvoidingView>
             </SafeAreaView>
@@ -1513,7 +1674,7 @@ You can copy content from:
                                                             fontSize: 10, color: t.color,
                                                             backgroundColor: t.color + '20',
                                                             paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4
-                                                        }}>{t.name}</Text>
+                                                        }}>{t.name.replace(/^#+/, '')}</Text>
                                                     ))}
                                                 </View>
                                             </View>
@@ -1783,9 +1944,10 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                 </View>
             </View>
 
-            {/* AI Disclaimer */}
-            <View style={{ paddingHorizontal: 16 }}>
-                <AIDisclaimer variant="compact" />
+            {/* AI Disclaimers & Storage Notice */}
+            <View style={{ paddingHorizontal: 16, marginTop: 2 }}>
+                <AIDisclaimer style={{ marginVertical: 3 }} />
+                <StorageNotice style={{ marginTop: 3, marginVertical: 3 }} />
             </View>
 
             {/* Notifications Modal */}
@@ -2081,25 +2243,6 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
 
-    // Local Storage Notice
-    localStorageNotice: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: 10,
-        backgroundColor: '#FEF2F2',
-        padding: 14,
-        borderRadius: 12,
-        marginBottom: 14,
-        borderWidth: 1,
-        borderColor: '#FECACA',
-    },
-    localStorageNoticeText: {
-        flex: 1,
-        fontSize: 12,
-        color: '#991B1B',
-        lineHeight: 18,
-        fontWeight: '500',
-    },
 
     // Create Tag Button
     createTagBtn: {
@@ -2124,34 +2267,40 @@ const styles = StyleSheet.create({
     tagsGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
+        justifyContent: 'space-between',
         gap: 10,
     },
     tagCard: {
-        width: (width - 44) / 2,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        padding: 0,
-        borderRadius: 16,
-        borderLeftWidth: 0,
-        borderWidth: 1,
-        borderColor: 'rgba(0, 0, 0, 0.05)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
+        width: '48.5%',
+        borderRadius: 24, // Pill-shaped geometry
+        borderWidth: 2,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
         shadowRadius: 12,
-        elevation: 4,
+        elevation: 6,
         overflow: 'hidden',
+        flexDirection: 'row',
+        position: 'relative',
+    },
+    mirrorIcon: {
+        position: 'absolute',
+        right: -20,
+        bottom: -20,
+        transform: [{ rotate: '-15deg' }],
     },
     tagCardAccent: {
-        height: 4,
-        width: '100%',
+        width: 4,
+        height: '100%',
     },
     tagCardContent: {
-        padding: 14,
+        flex: 1,
+        padding: 12,
     },
     tagIconWrapper: {
-        width: 32,
-        height: 32,
-        borderRadius: 10,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -2160,11 +2309,6 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 8,
-    },
-    tagName: {
-        fontSize: 16,
-        fontWeight: '700',
-        letterSpacing: 0.3,
     },
     alertBadge: {
         backgroundColor: '#EF4444',
@@ -2182,11 +2326,22 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '800',
     },
+    tagName: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: '#1E293B',
+        marginTop: 4,
+    },
+    tagNoteCountContainer: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
+        marginTop: 6,
+    },
     tagNoteCount: {
-        fontSize: 13,
-        color: '#64748B',
-        marginTop: 2,
-        fontWeight: '500',
+        fontSize: 11,
+        fontWeight: '700',
     },
     sourceBreakdown: {
         flexDirection: 'row',
@@ -2201,8 +2356,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 4,
         paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
+        paddingVertical: 5,
+        borderRadius: 8,
+        borderWidth: 1,
     },
     sourceBadgeText: {
         fontSize: 10,
@@ -2257,7 +2413,7 @@ const styles = StyleSheet.create({
     },
     clearFilterText: {
         fontSize: 13,
-        color: '#EF4444',
+        color: '#D97706',
         fontWeight: '500',
     },
 
@@ -2300,77 +2456,121 @@ const styles = StyleSheet.create({
     },
 
     // Note Card
-    noteCard: {
+    // Premium Note Card Styles
+    premiumNoteCard: {
         backgroundColor: '#FFFFFF',
-        padding: 0,
-        borderRadius: 16,
-        marginBottom: 14,
+        borderRadius: 20,
+        marginBottom: 16,
         borderWidth: 1,
-        borderColor: 'rgba(0, 0, 0, 0.06)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 4,
+        borderColor: '#F1F5F9',
         overflow: 'hidden',
+        // Desktop glass effect
+        ...(Platform.OS === 'web' ? {
+            transition: 'all 0.3s ease',
+            cursor: 'pointer',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        } : {}),
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 12,
+        elevation: 6,
     },
-    noteCardHeader: {
+    noteCardTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 8,
+    },
+    sourceBadgeTiny: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
-        padding: 14,
-        paddingBottom: 0,
-    },
-    sourceIndicator: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    noteTitle: {
-        flex: 1,
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#0F172A',
-        letterSpacing: 0.2,
-    },
-    notePreview: {
-        fontSize: 13,
-        color: '#64748B',
-        lineHeight: 20,
-        padding: 14,
-        paddingTop: 10,
-        paddingBottom: 10,
-    },
-    noteTags: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-        paddingHorizontal: 14,
-        paddingBottom: 12,
-    },
-    noteTag: {
-        fontSize: 12,
-        fontWeight: '600',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        paddingHorizontal: 10,
+        gap: 4,
+        paddingHorizontal: 8,
         paddingVertical: 4,
-        borderRadius: 12,
+        borderRadius: 6,
     },
-    moreTagsText: {
+    sourceBadgeTinyText: {
+        fontSize: 10,
+        fontWeight: '800',
+        letterSpacing: 0.5,
+    },
+    noteCardDate: {
         fontSize: 11,
         color: '#94A3B8',
         fontWeight: '500',
     },
-    sourceUrl: {
+    noteCardMainContent: {
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+    },
+    noteCardHeaderFixed: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    premiumNoteTitle: {
+        flex: 1,
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#1E293B',
+        letterSpacing: -0.3,
+    },
+    deleteNoteBtnSmall: {
+        padding: 4,
+        marginLeft: 8,
+    },
+    premiumNotePreview: {
+        fontSize: 14,
+        color: '#64748B',
+        lineHeight: 22,
+        marginBottom: 12,
+    },
+    premiumSummaryPreview: {
+        flexDirection: 'row',
+        gap: 10,
+        backgroundColor: '#F5F3FF',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#EDE9FE',
+        marginBottom: 12,
+    },
+    premiumSummaryText: {
+        flex: 1,
+        fontSize: 13,
+        color: '#6D28D9',
+        lineHeight: 18,
+        fontWeight: '500',
+    },
+    noteCardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 4,
+    },
+    noteCardTagsList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 6,
+    },
+    tinyTag: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 6,
+    },
+    tinyTagText: {
+        fontSize: 11,
+        fontWeight: '600',
+    },
+    moreTagsTextSmall: {
         fontSize: 11,
         color: '#94A3B8',
-        paddingHorizontal: 14,
-        paddingBottom: 12,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(0, 0, 0, 0.05)',
-        paddingTop: 10,
+        fontWeight: '500',
     },
 
     // Generate Button
@@ -2651,6 +2851,179 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
 
+    // AI Summarization Styles
+    aiSummarizationSection: {
+        marginTop: 20,
+        padding: 16,
+        backgroundColor: '#F3E8FF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#D8B4FE',
+    },
+    aiSummarizationHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    aiSummarizationTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#7C3AED',
+    },
+    summarizeBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        backgroundColor: '#8B5CF6',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+    },
+    summarizeBtnText: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    summaryPlaceholder: {
+        padding: 12,
+        backgroundColor: 'rgba(255,255,255,0.5)',
+        borderRadius: 8,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: '#D8B4FE',
+    },
+    summaryPlaceholderText: {
+        fontSize: 13,
+        color: '#6B7280',
+        textAlign: 'center',
+        fontStyle: 'italic',
+    },
+    summaryResultBox: {
+        padding: 12,
+        backgroundColor: '#FFF',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E9D5FF',
+    },
+    summaryResultTitle: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#5B21B6',
+        marginBottom: 6,
+    },
+    summaryResultText: {
+        fontSize: 14,
+        color: '#4B5563',
+        lineHeight: 20,
+    },
+    clearSummaryBtn: {
+        marginTop: 10,
+        alignSelf: 'flex-end',
+    },
+    clearSummaryBtnText: {
+        fontSize: 12,
+        color: '#D97706',
+        fontWeight: '600',
+    },
+
+    // Premium Editor Styles
+    editorSectionCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 16,
+        padding: 20,
+        marginBottom: 16,
+        marginHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    sectionSubGroup: {
+        marginBottom: 20,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 12,
+    },
+    sectionLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#64748B',
+        letterSpacing: 1,
+    },
+    premiumTitleInput: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#0F172A',
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    sourceUrlInput: {
+        marginTop: 12,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 14,
+        color: '#334155',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
+        marginBottom: 20,
+    },
+    addTagSmallBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: '#3B82F6',
+        backgroundColor: '#F0F7FF',
+    },
+    addTagSmallText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#3B82F6',
+    },
+    premiumContentInput: {
+        backgroundColor: '#F8FAFC',
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 15,
+        color: '#0F172A',
+        minHeight: 300,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        lineHeight: 24,
+        // Web fix for paste and selection
+        ...(Platform.OS === 'web' ? {
+            outlineStyle: 'none',
+            userSelect: 'text',
+            cursor: 'text',
+            WebkitUserSelect: 'text',
+            MozUserSelect: 'text',
+            msUserSelect: 'text',
+        } : {}) as any,
+    },
+    aiSummarizationGroup: {
+        marginTop: 10,
+        paddingTop: 20,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+
     // Detail View
     detailContainer: {
         flex: 1,
@@ -2739,7 +3112,7 @@ const styles = StyleSheet.create({
         width: 10,
         height: 10,
         borderRadius: 5,
-        backgroundColor: '#FF3B30',
+        backgroundColor: '#F59E0B',
         borderWidth: 1.5,
         borderColor: '#FFF',
     },
