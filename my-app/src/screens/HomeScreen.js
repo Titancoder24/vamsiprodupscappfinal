@@ -202,22 +202,37 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View>
-              <Text style={[styles.greeting, { color: theme.colors.textSecondary }]}>Hello, {firstName} 👋</Text>
               <Image
                 source={require('../../assets/prepassist-logo.png')}
                 style={styles.headerLogo}
                 resizeMode="contain"
               />
+              <Text style={[styles.greeting, { color: theme.colors.textSecondary }]}>Hello, {firstName} 👋</Text>
             </View>
 
             <View style={styles.headerActions}>
               {/* Credits Badge - Shows actual credits */}
               <View ref={creditsRef} collapsable={false}>
-                <CreditsBadge />
+                <CreditsBadge compact={!isWeb || width < 600} />
               </View>
 
+              {/* Mobile Notification Toggle */}
+              {!isWeb && (
+                <TouchableOpacity
+                  style={[styles.iconButton, { backgroundColor: theme.colors.surface }]}
+                  onPress={() => setShowNotifications(true)}
+                >
+                  <Ionicons name="notifications-outline" size={22} color={theme.colors.text} />
+                  {newsMatches.length > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Text style={styles.notificationCount}>{newsMatches.length}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+
               {/* Modern Notification Center (Web only) */}
-              {Platform.OS === 'web' && (
+              {isWeb && (
                 <NotificationCenter iconColor={theme.colors.text} />
               )}
 
@@ -447,7 +462,8 @@ const styles = StyleSheet.create({
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 12,
+    alignItems: 'center',
+    gap: 8,
   },
   greeting: {
     fontSize: 15,
@@ -466,6 +482,8 @@ const styles = StyleSheet.create({
     width: 140,
     height: 50,
     marginTop: 4,
+    alignSelf: 'flex-start',
+    marginLeft: -45,
   },
   iconButton: {
     width: 44,
@@ -672,6 +690,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 20,
+    marginBottom: 10,
     marginRight: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -729,7 +748,7 @@ const styles = StyleSheet.create({
   motivationCard: {
     backgroundColor: '#1C1C1E',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
   },
   motivationQuote: {
     fontSize: 16,
