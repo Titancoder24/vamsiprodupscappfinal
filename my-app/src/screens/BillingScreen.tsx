@@ -39,8 +39,6 @@ import {
 
 // ============== LIVE CHECKOUT URLs ==============
 const CHECKOUT_URLS = {
-    BASIC_PLAN: 'https://checkout.dodopayments.com/buy/pdt_0NWfLOSWmnFywSwZldAHa',
-    PRO_PLAN: 'https://checkout.dodopayments.com/buy/pdt_0NWfLU5OfjnVhmPz86wWZ',
     CREDITS_50: 'https://checkout.dodopayments.com/buy/pdt_0NWfLXQfz6P34vDNgGT6J',
     CREDITS_120: 'https://checkout.dodopayments.com/buy/pdt_0NWfLZHVYcwnA37B60iio',
     CREDITS_300: 'https://checkout.dodopayments.com/buy/pdt_0NWfLbT49dqQm9bNqVVjS',
@@ -60,7 +58,7 @@ export default function BillingScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [transactions, setTransactions] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'plans' | 'credits' | 'history'>('plans');
+    const [activeTab, setActiveTab] = useState<'credits' | 'history'>('credits');
 
     const userEmail = user?.email || '';
 
@@ -165,7 +163,6 @@ export default function BillingScreen() {
     const renderTabs = () => (
         <View style={[styles.tabsContainer, { backgroundColor: isDark ? '#1A1A2E' : '#F5F5F5', borderColor: isDark ? '#2A2A4E' : '#E8E8E8' }]}>
             {[
-                { id: 'plans', label: 'Plans', icon: 'layers-outline' },
                 { id: 'credits', label: 'Credits', icon: 'flash-outline' },
                 { id: 'history', label: 'History', icon: 'time-outline' },
             ].map((tab) => (
@@ -193,106 +190,7 @@ export default function BillingScreen() {
         </View>
     );
 
-    // ============== SUBSCRIPTION PLANS ==============
-    const renderPlans = () => (
-        <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: isDark ? '#FFF' : '#1A1A1A' }]}>
-                Choose Your Plan
-            </Text>
-            <Text style={[styles.sectionSubtitle, { color: isDark ? '#666' : '#888' }]}>
-                Get monthly credits for all AI features
-            </Text>
 
-            {/* Basic Plan */}
-            <TouchableOpacity
-                style={[styles.planCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: isDark ? '#2A2A4E' : '#E8E8E8' }]}
-                onPress={() => openCheckout(CHECKOUT_URLS.BASIC_PLAN, 'Basic Plan')}
-            >
-                <View style={styles.planHeader}>
-                    <View>
-                        <View style={styles.planTitleRow}>
-                            <View style={[styles.planIcon, { backgroundColor: '#10B981' }]}>
-                                <Ionicons name="person" size={16} color="#FFF" />
-                            </View>
-                            <Text style={[styles.planName, { color: isDark ? '#FFF' : '#1A1A1A' }]}>Basic</Text>
-                        </View>
-                        <View style={styles.priceRow}>
-                            <Text style={[styles.planPrice, { color: isDark ? '#FFF' : '#1A1A1A' }]}>₹399</Text>
-                            <Text style={[styles.planPeriod, { color: isDark ? '#666' : '#888' }]}>/month</Text>
-                        </View>
-                    </View>
-                    <View style={[styles.creditsBadge, { backgroundColor: isDark ? '#1E3A2F' : '#D1FAE5' }]}>
-                        <Text style={[styles.creditsBadgeNumber, { color: '#10B981' }]}>200</Text>
-                        <Text style={[styles.creditsBadgeText, { color: '#10B981' }]}>credits</Text>
-                    </View>
-                </View>
-                <View style={styles.planFeatures}>
-                    <View style={styles.featureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                        <Text style={[styles.featureText, { color: isDark ? '#AAA' : '#666' }]}>200 AI credits per month</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                        <Text style={[styles.featureText, { color: isDark ? '#AAA' : '#666' }]}>All AI features included</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                        <Text style={[styles.featureText, { color: isDark ? '#AAA' : '#666' }]}>Cancel anytime</Text>
-                    </View>
-                </View>
-                <View style={[styles.subscribeButton, { backgroundColor: '#10B981' }]}>
-                    <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
-                </View>
-            </TouchableOpacity>
-
-            {/* Pro Plan */}
-            <TouchableOpacity
-                style={[styles.planCard, styles.proPlanCard, { backgroundColor: isDark ? '#1A1A2E' : '#FFFFFF', borderColor: '#6366F1' }]}
-                onPress={() => openCheckout(CHECKOUT_URLS.PRO_PLAN, 'Pro Plan')}
-            >
-                <View style={styles.popularTag}>
-                    <Text style={styles.popularTagText}>MOST POPULAR</Text>
-                </View>
-                <View style={styles.planHeader}>
-                    <View>
-                        <View style={styles.planTitleRow}>
-                            <View style={[styles.planIcon, { backgroundColor: '#6366F1' }]}>
-                                <Ionicons name="diamond" size={16} color="#FFF" />
-                            </View>
-                            <Text style={[styles.planName, { color: isDark ? '#FFF' : '#1A1A1A' }]}>Pro</Text>
-                        </View>
-                        <View style={styles.priceRow}>
-                            <Text style={[styles.planPrice, { color: isDark ? '#FFF' : '#1A1A1A' }]}>₹599</Text>
-                            <Text style={[styles.planPeriod, { color: isDark ? '#666' : '#888' }]}>/month</Text>
-                        </View>
-                    </View>
-                    <View style={[styles.creditsBadge, { backgroundColor: isDark ? '#2A2355' : '#EDE9FE' }]}>
-                        <Text style={[styles.creditsBadgeNumber, { color: '#6366F1' }]}>400</Text>
-                        <Text style={[styles.creditsBadgeText, { color: '#6366F1' }]}>credits</Text>
-                    </View>
-                </View>
-                <View style={styles.planFeatures}>
-                    <View style={styles.featureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#6366F1" />
-                        <Text style={[styles.featureText, { color: isDark ? '#AAA' : '#666' }]}>400 AI credits per month</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#6366F1" />
-                        <Text style={[styles.featureText, { color: isDark ? '#AAA' : '#666' }]}>Priority processing</Text>
-                    </View>
-                    <View style={styles.featureRow}>
-                        <Ionicons name="checkmark-circle" size={16} color="#6366F1" />
-                        <Text style={[styles.featureText, { color: isDark ? '#AAA' : '#666' }]}>Premium support</Text>
-                    </View>
-                </View>
-                <View style={[styles.subscribeButton, { backgroundColor: '#6366F1' }]}>
-                    <Text style={styles.subscribeButtonText}>Subscribe Now</Text>
-                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
-                </View>
-            </TouchableOpacity>
-        </View>
-    );
 
     // ============== CREDIT PACKAGES ==============
     const renderCreditsPackages = () => (
@@ -534,7 +432,7 @@ export default function BillingScreen() {
                 {renderTabs()}
 
                 {/* Content */}
-                {activeTab === 'plans' && renderPlans()}
+
                 {activeTab === 'credits' && renderCreditsPackages()}
                 {activeTab === 'history' && renderHistory()}
 
