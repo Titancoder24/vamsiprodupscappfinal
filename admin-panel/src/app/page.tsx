@@ -1,14 +1,26 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, useScroll, useTransform, useInView, useMotionValue, useSpring, AnimatePresence } from 'framer-motion';
 import {
-  ArrowRight, CheckCircle, Sparkles, Brain, Trophy, Zap, ChevronRight,
-  Play, Star, Menu, X, Cpu, FileText, BarChart3, Map, Rocket, 
+  ArrowRight, CheckCircle, Sparkles, Brain, Trophy, Zap, ChevronRight, ChevronLeft,
+  Play, Star, Menu, X, Cpu, FileText, BarChart3, Map, Rocket,
   GraduationCap, Target, Award, TrendingUp, BookOpen, Lightbulb,
-  Users, Clock, Shield, Check, ArrowUpRight, Hexagon
+  Users, Check, Signal, Wifi, Battery
 } from 'lucide-react';
+
+// EXACT MATCH ICONS - Ionicons 5
+import {
+  IoNewspaperOutline,
+  IoCreateOutline,
+  IoGitNetworkOutline,
+  IoDocumentAttachOutline,
+  IoDocumentTextOutline,
+  IoSparklesOutline,
+  IoDocumentsOutline,
+  IoStatsChartOutline
+} from 'react-icons/io5';
 
 // ============ UTILITY COMPONENTS ============
 
@@ -16,11 +28,11 @@ function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-// Animated gradient text with shimmer effect
+// Animated gradient text with shimmer effect - BLUE & YELLOW
 function ShimmerText({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <span className={cn("relative inline-block", className)}>
-      <span className="bg-gradient-to-r from-blue-600 via-purple-500 to-blue-600 bg-[length:200%_auto] animate-shimmer bg-clip-text text-transparent">
+      <span className="bg-gradient-to-r from-[#2D8CF0] via-yellow-400 to-[#2D8CF0] bg-[length:200%_auto] animate-shimmer bg-clip-text text-transparent">
         {children}
       </span>
     </span>
@@ -70,14 +82,17 @@ function MagneticButton({ children, className = '', href }: { children: React.Re
   );
 }
 
-// Floating particles background
+// Floating particles background - BLUE & YELLOW
 function FloatingParticles() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {[...Array(20)].map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-2 h-2 bg-blue-400/20 rounded-full"
+          className={cn(
+            "absolute w-2 h-2 rounded-full",
+            i % 2 === 0 ? "bg-[#2D8CF0]/20" : "bg-yellow-400/20"
+          )}
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
@@ -98,21 +113,20 @@ function FloatingParticles() {
   );
 }
 
-// Grid background pattern
+// Grid background pattern - REFINED OPACITY For Premium Look
 function GridBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f0f4f8_1px,transparent_1px),linear-gradient(to_bottom,#f0f4f8_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-60" />
     </div>
   );
 }
 
-// Premium badge with glow
-function PremiumBadge({ children, color = 'blue' }: { children: React.ReactNode; color?: 'blue' | 'purple' | 'green' }) {
+// Premium badge with glow - BLUE & YELLOW
+function PremiumBadge({ children, color = 'blue' }: { children: React.ReactNode; color?: 'blue' | 'yellow' }) {
   const colors = {
-    blue: 'from-blue-500/20 to-cyan-500/20 border-blue-200 text-blue-700',
-    purple: 'from-purple-500/20 to-pink-500/20 border-purple-200 text-purple-700',
-    green: 'from-green-500/20 to-emerald-500/20 border-green-200 text-green-700',
+    blue: 'from-[#2D8CF0]/10 to-[#1A73E8]/10 border-[#2D8CF0]/30 text-[#2D8CF0]',
+    yellow: 'from-yellow-500/10 to-yellow-600/10 border-yellow-200 text-yellow-700',
   };
 
   return (
@@ -120,11 +134,11 @@ function PremiumBadge({ children, color = 'blue' }: { children: React.ReactNode;
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className={cn(
-        "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r border backdrop-blur-sm",
+        "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r border backdrop-blur-sm shadow-sm",
         colors[color]
       )}
     >
-      <Sparkles className="w-4 h-4" />
+      <Sparkles className={cn("w-4 h-4", color === 'blue' ? "text-[#2D8CF0]" : "text-yellow-500")} />
       <span className="text-sm font-semibold tracking-wide">{children}</span>
     </motion.div>
   );
@@ -169,7 +183,7 @@ function PrepAssistLogo({ size = 'default' }: { size?: 'small' | 'default' | 'la
   );
 }
 
-// Animated stat counter
+// Animated stat counter - REFINED TYPOGRAPHY
 function StatCounter({ value, suffix, label }: { value: number; suffix: string; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const isInView = useInView(ref, { once: true });
@@ -177,7 +191,6 @@ function StatCounter({ value, suffix, label }: { value: number; suffix: string; 
 
   useEffect(() => {
     if (!isInView) return;
-    let start = 0;
     const duration = 2000;
     const startTime = performance.now();
 
@@ -197,18 +210,18 @@ function StatCounter({ value, suffix, label }: { value: number; suffix: string; 
       initial={{ opacity: 0, scale: 0.8 }}
       animate={isInView ? { opacity: 1, scale: 1 } : {}}
       transition={{ duration: 0.5 }}
-      className="text-center p-6"
+      className="text-center p-6 group cursor-pointer"
     >
-      <div className="text-5xl md:text-6xl font-black">
-        <span className="bg-gradient-to-b from-gray-900 to-gray-600 bg-clip-text text-transparent">{count.toLocaleString()}</span>
-        <span className="text-gray-700">{suffix}</span>
+      <div className="text-5xl md:text-6xl font-black transition-transform group-hover:scale-110 duration-300">
+        <span className="bg-gradient-to-b from-[#1A73E8] to-[#2D8CF0] bg-clip-text text-transparent">{count.toLocaleString()}</span>
+        <span className="text-yellow-500 drop-shadow-sm">{suffix}</span>
       </div>
-      <div className="text-gray-500 font-medium mt-2">{label}</div>
+      <div className="text-gray-500 font-medium mt-2 uppercase tracking-widest text-xs">{label}</div>
     </motion.div>
   );
 }
 
-// Premium feature card with hover effects
+// Feature card — production-ready
 function FeatureCard({ icon: Icon, title, description, gradient, index }: {
   icon: any;
   title: string;
@@ -222,50 +235,69 @@ function FeatureCard({ icon: Icon, title, description, gradient, index }: {
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.6, delay: index * 0.1 }}
-      whileHover={{ y: -8, transition: { duration: 0.3 } }}
-      className="group relative"
+      transition={{ duration: 0.6, delay: index * 0.07, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -5, transition: { duration: 0.3, ease: 'easeOut' } }}
+      className="group relative h-full"
     >
-      {/* Glow effect */}
-      <div className={cn(
-        "absolute -inset-0.5 rounded-3xl bg-gradient-to-r opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-70",
-        gradient
-      )} />
-      
-      {/* Card */}
-      <div className="relative bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-2xl transition-all duration-500 h-full">
-        {/* Icon */}
-        <motion.div
-          className={cn("w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center mb-6", gradient)}
-          whileHover={{ scale: 1.1, rotate: 5 }}
-        >
-          <Icon className="w-7 h-7 text-white" />
-        </motion.div>
-        
-        <h3 className="text-xl font-bold text-gray-900 mb-3">{title}</h3>
-        <p className="text-gray-500 leading-relaxed">{description}</p>
+      <div className="relative h-full rounded-[18px] bg-white border border-gray-200/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.12)] hover:border-gray-200 transition-all duration-500 flex flex-col">
 
-        {/* Arrow on hover */}
-        <motion.div
-          initial={{ opacity: 0, x: -10 }}
-          whileHover={{ opacity: 1, x: 0 }}
-          className="absolute bottom-8 right-8 text-gray-400"
-        >
-          <ArrowUpRight className="w-5 h-5" />
-        </motion.div>
+        {/* Subtle corner gradient wash */}
+        <div className={cn(
+          "absolute top-0 right-0 w-40 h-40 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 blur-3xl bg-gradient-to-br",
+          gradient
+        )} />
+
+        {/* Header */}
+        <div className="px-7 pt-7 pb-5">
+          <div className="flex items-center gap-4">
+            <div className="relative flex-shrink-0">
+              {/* Glow behind icon on hover */}
+              <div className={cn(
+                "absolute inset-0 rounded-xl opacity-0 group-hover:opacity-30 blur-xl transition-all duration-500 scale-150 bg-gradient-to-br",
+                gradient
+              )} />
+              <div className={cn(
+                "relative w-[52px] h-[52px] rounded-xl bg-gradient-to-br flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.12)] group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.18)] transition-all duration-300 group-hover:scale-[1.04]",
+                gradient
+              )}>
+                <Icon className="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <h3 className="text-gray-900 font-bold text-[17px] tracking-tight leading-snug">
+              {title}
+            </h3>
+          </div>
+        </div>
+
+        {/* Separator with subtle gradient */}
+        <div className="mx-7 h-px bg-gradient-to-r from-gray-100 via-gray-200/60 to-gray-100" />
+
+        {/* Content area */}
+        <div className="px-7 pt-5 pb-7 flex flex-col flex-grow">
+          <p className="text-gray-600 text-[14px] leading-[1.8] flex-grow">
+            {description}
+          </p>
+        </div>
+
+        {/* Bottom accent bar — scales in on hover */}
+        <div className={cn(
+          "absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left",
+          gradient
+        )} />
       </div>
     </motion.div>
   );
 }
 
-// Testimonial card with premium styling
-function TestimonialCard({ name, role, content, index }: {
+// Testimonial card — editorial, magazine-quality design
+function TestimonialCard({ name, role, content, index, verified = true }: {
   name: string;
   role: string;
   content: string;
   index: number;
+  verified?: boolean;
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
@@ -275,29 +307,48 @@ function TestimonialCard({ name, role, content, index }: {
       ref={ref}
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.5, delay: index * 0.15 }}
-      className="relative group"
+      transition={{ duration: 0.7, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] }}
+      className="relative group h-full"
     >
-      <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-      <div className="relative bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-xl transition-all">
-        {/* Stars */}
-        <div className="flex gap-1 mb-6">
-          {[...Array(5)].map((_, i) => (
-            <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
-          ))}
-        </div>
+      <div className="relative rounded-2xl border border-gray-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-xl transition-all duration-500 h-full flex overflow-hidden bg-gradient-to-br from-white via-white to-blue-50/40">
 
-        {/* Quote */}
-        <p className="text-lg text-gray-700 leading-relaxed mb-8 font-medium">"{content}"</p>
+        {/* Left gradient accent */}
+        <div className="w-1.5 flex-shrink-0 bg-gradient-to-b from-[#2D8CF0] via-[#1A73E8] to-yellow-400" />
 
-        {/* Author */}
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-lg">
-            {name.split(' ').map(n => n[0]).join('')}
+        <div className="flex-1 p-10 md:p-12 flex flex-col relative">
+          {/* Large decorative quote */}
+          <svg className="absolute top-6 right-8 w-20 h-20 text-[#2D8CF0]/[0.06]" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14.017 21V18c0-1.1.3-1.93.91-2.49.61-.56 1.79-.98 3.53-1.26V9.93c-1.44.1-2.32.23-2.63.38-.32.15-.72.69-1.19 1.61l-1.48-.92c.76-1.82 1.71-3.27 2.88-4.35 1.17-1.08 2.81-1.74 4.92-1.98v2.88c-1.18.1-2.07.47-2.68 1.1-.61.64-.92 1.63-.92 2.97v2.18c1.32.18 1.98 1.18 1.98 3v5.2h-5.32zM5.017 21V18c0-1.1.3-1.93.91-2.49.61-.56 1.79-.98 3.53-1.26V9.93c-1.44.1-2.32.23-2.63.38-.32.15-.72.69-1.19 1.61l-1.48-.92c.76-1.82 1.71-3.27 2.88-4.35 1.17-1.08 2.81-1.74 4.92-1.98v2.88c-1.18.1-2.07.47-2.68 1.1-.61.64-.92 1.63-.92 2.97v2.18c1.32.18 1.98 1.18 1.98 3v5.2H5.017z" />
+          </svg>
+
+          {/* Stars */}
+          <div className="flex gap-1 mb-6">
+            {[...Array(5)].map((_, i) => (
+              <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+            ))}
           </div>
-          <div>
-            <div className="font-bold text-gray-900">{name}</div>
-            <div className="text-gray-500 text-sm">{role}</div>
+
+          {/* Quote text — larger, punchier */}
+          <p className="text-lg md:text-xl text-gray-800 leading-[1.8] flex-grow font-medium relative z-10">
+            &ldquo;{content}&rdquo;
+          </p>
+
+          {/* Author */}
+          <div className="flex items-center gap-4 mt-8 pt-7 border-t border-gray-100">
+            <div className="relative">
+              <div className="w-13 h-13 rounded-full bg-gradient-to-br from-[#2D8CF0] to-[#1A73E8] flex items-center justify-center text-white font-bold text-base shadow-md" style={{ width: 52, height: 52 }}>
+                {name.split(' ').map(n => n[0]).join('')}
+              </div>
+              {verified && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                  <CheckCircle className="w-4 h-4 text-[#2D8CF0]" />
+                </div>
+              )}
+            </div>
+            <div>
+              <div className="font-bold text-gray-900 text-base">{name}</div>
+              <div className="text-gray-400 text-sm font-medium">{role}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -305,7 +356,7 @@ function TestimonialCard({ name, role, content, index }: {
   );
 }
 
-// Premium phone mockup
+// PREMIUM Phone Mockup - Thinner bezel, Status Bar, Fixed button overlap
 function PhoneMockup() {
   return (
     <motion.div
@@ -314,99 +365,154 @@ function PhoneMockup() {
       transition={{ duration: 1, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="relative perspective-1000"
     >
-      {/* Ambient glow */}
-      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 rounded-[4rem] blur-3xl scale-90 animate-pulse" />
-      
-      {/* Phone frame */}
-      <div className="relative w-80 h-[640px] bg-gradient-to-b from-gray-800 via-gray-900 to-black rounded-[3.5rem] p-3 shadow-2xl border border-gray-700">
-        {/* Dynamic Island */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 w-28 h-8 bg-black rounded-full z-20" />
-        
-        {/* Screen */}
-        <div className="w-full h-full bg-gradient-to-b from-slate-50 to-white rounded-[3rem] overflow-hidden">
-          <div className="p-5 pt-14">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-              <ChevronRight className="w-6 h-6 text-gray-400 rotate-180" />
-              <span className="font-bold text-gray-900">Modern History</span>
-              <div className="px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold rounded-full shadow-lg">
-                12/20
-              </div>
-            </div>
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-yellow-500/20 to-blue-500/30 rounded-[4rem] blur-3xl scale-90 animate-pulse" />
 
-            {/* Question Card */}
-            <motion.div 
-              className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-3xl p-5 mb-5 border border-blue-100/50 shadow-inner"
-              animate={{ boxShadow: ["0 0 20px rgba(99,102,241,0.1)", "0 0 40px rgba(99,102,241,0.2)", "0 0 20px rgba(99,102,241,0.1)"] }}
+      {/* Phone Frame — THINNER BEZEL */}
+      <div className="relative w-[310px] h-[660px] bg-gradient-to-b from-[#1c1c1e] to-[#0a0a0a] rounded-[3rem] p-[6px] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.35)] ring-1 ring-white/10">
+
+        {/* Dynamic Island — iPhone 15 Pro style pill */}
+        <div className="absolute top-[10px] left-1/2 -translate-x-1/2 z-30 flex items-center justify-center">
+          <div className="w-[100px] h-[28px] bg-black rounded-full flex items-center justify-end pr-[9px]">
+            <div className="w-[10px] h-[10px] rounded-full bg-[#1a1a2e] ring-1 ring-[#2a2a3e]" />
+          </div>
+        </div>
+
+        {/* Inner Screen */}
+        <div className="w-full h-full bg-slate-50 rounded-[2.6rem] overflow-hidden relative flex flex-col">
+
+          {/* ── Status Bar ── */}
+          <div className="flex items-end justify-between px-7 pt-3 pb-1 z-20 shrink-0">
+            <span className="text-[13px] font-semibold text-gray-900 tracking-tight">9:41</span>
+            <div className="flex items-center gap-[5px]">
+              <Signal className="w-[14px] h-[14px] text-gray-900 fill-gray-900" />
+              <Wifi className="w-[15px] h-[15px] text-gray-900" />
+              <Battery className="w-[18px] h-[18px] text-gray-900 fill-gray-900" />
+            </div>
+          </div>
+
+          {/* ── App Header ── Premium frosted bar */}
+          <div className="flex items-center justify-between px-5 py-3 bg-white/70 backdrop-blur-md border-b border-gray-100/50 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-gray-100/80 flex items-center justify-center">
+              <ChevronRight className="w-5 h-5 text-gray-600 rotate-180" />
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="font-bold text-gray-900 text-[15px] tracking-tight">Modern History</span>
+              <span className="text-[10px] font-semibold text-[#2D8CF0] mt-0.5">MCQ Practice</span>
+            </div>
+            <div className="px-2.5 py-1 bg-[#2D8CF0] text-white text-[11px] font-bold rounded-lg shadow-sm">13/20</div>
+          </div>
+
+          {/* ── Progress Bar ── */}
+          <div className="px-5 py-3 shrink-0">
+            <div className="flex justify-between items-center mb-1.5">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Progress</span>
+              <span className="text-[10px] font-bold text-[#2D8CF0]">65%</span>
+            </div>
+            <div className="h-[4px] bg-gray-100 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-gradient-to-r from-[#2D8CF0] to-[#1A73E8] rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: '65%' }}
+                transition={{ duration: 1.2, delay: 0.6 }}
+              />
+            </div>
+          </div>
+
+          {/* ── Scrollable Quiz Content ── */}
+          <div className="flex-1 overflow-y-auto px-5 pb-[90px]">
+            {/* Question Card — with left accent */}
+            <motion.div
+              className="bg-white rounded-2xl p-5 mb-5 border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] relative overflow-hidden"
+              animate={{ boxShadow: ["0 2px 12px rgba(45,140,240,0.04)", "0 4px 20px rgba(45,140,240,0.08)", "0 2px 12px rgba(45,140,240,0.04)"] }}
               transition={{ duration: 3, repeat: Infinity }}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center">
+              {/* Left accent bar */}
+              <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-gradient-to-b from-[#2D8CF0] to-[#1A73E8] rounded-l-2xl" />
+              <div className="flex items-center gap-2 mb-3 ml-2">
+                <div className="w-6 h-6 rounded-md bg-[#2D8CF0] flex items-center justify-center">
                   <Lightbulb className="w-3.5 h-3.5 text-white" />
                 </div>
-                <span className="text-xs font-bold text-blue-600 tracking-wider">QUESTION 13</span>
+                <span className="text-[10px] font-bold text-[#2D8CF0] tracking-wider uppercase">Question 13 of 20</span>
+                <span className="ml-auto text-[9px] font-semibold text-amber-500 bg-amber-50 px-1.5 py-0.5 rounded">+2 marks</span>
               </div>
-              <p className="text-gray-800 font-semibold text-sm leading-relaxed">
+              <p className="text-gray-800 font-semibold text-[14px] leading-[1.6] ml-2">
                 Which of the following introduced the principle of communal representation in India?
               </p>
             </motion.div>
 
-            {/* Options */}
-            <div className="space-y-3">
-              <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 flex items-center gap-4 hover:border-gray-200 transition-all cursor-pointer">
-                <span className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600">A</span>
-                <span className="text-sm font-medium text-gray-700">Indian Councils Act, 1892</span>
-              </div>
-              <motion.div 
-                className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-2xl p-4 flex items-center gap-4"
-                layoutId="correct"
-              >
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 flex items-center justify-center shadow-lg">
-                  <Check className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-sm font-bold text-green-700">Indian Councils Act, 1909</span>
-              </motion.div>
-              <div className="bg-white border-2 border-gray-100 rounded-2xl p-4 flex items-center gap-4 hover:border-gray-200 transition-all cursor-pointer">
-                <span className="w-8 h-8 rounded-xl bg-gray-100 flex items-center justify-center text-sm font-bold text-gray-600">C</span>
-                <span className="text-sm font-medium text-gray-700">Government of India Act, 1919</span>
-              </div>
+            {/* Answer Options — refined cards */}
+            <div className="space-y-2">
+              {[
+                { id: 'A', text: 'Indian Councils Act, 1892', selected: false },
+                { id: 'B', text: 'Indian Councils Act, 1909', selected: true },
+                { id: 'C', text: 'Government of India Act, 1919', selected: false },
+                { id: 'D', text: 'Government of India Act, 1935', selected: false },
+              ].map((opt, i) => (
+                <motion.div
+                  key={opt.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.6 + i * 0.08 }}
+                  className={`rounded-xl p-3.5 flex items-center gap-3 transition-all border-2 ${opt.selected
+                    ? 'bg-green-50 border-green-400 shadow-sm'
+                    : 'bg-white border-gray-100 hover:border-gray-200 cursor-pointer'
+                    }`}
+                >
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${opt.selected
+                    ? 'bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-500'
+                    }`}>
+                    {opt.selected ? <Check className="w-3.5 h-3.5" /> : opt.id}
+                  </div>
+                  <span className={`text-[13px] font-medium ${opt.selected ? 'text-green-700 font-bold' : 'text-gray-700'
+                    }`}>
+                    {opt.text}
+                  </span>
+                </motion.div>
+              ))}
             </div>
+          </div>
 
-            {/* Next button */}
-            <motion.button 
-              className="w-full bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white rounded-2xl py-4 mt-6 font-bold text-sm shadow-xl"
+          {/* ── Floating "Next Question" — brand blue, pinned above bezel ── */}
+          <div className="absolute bottom-0 inset-x-0 p-4 pb-7 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent z-10">
+            <motion.button
+              className="w-full bg-gradient-to-r from-[#2D8CF0] to-[#1A73E8] text-white rounded-2xl py-3.5 font-bold text-sm shadow-lg shadow-[#2D8CF0]/25 relative overflow-hidden"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              Next Question →
+              {/* Shine overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent rounded-2xl" />
+              <span className="relative z-10">Next Question →</span>
             </motion.button>
           </div>
+
         </div>
       </div>
 
-      {/* Floating elements */}
+      {/* Floating Stats — Streak */}
       <motion.div
         initial={{ opacity: 0, x: 60 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: 1 }}
-        className="absolute top-16 -right-20 bg-white rounded-2xl p-4 shadow-2xl border border-gray-100 backdrop-blur-sm"
+        className="absolute top-16 -right-20 bg-white/90 backdrop-blur-xl rounded-2xl p-4 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] border border-gray-100/80"
       >
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center shadow-lg">
             <Trophy className="w-6 h-6 text-white" />
           </div>
           <div>
-            <div className="text-sm font-bold text-gray-900">12 Day Streak! 🔥</div>
-            <div className="text-xs text-gray-500">You're on fire!</div>
+            <div className="text-sm font-bold text-gray-900">12 Day Streak!</div>
+            <div className="text-xs text-gray-500">You're on fire! 🔥</div>
           </div>
         </div>
       </motion.div>
 
+      {/* Floating Stats — Accuracy */}
       <motion.div
         initial={{ opacity: 0, x: -60 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: 1.2 }}
-        className="absolute bottom-24 -left-24 bg-white rounded-2xl p-4 shadow-2xl border border-gray-100 backdrop-blur-sm"
+        className="absolute bottom-28 -left-24 bg-white/90 backdrop-blur-xl rounded-2xl p-4 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)] border border-gray-100/80"
       >
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg">
@@ -426,6 +532,9 @@ function PhoneMockup() {
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+  const [isHoveringTestimonial, setIsHoveringTestimonial] = useState(false);
+  const [slideDirection, setSlideDirection] = useState(1); // 1 = right, -1 = left
   const router = useRouter();
 
   useEffect(() => {
@@ -433,19 +542,78 @@ export default function LandingPage() {
     if (token) router.push('/dashboard');
   }, [router]);
 
+  // Auto-advance testimonial carousel
+  useEffect(() => {
+    if (isHoveringTestimonial) return;
+    const timer = setInterval(() => {
+      setSlideDirection(1);
+      setActiveTestimonial((prev: number) => (prev + 1) % 3);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [isHoveringTestimonial]);
+
+  // UPDATED 9 FEATURES - EXACT ICON MATCH from Ionicons (matching my-app source)
   const features = [
-    { icon: Brain, title: 'AI-Powered Learning', description: 'Adaptive algorithms understand your learning style and optimize your study path in real-time for maximum retention.', gradient: 'from-purple-500 to-indigo-600' },
-    { icon: Cpu, title: 'Smart Question Engine', description: 'Generate exam-ready MCQs from current affairs. Our AI parses The Hindu, Indian Express, and NCERTs daily.', gradient: 'from-blue-500 to-cyan-500' },
-    { icon: FileText, title: 'Answer Evaluation', description: 'Get detailed feedback on structure, vocabulary, and relevance. Benchmarked against top scorer answer scripts.', gradient: 'from-orange-500 to-red-500' },
-    { icon: Map, title: 'Dynamic Roadmaps', description: 'Never fall behind. Our AI scheduler automatically adjusts your plan based on your progress and goals.', gradient: 'from-green-500 to-emerald-500' },
-    { icon: BarChart3, title: 'Deep Analytics', description: 'Beautiful dashboards reveal your strengths and weaknesses. Know exactly what to focus on next.', gradient: 'from-pink-500 to-rose-500' },
-    { icon: Zap, title: 'Smart News Feed', description: 'Auto-tagged current affairs filtered for UPSC syllabus. Never miss what matters for your exam.', gradient: 'from-yellow-500 to-orange-500' },
+    {
+      icon: IoNewspaperOutline,
+      title: 'News Feed',
+      description: 'Stay ahead with AI-curated daily current affairs, auto-tagged by syllabus topic. Never miss a critical update from The Hindu or Indian Express.',
+      gradient: 'from-[#2D8CF0] to-[#1A73E8]'
+    },
+    {
+      icon: IoCreateOutline,
+      title: 'AI MCQs Generate',
+      description: 'Generate unlimited, exam-level multiple choice questions from any topic. Master your weak areas with adaptive difficulty levels.',
+      gradient: 'from-[#2D8CF0] to-cyan-500'
+    },
+    {
+      icon: IoGitNetworkOutline,
+      title: 'AI Mind Map',
+      description: 'Transform complex topics into intuitive, memorable visual hierarchies. Perfect for quick revision and connecting the dots between concepts.',
+      gradient: 'from-indigo-500 to-purple-500'
+    },
+    {
+      icon: IoDocumentAttachOutline,
+      title: 'Generate MCQs from PDF',
+      description: 'Turn standard books and NCERTs into active learning quizzes. Upload any PDF and let our AI create a custom test suite in seconds.',
+      gradient: 'from-red-400 to-pink-500'
+    },
+    {
+      icon: IoDocumentTextOutline,
+      title: 'Mains Answer Evaluation',
+      description: 'Get world-class feedback from an AI examiner trained on topper scripts. Receive detailed scoring on structure, content, and relevance.',
+      gradient: 'from-orange-400 to-yellow-500'
+    },
+    {
+      icon: IoCreateOutline,
+      title: 'Upload Notes',
+      description: 'Digitize your preparation. Organize handwritten notes, PDFs, and web clippings in one searchable, intelligent knowledge base.',
+      gradient: 'from-purple-500 to-indigo-500'
+    },
+    {
+      icon: IoSparklesOutline,
+      title: 'AI Notes Maker',
+      description: 'Stop copying, start understanding. Instantly generate concise, high-yield notes and summaries from any text or article.',
+      gradient: 'from-emerald-400 to-green-500'
+    },
+    {
+      icon: IoDocumentsOutline,
+      title: 'Question Bank',
+      description: 'Access a vast repository of previous years\' questions and premium mock tests, detailed with solutions and performance analytics.',
+      gradient: 'from-amber-400 to-yellow-500'
+    },
+    {
+      icon: IoStatsChartOutline,
+      title: 'Progress',
+      description: 'Track your journey with precision. Visualize your strengths, identify gaps, and get AI-driven recommendations to optimize your study plan.',
+      gradient: 'from-[#1A73E8] to-[#115EA3]'
+    },
   ];
 
   const testimonials = [
-    { name: 'Priya Sharma', role: 'UPSC Aspirant', content: 'This platform transformed my preparation. The AI-generated MCQs helped me identify weak areas I never knew existed.' },
-    { name: 'Rahul Krishnan', role: 'UPSC Aspirant', content: 'The roadmap feature is a game-changer. I could finally see my entire preparation journey mapped out clearly.' },
-    { name: 'Ananya Gupta', role: 'UPSC Aspirant', content: 'Daily current affairs with smart summaries saved me hours. The AI knows exactly what\'s relevant for the exam.' },
+    { name: 'Priya Sharma', role: 'UPSC Aspirant', content: 'The AI Mains Evaluation is startlingly accurate. It caught structural issues in my essays that I missed for months. A game changer.' },
+    { name: 'Rahul Krishnan', role: 'UPSC Aspirant', content: 'Mind maps turned my chaotic history notes into a visual timeline. I could revise the entire Modern History syllabus in 2 hours before the Prelims.' },
+    { name: 'Ananya Gupta', role: 'UPSC Aspirant', content: 'The News Feed saves me at least 90 minutes every morning. Relevant, tagged, and concise - exactly what a serious aspirant needs.' },
   ];
 
   const stats = [
@@ -456,8 +624,7 @@ export default function LandingPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-white text-gray-900 overflow-hidden">
-      {/* Global styles */}
+    <div className="min-h-screen bg-white text-gray-900 overflow-hidden font-sans selection:bg-yellow-100 selection:text-yellow-900">
       <style jsx global>{`
         @keyframes shimmer {
           0% { background-position: 0% 50%; }
@@ -471,29 +638,29 @@ export default function LandingPage() {
       {/* Background layers */}
       <GridBackground />
       <FloatingParticles />
-      
-      {/* Gradient orbs */}
+
+      {/* Gradient orbs - REFINED for Premium look */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <motion.div
-          className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 rounded-full bg-gradient-to-br from-blue-200/40 to-purple-200/40 blur-3xl"
+          className="absolute -top-1/4 -right-1/4 w-1/2 h-1/2 rounded-full bg-gradient-to-br from-[#2D8CF0]/10 to-[#2D8CF0]/15 blur-[120px]"
           animate={{ scale: [1, 1.2, 1], rotate: [0, 90, 0] }}
           transition={{ duration: 20, repeat: Infinity }}
         />
         <motion.div
-          className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 rounded-full bg-gradient-to-br from-cyan-200/40 to-blue-200/40 blur-3xl"
+          className="absolute -bottom-1/4 -left-1/4 w-1/2 h-1/2 rounded-full bg-gradient-to-br from-yellow-100/30 to-[#2D8CF0]/10 blur-[120px]"
           animate={{ scale: [1.2, 1, 1.2], rotate: [0, -90, 0] }}
           transition={{ duration: 25, repeat: Infinity }}
         />
       </div>
 
       {/* Navigation */}
-      <motion.nav 
+      <motion.nav
         className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-4"
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="max-w-6xl mx-auto backdrop-blur-2xl bg-white/80 border border-gray-200/50 rounded-2xl px-8 py-4 flex items-center justify-between shadow-xl shadow-gray-200/40">
+        <div className="max-w-6xl mx-auto backdrop-blur-2xl bg-white/85 border border-gray-200/60 rounded-[1.25rem] px-8 py-4 flex items-center justify-between shadow-lg shadow-gray-200/30">
           <PrepAssistLogo />
 
           <div className="hidden md:flex items-center gap-10">
@@ -501,26 +668,25 @@ export default function LandingPage() {
               <motion.a
                 key={item}
                 href={item === 'Pricing' ? '/pricing' : `#${item.toLowerCase()}`}
-                className="text-gray-700 hover:text-gray-900 text-base font-semibold relative group"
+                className="text-gray-600 hover:text-[#2D8CF0] text-sm font-semibold tracking-wide uppercase transition-colors"
                 whileHover={{ scale: 1.05 }}
               >
                 {item}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300" />
               </motion.a>
             ))}
           </div>
 
           <div className="hidden md:flex items-center gap-4">
-            <motion.a 
-              href="https://app.prepassist.in/login" 
-              className="text-gray-700 hover:text-gray-900 text-base font-semibold px-4 py-2"
+            <motion.a
+              href="https://app.prepassist.in/login"
+              className="text-gray-700 hover:text-[#2D8CF0] text-sm font-bold px-4 py-2 transition-colors"
               whileHover={{ scale: 1.05 }}
             >
               Log in
             </motion.a>
             <MagneticButton
               href="https://app.prepassist.in/login"
-              className="bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white px-7 py-3 rounded-xl text-base font-bold shadow-xl hover:shadow-2xl transition-all inline-block"
+              className="bg-gradient-to-r from-[#1A73E8] to-[#2D8CF0] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all inline-block border border-[#1A73E8]/50"
             >
               Start Free Trial
             </MagneticButton>
@@ -533,16 +699,16 @@ export default function LandingPage() {
 
         <AnimatePresence>
           {mobileMenuOpen && (
-            <motion.div 
+            <motion.div
               className="md:hidden mt-4 backdrop-blur-2xl bg-white/95 border border-gray-200/50 rounded-2xl p-6 space-y-4 shadow-xl"
               initial={{ opacity: 0, y: -20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
             >
-              <a href="#features" className="block text-gray-700 hover:text-gray-900 text-lg font-semibold py-2">Features</a>
-              <a href="#testimonials" className="block text-gray-700 hover:text-gray-900 text-lg font-semibold py-2">Testimonials</a>
-              <a href="/pricing" className="block text-gray-700 hover:text-gray-900 text-lg font-semibold py-2">Pricing</a>
-              <a href="https://app.prepassist.in/login" className="block bg-gradient-to-r from-gray-900 to-gray-800 text-white px-6 py-4 rounded-xl font-bold text-center">
+              <a href="#features" className="block text-gray-700 hover:text-[#2D8CF0] text-lg font-semibold py-2">Features</a>
+              <a href="#testimonials" className="block text-gray-700 hover:text-[#2D8CF0] text-lg font-semibold py-2">Testimonials</a>
+              <a href="/pricing" className="block text-gray-700 hover:text-[#2D8CF0] text-lg font-semibold py-2">Pricing</a>
+              <a href="https://app.prepassist.in/login" className="block bg-gradient-to-r from-[#1A73E8] to-[#2D8CF0] text-white px-6 py-4 rounded-xl font-bold text-center">
                 Start Free Trial
               </a>
             </motion.div>
@@ -551,8 +717,8 @@ export default function LandingPage() {
       </motion.nav>
 
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center pt-48 pb-24 px-6">
-        <div className="max-w-6xl mx-auto w-full">
+      <section className="relative min-h-screen flex items-center pt-48 pb-24 px-6 md:px-10">
+        <div className="max-w-7xl mx-auto w-full">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
             {/* Left Content */}
             <div className="relative z-10">
@@ -561,9 +727,9 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <PremiumBadge>THE FUTURE OF UPSC PREPARATION</PremiumBadge>
-                
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mt-8 mb-6 leading-[1.05] tracking-tight">
+                <PremiumBadge color="blue">THE FUTURE OF UPSC PREPARATION</PremiumBadge>
+
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mt-8 mb-6 leading-[1.05] tracking-tight text-slate-900">
                   Your Personal
                   <br />
                   <ShimmerText>AI Mentor</ShimmerText>
@@ -571,34 +737,33 @@ export default function LandingPage() {
                   for UPSC
                 </h1>
 
-                <p className="text-xl text-gray-500 max-w-lg mb-10 leading-relaxed">
-                  Join <span className="font-bold text-gray-900">15,000+ aspirants</span> who are preparing smarter with AI-powered quizzes, personalized roadmaps, and real-time analytics.
+                <p className="text-xl text-gray-500 max-w-lg mb-10 leading-relaxed font-medium tracking-wide">
+                  Join <span className="font-bold text-gray-900 border-b-2 border-yellow-400">15,000+ aspirants</span> engaging with the most advanced AI preparation ecosystem.
                 </p>
 
                 <div className="flex flex-wrap gap-4 mb-12">
                   <MagneticButton
                     href="https://app.prepassist.in/login"
-                    className="inline-flex items-center gap-3 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 text-white px-8 py-5 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
+                    className="inline-flex items-center gap-3 bg-gradient-to-r from-[#1A73E8] to-[#2D8CF0] text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-[#2D8CF0]/20 hover:shadow-2xl transition-all border border-[#1A73E8]/50"
                   >
                     Start Learning Free <ArrowRight className="w-5 h-5" />
                   </MagneticButton>
-                  <MagneticButton className="inline-flex items-center gap-3 bg-gray-100 hover:bg-gray-200 px-8 py-5 rounded-2xl font-bold text-lg transition-all">
+                  <MagneticButton className="inline-flex items-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-sm">
                     <Play className="w-5 h-5" /> Watch Demo
                   </MagneticButton>
                 </div>
 
-                {/* Social proof */}
                 <div className="flex items-center gap-6">
                   <div className="flex -space-x-3">
-                    {['👩‍🎓', '👨‍💼', '👩‍💻', '👨‍🎓', '👩‍🏫'].map((emoji, i) => (
-                      <motion.div 
-                        key={i} 
-                        className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 border-3 border-white flex items-center justify-center text-xl shadow-md"
+                    {[Users, GraduationCap, Award, BookOpen, Target].map((Icon, i) => (
+                      <motion.div
+                        key={i}
+                        className="w-12 h-12 rounded-full bg-white border-4 border-white flex items-center justify-center text-xl shadow-md"
                         initial={{ opacity: 0, scale: 0 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: 0.5 + i * 0.1 }}
                       >
-                        {emoji}
+                        <Icon className="w-5 h-5 text-gray-600" />
                       </motion.div>
                     ))}
                   </div>
@@ -616,7 +781,7 @@ export default function LandingPage() {
               </motion.div>
             </div>
 
-            {/* Phone Mockup */}
+            {/* Phone Mockup - RESTORED ORIGINAL */}
             <div className="relative flex justify-center lg:justify-end">
               <PhoneMockup />
             </div>
@@ -627,22 +792,22 @@ export default function LandingPage() {
       {/* Trusted by section */}
       <section className="py-12 border-y border-gray-100 bg-gray-50/50 overflow-hidden">
         <div className="max-w-6xl mx-auto px-6">
-          <motion.div 
-            className="flex items-center justify-center gap-12 md:gap-20 flex-wrap"
+          <motion.div
+            className="flex items-center justify-center gap-12 md:gap-24 flex-wrap"
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
           >
-            {['Ranked #1 UPSC App', '4.9★ App Store', 'Featured in ET', '24/7 AI Support'].map((item, i) => (
+            {['Ranked #1 UPSC App', '4.9★ App Store', 'Featured in Best Apps', '24/7 AI Support'].map((item, i) => (
               <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-2 text-gray-500 font-medium"
+                className="flex items-center gap-2 text-gray-500 font-semibold tracking-wide text-sm uppercase"
               >
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CheckCircle className="w-5 h-5 text-[#2D8CF0]" />
                 {item}
               </motion.div>
             ))}
@@ -651,7 +816,7 @@ export default function LandingPage() {
       </section>
 
       {/* Stats Section */}
-      <section className="py-24 px-6">
+      <section className="py-24 px-6 md:px-10">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
             {stats.map((stat, i) => (
@@ -661,18 +826,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section id="features" className="py-24 px-6 bg-gradient-to-b from-gray-50 to-white">
-        <div className="max-w-6xl mx-auto">
-          <RevealOnScroll className="text-center mb-20">
-            <PremiumBadge color="blue">POWERFUL FEATURES</PremiumBadge>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 mb-6">
+      {/* Features Section - PREMIUM & REALISTIC */}
+      <section id="features" className="py-32 px-6 bg-gradient-to-b from-gray-50/80 to-white relative overflow-hidden">
+        {/* Decorative blobs */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#2D8CF0]/5 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-yellow-50/40 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto relative z-10">
+          <RevealOnScroll className="text-center mb-24">
+            <PremiumBadge color="yellow">POWERFUL FEATURES</PremiumBadge>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 mb-6 tracking-tight text-gray-900">
               Everything you need to
               <br />
               <ShimmerText>crack the exam</ShimmerText>
             </h2>
-            <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-              A complete AI-powered ecosystem built specifically for UPSC aspirants.
+            <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium leading-relaxed">
+              Replace scattered books and outdated websites with one unified, intelligent platform specifically designed for the modern aspirant.
             </p>
           </RevealOnScroll>
 
@@ -684,85 +853,225 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-24 px-6">
-        <div className="max-w-6xl mx-auto">
+      {/* Testimonials Section — Single Card Carousel */}
+      <section id="testimonials" className="py-32 px-6">
+        <div className="max-w-4xl mx-auto">
           <RevealOnScroll className="text-center mb-20">
-            <PremiumBadge color="purple">SUCCESS STORIES</PremiumBadge>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 mb-6">
+            <PremiumBadge color="blue">SUCCESS STORIES</PremiumBadge>
+            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 mb-6 tracking-tight">
               Loved by
               <br />
-              <ShimmerText>ambitious aspirants</ShimmerText>
+              <ShimmerText>toppers & aspirants</ShimmerText>
             </h2>
-            <p className="text-xl text-gray-500 max-w-2xl mx-auto">
-              See what our community has to say about their journey.
+            <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium">
+              Real results from serious candidates who switched to smart preparation.
             </p>
           </RevealOnScroll>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {testimonials.map((testimonial, i) => (
-              <TestimonialCard key={i} {...testimonial} index={i} />
-            ))}
+          {/* Carousel */}
+          <div
+            className="relative"
+            onMouseEnter={() => setIsHoveringTestimonial(true)}
+            onMouseLeave={() => setIsHoveringTestimonial(false)}
+          >
+            {/* Left Arrow */}
+            <button
+              onClick={() => { setSlideDirection(-1); setActiveTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length); }}
+              className="absolute left-0 md:-left-16 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white border border-gray-200 shadow-md hover:shadow-lg hover:border-[#2D8CF0]/30 flex items-center justify-center transition-all group"
+            >
+              <ChevronLeft className="w-5 h-5 text-gray-400 group-hover:text-[#2D8CF0] transition-colors" />
+            </button>
+
+            {/* Right Arrow */}
+            <button
+              onClick={() => { setSlideDirection(1); setActiveTestimonial((prev) => (prev + 1) % testimonials.length); }}
+              className="absolute right-0 md:-right-16 top-1/2 -translate-y-1/2 z-10 w-11 h-11 rounded-full bg-white border border-gray-200 shadow-md hover:shadow-lg hover:border-[#2D8CF0]/30 flex items-center justify-center transition-all group"
+            >
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-[#2D8CF0] transition-colors" />
+            </button>
+
+            {/* Card Container — classic slider */}
+            <div className="overflow-hidden px-4 md:px-0">
+              <div
+                className="flex transition-transform duration-500 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+                style={{ transform: `translateX(-${activeTestimonial * 100}%)` }}
+              >
+                {testimonials.map((t, i) => (
+                  <div key={i} className="w-full flex-shrink-0">
+                    <TestimonialCard {...t} index={0} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Dot indicators */}
+            <div className="flex items-center justify-center gap-2 mt-10">
+              {testimonials.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveTestimonial(i)}
+                  className={`rounded-full transition-all duration-300 ${i === activeTestimonial
+                    ? 'w-8 h-2.5 bg-[#2D8CF0]'
+                    : 'w-2.5 h-2.5 bg-gray-200 hover:bg-gray-300'
+                    }`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-24 px-6">
-        <div className="max-w-5xl mx-auto">
+      {/* CTA Section — Premium */}
+      <section className="py-28 px-6 md:px-10">
+        <div className="max-w-6xl mx-auto">
           <RevealOnScroll>
-            <div className="relative overflow-hidden rounded-[3rem] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 p-12 md:p-20">
-              {/* Background effects */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-blue-500/30 blur-3xl" />
-                <div className="absolute bottom-0 right-1/4 w-96 h-96 rounded-full bg-purple-500/30 blur-3xl" />
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTEgMGExIDEgMCAxIDEgMiAwYTEgMSAwIDEgMS0yIDB6IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMSkiLz48L2c+PC9zdmc+')] opacity-50" />
-              </div>
+            <div className="relative overflow-hidden rounded-[2rem] bg-[#0c2d5a] p-[2px]">
+              {/* Animated gradient border */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[#2D8CF0] via-yellow-400/50 to-[#2D8CF0] opacity-70 rounded-[2rem] animate-shimmer" style={{ backgroundSize: '200% 200%' }} />
 
-              <div className="relative z-10 text-center">
-                <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-white leading-tight">
-                  Ready to transform
-                  <br />
-                  your preparation?
-                </h2>
-                <p className="text-xl text-gray-300 mb-10 max-w-2xl mx-auto">
-                  Join thousands of serious aspirants using AI to prepare smarter.
-                </p>
-                
-                <div className="flex flex-wrap gap-4 justify-center">
-                  <MagneticButton
-                    href="https://app.prepassist.in/login"
-                    className="inline-flex items-center gap-3 bg-white text-gray-900 px-8 py-5 rounded-2xl font-bold text-lg shadow-xl hover:shadow-2xl transition-all"
+              {/* Inner container */}
+              <div className="relative bg-gradient-to-br from-[#0a2547] via-[#0f3d6e] to-[#0a2547] rounded-[calc(2rem-2px)] p-12 md:p-20 overflow-hidden">
+                {/* Radial spotlight */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[450px] bg-[#2D8CF0]/20 rounded-full blur-[150px]" />
+                <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-yellow-500/8 rounded-full blur-[100px]" />
+                <div className="absolute top-1/2 left-0 w-[300px] h-[300px] bg-[#2D8CF0]/10 rounded-full blur-[100px]" />
+
+                {/* Dot pattern */}
+                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTEgMGExIDEgMCAxIDEgMiAwYTEgMSAwIDEgMS0yIDB6IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9nPjwvc3ZnPg==')] opacity-60" />
+
+                <div className="relative z-10 text-center">
+                  {/* Badge */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-8"
                   >
-                    Start Your Free Trial <Rocket className="w-5 h-5" />
-                  </MagneticButton>
-                  <MagneticButton className="inline-flex items-center gap-3 border-2 border-white/30 text-white px-8 py-5 rounded-2xl font-bold text-lg hover:bg-white/10 transition-all">
-                    Talk to Us
-                  </MagneticButton>
+                    <Sparkles className="w-4 h-4 text-yellow-400" />
+                    <span className="text-sm font-bold text-white/90 tracking-wider uppercase">Start Today</span>
+                  </motion.div>
+
+                  <motion.h2
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.1 }}
+                    className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-white leading-[1.1] tracking-tight"
+                  >
+                    Ready to transform
+                    <br />
+                    <span className="bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent">your preparation?</span>
+                  </motion.h2>
+
+                  <motion.p
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.2 }}
+                    className="text-lg text-white/55 mb-12 max-w-xl mx-auto font-medium leading-relaxed"
+                  >
+                    Join thousands of serious aspirants using AI to prepare smarter, not harder.
+                  </motion.p>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-wrap gap-4 justify-center"
+                  >
+                    <MagneticButton
+                      href="https://app.prepassist.in/login"
+                      className="inline-flex items-center gap-3 bg-white text-[#0a2547] px-8 py-4 rounded-xl font-bold text-base shadow-xl shadow-black/25 hover:shadow-2xl hover:bg-gray-50 transition-all relative overflow-hidden"
+                    >
+                      <span className="relative z-10 flex items-center gap-3">Start Your Free Trial <ArrowRight className="w-5 h-5" /></span>
+                    </MagneticButton>
+                    <MagneticButton className="inline-flex items-center gap-3 border border-white/20 bg-white/5 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-white/10 hover:border-white/30 transition-all">
+                      Talk to a Mentor
+                    </MagneticButton>
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    whileInView={{ opacity: 1 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: 0.5 }}
+                    className="flex items-center justify-center gap-6 mt-10"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-white/45 font-medium">No credit card required</span>
+                    </div>
+                    <div className="w-1 h-1 rounded-full bg-white/20" />
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm text-white/45 font-medium">Free forever plan available</span>
+                    </div>
+                  </motion.div>
                 </div>
-                
-                <p className="text-sm text-gray-400 mt-8">No credit card required • Free forever plan available</p>
               </div>
             </div>
           </RevealOnScroll>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-16 px-6 border-t border-gray-100">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
-            <PrepAssistLogo size="small" />
-            <div className="text-gray-400 text-sm text-center">
-              © 2026 PrepAssist. Built with ❤️ for aspirants who dream big.
+      {/* Footer — White Theme */}
+      <footer className="relative bg-white border-t border-gray-100">
+        {/* Top accent line */}
+        <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#2D8CF0] to-transparent opacity-20" />
+
+        <div className="max-w-6xl mx-auto px-6 md:px-10 pt-16 pb-8">
+          {/* Main footer grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 md:gap-8 pb-12 border-b border-gray-100">
+            {/* Brand */}
+            <div className="md:col-span-2">
+              <PrepAssistLogo size="small" />
+              <p className="text-gray-400 text-sm mt-4 max-w-xs leading-relaxed font-medium">
+                India&apos;s most advanced AI-powered platform for UPSC Civil Services Examination preparation.
+              </p>
+              <div className="flex items-center gap-3 mt-6">
+                <div className="flex gap-0.5">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                <span className="text-gray-400 text-xs font-medium">4.9/5 from 2,000+ reviews</span>
+              </div>
             </div>
-            <div className="flex items-center gap-8">
-              {['Privacy', 'Terms', 'Contact'].map((item) => (
-                <a key={item} href="#" className="text-gray-500 hover:text-gray-900 transition-colors text-sm font-medium">
-                  {item}
-                </a>
-              ))}
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="text-xs font-bold text-[#2D8CF0] uppercase tracking-widest mb-4">Product</h4>
+              <div className="space-y-3">
+                {['Features', 'Pricing', 'Testimonials', 'FAQ'].map((item) => (
+                  <a key={item} href={item === 'Pricing' ? '/pricing' : `#${item.toLowerCase()}`} className="block text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">
+                    {item}
+                  </a>
+                ))}
+              </div>
             </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="text-xs font-bold text-[#2D8CF0] uppercase tracking-widest mb-4">Legal</h4>
+              <div className="space-y-3">
+                {['Privacy Policy', 'Terms of Service', 'Support', 'Contact'].map((item) => (
+                  <a key={item} href="#" className="block text-gray-400 hover:text-gray-700 text-sm font-medium transition-colors">
+                    {item}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom bar */}
+          <div className="flex flex-col md:flex-row items-center justify-between pt-8 gap-4">
+            <p className="text-gray-300 text-xs font-medium">
+              &copy; 2026 PrepAssist. All rights reserved.
+            </p>
+            <p className="text-gray-300 text-xs font-medium">
+              Built with <span className="text-yellow-400">❤️</span> for aspirants across India
+            </p>
           </div>
         </div>
       </footer>
