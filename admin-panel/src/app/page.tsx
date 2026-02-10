@@ -28,11 +28,11 @@ function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ');
 }
 
-// Animated gradient text with shimmer effect - BLUE & YELLOW
+// Animated gradient text with shimmer effect - BLUE Focused
 function ShimmerText({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <span className={cn("relative inline-block", className)}>
-      <span className="bg-gradient-to-r from-[#2D8CF0] via-yellow-400 to-[#2D8CF0] bg-[length:200%_auto] animate-shimmer bg-clip-text text-transparent">
+      <span className="bg-gradient-to-r from-[#2D8CF0] via-[#60A5FA] to-[#2D8CF0] bg-[length:200%_auto] animate-shimmer bg-clip-text text-transparent">
         {children}
       </span>
     </span>
@@ -113,11 +113,11 @@ function FloatingParticles() {
   );
 }
 
-// Grid background pattern - REFINED OPACITY For Premium Look
+// Grid background pattern - ANIMATED
 function GridBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f0f4f8_1px,transparent_1px),linear-gradient(to_bottom,#f0f4f8_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-60" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f0f4f8_1px,transparent_1px),linear-gradient(to_bottom,#f0f4f8_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-40 animate-grid-flow" />
     </div>
   );
 }
@@ -623,6 +623,11 @@ export default function LandingPage() {
           100% { background-position: 0% 50%; }
         }
         .animate-shimmer { animation: shimmer 3s ease-in-out infinite; }
+        @keyframes grid-flow {
+          0% { background-position: 0 0; }
+          100% { background-position: 4rem 4rem; }
+        }
+        .animate-grid-flow { animation: grid-flow 20s linear infinite; }
         .perspective-1000 { perspective: 1000px; }
       `}</style>
 
@@ -670,14 +675,14 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-4">
             <motion.a
               href="https://app.prepassist.in/login"
-              className="text-gray-700 hover:text-[#2D8CF0] text-sm font-bold px-4 py-2 transition-colors"
+              className="text-gray-900 border border-gray-200 hover:bg-gray-50 text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm"
               whileHover={{ scale: 1.05 }}
             >
-              Log in
+              Sign In
             </motion.a>
             <MagneticButton
               href="https://app.prepassist.in/login"
-              className="bg-black text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all inline-block"
+              className="bg-[#2D8CF0] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 hover:bg-[#1A73E8] transition-all inline-block"
             >
               Start Free Trial
             </MagneticButton>
@@ -729,13 +734,13 @@ export default function LandingPage() {
                 </h1>
 
                 <p className="text-xl text-gray-500 max-w-lg mb-10 leading-relaxed font-medium tracking-wide">
-                  Join <span className="font-bold text-gray-900 border-b-2 border-yellow-400">15,000+ aspirants</span> engaging with the most advanced AI preparation ecosystem.
+                  Join <span className="font-bold text-gray-900 border-b-2 border-blue-400">15,000+ aspirants</span> engaging with the most advanced AI preparation ecosystem.
                 </p>
 
                 <div className="flex flex-wrap gap-4 mb-12">
                   <MagneticButton
                     href="https://app.prepassist.in/login"
-                    className="inline-flex items-center gap-3 bg-black text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-black/10 hover:shadow-2xl transition-all"
+                    className="inline-flex items-center gap-3 bg-[#2D8CF0] text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/20 hover:shadow-blue-500/40 hover:bg-[#1A73E8] transition-all"
                   >
                     Start Learning Free <ArrowRight className="w-5 h-5" />
                   </MagneticButton>
