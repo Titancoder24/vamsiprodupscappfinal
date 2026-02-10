@@ -113,11 +113,11 @@ function FloatingParticles() {
   );
 }
 
-// Grid background pattern - ANIMATED
+// Grid background pattern - ANIMATED & VISIBLE
 function GridBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#f0f4f8_1px,transparent_1px),linear-gradient(to_bottom,#f0f4f8_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-40 animate-grid-flow" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#e2e8f0_1px,transparent_1px),linear-gradient(to_bottom,#e2e8f0_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)] opacity-100 animate-grid-flow" />
     </div>
   );
 }
@@ -704,9 +704,14 @@ export default function LandingPage() {
               <a href="#features" className="block text-gray-700 hover:text-[#2D8CF0] text-lg font-semibold py-2">Features</a>
               <a href="#testimonials" className="block text-gray-700 hover:text-[#2D8CF0] text-lg font-semibold py-2">Testimonials</a>
               <a href="/pricing" className="block text-gray-700 hover:text-[#2D8CF0] text-lg font-semibold py-2">Pricing</a>
-              <a href="https://app.prepassist.in/login" className="block bg-gradient-to-r from-[#1A73E8] to-[#2D8CF0] text-white px-6 py-4 rounded-xl font-bold text-center">
-                Start Free Trial
-              </a>
+              <div className="pt-4 space-y-3">
+                <a href="https://app.prepassist.in/login" className="block bg-[#2D8CF0] text-white px-6 py-4 rounded-xl font-bold text-center shadow-lg shadow-blue-500/20">
+                  Start Free Trial
+                </a>
+                <a href="https://app.prepassist.in/login" className="block border border-gray-200 text-gray-900 px-6 py-4 rounded-xl font-bold text-center">
+                  Sign In
+                </a>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -723,9 +728,7 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <PremiumBadge color="blue">THE FUTURE OF UPSC PREPARATION</PremiumBadge>
-
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mt-8 mb-6 leading-[1.05] tracking-tight text-black">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[1.05] tracking-tight text-black">
                   Your Personal
                   <br />
                   <ShimmerText>AI Mentor</ShimmerText>
@@ -744,8 +747,11 @@ export default function LandingPage() {
                   >
                     Start Learning Free <ArrowRight className="w-5 h-5" />
                   </MagneticButton>
-                  <MagneticButton className="inline-flex items-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-sm">
-                    <Play className="w-5 h-5" /> Watch Demo
+                  <MagneticButton
+                    href="https://app.prepassist.in/login"
+                    className="inline-flex items-center gap-3 bg-white border border-gray-200 hover:bg-gray-50 text-gray-900 px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-sm"
+                  >
+                    Login
                   </MagneticButton>
                 </div>
 
