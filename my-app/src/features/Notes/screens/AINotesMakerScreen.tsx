@@ -47,6 +47,7 @@ import {
 } from '../services/aiNotesService';
 import { fetchCurrentAffairs, Article } from '../services/currentAffairsService';
 import { summarizeNoteContent } from '../services/aiSummarizer';
+import { smartScrape, isValidUrl, extractDomain } from '../services/webScraper';
 import { OPENROUTER_API_KEY } from '../../../utils/secureKey';
 import { checkNewsMatches, MatchedArticle } from '../../../services/NewsMatchService';
 import { FlatList, RefreshControl } from 'react-native';
@@ -196,6 +197,7 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
     const [noteSourceUrl, setNoteSourceUrl] = useState('');
     const [noteSummary, setNoteSummary] = useState('');
     const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+    const [isScraping, setIsScraping] = useState(false);
 
     // Summary Generation
     const [showSummaryModal, setShowSummaryModal] = useState(false);
@@ -434,6 +436,59 @@ export const AINotesMakerScreen: React.FC<{ navigation: any }> = ({ navigation }
         } finally {
             setGenerating(false);
             setGeneratingStatus('');
+        }
+    };
+
+    const handleScrapeUrl = async () => {
+        if (!noteSourceUrl.trim()) {
+            Alert.alert('Missing URL', 'Please enter a URL to scrape content from');
+            return;
+        }
+
+        if (!isValidUrl(noteSourceUrl)) {
+            Alert.alert('Invalid URL', 'Please enter a valid URL starting with http:// or https://');
+            return;
+        }
+
+        setIsScraping(true);
+        try {
+            const result = await smartScrape(noteSourceUrl.trim());
+
+            if (result.error || (result.contentBlocks.length === 0 && !result.content)) {
+                throw new Error(result.error || 'Could not extract content from this URL.');
+            }
+
+            // Set title if empty
+            if (!noteTitle.trim() && result.title) {
+                setNoteTitle(result.title);
+            }
+
+            // Format scraped content
+            let extractedText = '';
+
+            if (result.contentBlocks && result.contentBlocks.length > 0) {
+                extractedText = result.contentBlocks.map(block => {
+                    if (block.type === 'heading') return `\n${'#'.repeat(block.level || 2)} ${block.content}\n`;
+                    if (block.type === 'bullet') return block.items?.map(item => `• ${item}`).join('\n') || '';
+                    if (block.type === 'numbered') return block.items?.map((item, idx) => `${idx + 1}. ${item}`).join('\n') || '';
+                    if (block.type === 'quote') return `> ${block.content}`;
+                    return block.content;
+                }).join('\n\n');
+            } else {
+                extractedText = result.content || '';
+            }
+
+            // Append or replace? Let's prepend with a header
+            const domain = extractDomain(noteSourceUrl);
+            const header = `\n--- SOURCE: ${domain} ---\n\n`;
+            setNoteContent(prev => prev ? `${prev}\n\n${header}${extractedText}` : `${extractedText}`);
+
+            Alert.alert('Success', `Content extracted from ${domain}`);
+        } catch (error: any) {
+            console.error('[AINotes] Scrape error:', error);
+            Alert.alert('Scraping Failed', error.message || 'Failed to extract content. This may be due to CORS restrictions on web.');
+        } finally {
+            setIsScraping(false);
         }
     };
 
@@ -1574,15 +1629,43 @@ h1{color:#1a365d;border-bottom:3px solid #3b82f6;padding-bottom:12px;}
                                 </View>
 
                                 {noteSourceType !== 'manual' && (
-                                    <TextInput
-                                        style={styles.sourceUrlInput}
-                                        placeholder="Paste source URL here (optional)"
-                                        placeholderTextColor="#94A3B8"
-                                        value={noteSourceUrl}
-                                        onChangeText={setNoteSourceUrl}
-                                        autoCapitalize="none"
-                                        keyboardType="url"
-                                    />
+                                    <View style={{ marginTop: 12 }}>
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                            <TextInput
+                                                style={[styles.sourceUrlInput, { marginTop: 0, flex: 1, height: 44 }]}
+                                                placeholder="Paste source URL here"
+                                                placeholderTextColor="#94A3B8"
+                                                value={noteSourceUrl}
+                                                onChangeText={setNoteSourceUrl}
+                                                autoCapitalize="none"
+                                                keyboardType="url"
+                                            />
+                                            <TouchableOpacity
+                                                style={{
+                                                    backgroundColor: noteSourceUrl.trim() ? '#3B82F6' : '#E2E8F0',
+                                                    paddingHorizontal: 16,
+                                                    borderRadius: 8,
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    height: 44
+                                                }}
+                                                onPress={handleScrapeUrl}
+                                                disabled={!noteSourceUrl.trim() || isScraping}
+                                            >
+                                                {isScraping ? (
+                                                    <ActivityIndicator size="small" color="#FFF" />
+                                                ) : (
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                        <Ionicons name="download-outline" size={18} color={noteSourceUrl.trim() ? "#FFF" : "#94A3B8"} />
+                                                        <Text style={{ color: noteSourceUrl.trim() ? '#FFF' : '#94A3B8', fontWeight: 'bold', fontSize: 12 }}>Extract</Text>
+                                                    </View>
+                                                )}
+                                            </TouchableOpacity>
+                                        </View>
+                                        <Text style={{ fontSize: 10, color: '#94A3B8', marginTop: 4, marginLeft: 2 }}>
+                                            Enter a URL to automatically pull content into your note.
+                                        </Text>
+                                    </View>
                                 )}
                             </View>
 
