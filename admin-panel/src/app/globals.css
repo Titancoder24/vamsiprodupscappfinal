@@ -1,18 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --primary-blue: #2196F3;
-  --primary-orange: #F5A623;
-  --dark-navy: #1a1f36;
-  --text-primary: #1a1f36;
-  --text-secondary: #64748b;
+  --primary-blue: #2D8CF0;
+  --primary-yellow: #F59E0B;
+  --dark-navy: #0F172A;
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --border-color: #e2e8f0;
+  --bg-secondary: #F8FAFC;
+  --border-color: #F1F5F9;
 }
 
 * {

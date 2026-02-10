@@ -122,24 +122,25 @@ function GridBackground() {
   );
 }
 
-// Premium badge with glow - BLUE & YELLOW
+// Premium badge with glow - CLEAN MODERN LOOK
 function PremiumBadge({ children, color = 'blue' }: { children: React.ReactNode; color?: 'blue' | 'yellow' }) {
   const colors = {
-    blue: 'from-[#2D8CF0]/10 to-[#1A73E8]/10 border-[#2D8CF0]/30 text-[#2D8CF0]',
-    yellow: 'from-yellow-500/10 to-yellow-600/10 border-yellow-200 text-yellow-700',
+    blue: 'bg-blue-50 border-blue-100 text-[#2D8CF0]',
+    yellow: 'bg-amber-50 border-amber-100 text-amber-700',
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
-        "inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r border backdrop-blur-sm shadow-sm",
+        "inline-flex items-center gap-2 px-4 py-1.5 rounded-full border backdrop-blur-sm shadow-sm",
         colors[color]
       )}
     >
-      <Sparkles className={cn("w-4 h-4", color === 'blue' ? "text-[#2D8CF0]" : "text-yellow-500")} />
-      <span className="text-sm font-semibold tracking-wide">{children}</span>
+      <Sparkles className={cn("w-3.5 h-3.5", color === 'blue' ? "text-[#2D8CF0]" : "text-amber-500")} />
+      <span className="text-[11px] font-bold tracking-[0.1em] uppercase">{children}</span>
     </motion.div>
   );
 }
@@ -210,11 +211,12 @@ function StatCounter({ value, suffix, label }: { value: number; suffix: string; 
       initial={{ opacity: 0, scale: 0.8 }}
       animate={isInView ? { opacity: 1, scale: 1 } : {}}
       transition={{ duration: 0.5 }}
+      whileHover={{ scale: 1.05 }}
       className="text-center p-6 group cursor-pointer"
     >
-      <div className="text-5xl md:text-6xl font-black transition-transform group-hover:scale-110 duration-300">
-        <span className="bg-gradient-to-b from-[#1A73E8] to-[#2D8CF0] bg-clip-text text-transparent">{count.toLocaleString()}</span>
-        <span className="text-yellow-500 drop-shadow-sm">{suffix}</span>
+      <div className="text-5xl md:text-6xl font-black transition-transform duration-300">
+        <span className="text-black">{count.toLocaleString()}</span>
+        <span className="text-amber-500 drop-shadow-sm">{suffix}</span>
       </div>
       <div className="text-gray-500 font-medium mt-2 uppercase tracking-widest text-xs">{label}</div>
     </motion.div>
@@ -241,26 +243,16 @@ function FeatureCard({ icon: Icon, title, description, gradient, index }: {
       whileHover={{ y: -5, transition: { duration: 0.3, ease: 'easeOut' } }}
       className="group relative h-full"
     >
-      <div className="relative h-full rounded-[18px] bg-white border border-gray-200/50 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_12px_rgba(0,0,0,0.03)] overflow-hidden hover:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.12)] hover:border-gray-200 transition-all duration-500 flex flex-col">
+      <div className="relative h-full rounded-[24px] bg-white border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] overflow-hidden hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)] hover:border-blue-500/20 transition-all duration-500 flex flex-col">
 
-        {/* Subtle corner gradient wash */}
-        <div className={cn(
-          "absolute top-0 right-0 w-40 h-40 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-700 blur-3xl bg-gradient-to-br",
-          gradient
-        )} />
 
         {/* Header */}
         <div className="px-7 pt-7 pb-5">
           <div className="flex items-center gap-4">
             <div className="relative flex-shrink-0">
-              {/* Glow behind icon on hover */}
               <div className={cn(
-                "absolute inset-0 rounded-xl opacity-0 group-hover:opacity-30 blur-xl transition-all duration-500 scale-150 bg-gradient-to-br",
-                gradient
-              )} />
-              <div className={cn(
-                "relative w-[52px] h-[52px] rounded-xl bg-gradient-to-br flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.12)] group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.18)] transition-all duration-300 group-hover:scale-[1.04]",
-                gradient
+                "relative w-[52px] h-[52px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 group-hover:scale-[1.1]",
+                gradient.startsWith('from') ? "bg-blue-600" : gradient
               )}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
@@ -283,8 +275,7 @@ function FeatureCard({ icon: Icon, title, description, gradient, index }: {
 
         {/* Bottom accent bar — scales in on hover */}
         <div className={cn(
-          "absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left",
-          gradient
+          "absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
         )} />
       </div>
     </motion.div>
@@ -310,10 +301,10 @@ function TestimonialCard({ name, role, content, index, verified = true }: {
       transition={{ duration: 0.7, delay: index * 0.12, ease: [0.22, 1, 0.36, 1] }}
       className="relative group h-full"
     >
-      <div className="relative rounded-2xl border border-gray-200/60 shadow-[0_2px_8px_rgba(0,0,0,0.04)] hover:shadow-xl transition-all duration-500 h-full flex overflow-hidden bg-gradient-to-br from-white via-white to-blue-50/40">
+      <div className="relative rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-md transition-all duration-500 h-full flex overflow-hidden bg-white">
 
-        {/* Left gradient accent */}
-        <div className="w-1.5 flex-shrink-0 bg-gradient-to-b from-[#2D8CF0] via-[#1A73E8] to-yellow-400" />
+        {/* Left deep accent */}
+        <div className="w-1.5 flex-shrink-0 bg-blue-600" />
 
         <div className="flex-1 p-10 md:p-12 flex flex-col relative">
           {/* Large decorative quote */}
@@ -324,7 +315,7 @@ function TestimonialCard({ name, role, content, index, verified = true }: {
           {/* Stars */}
           <div className="flex gap-1 mb-6">
             {[...Array(5)].map((_, i) => (
-              <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+              <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
             ))}
           </div>
 
@@ -336,7 +327,7 @@ function TestimonialCard({ name, role, content, index, verified = true }: {
           {/* Author */}
           <div className="flex items-center gap-4 mt-8 pt-7 border-t border-gray-100">
             <div className="relative">
-              <div className="w-13 h-13 rounded-full bg-gradient-to-br from-[#2D8CF0] to-[#1A73E8] flex items-center justify-center text-white font-bold text-base shadow-md" style={{ width: 52, height: 52 }}>
+              <div className="w-13 h-13 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-base shadow-sm" style={{ width: 52, height: 52 }}>
                 {name.split(' ').map(n => n[0]).join('')}
               </div>
               {verified && (
@@ -686,7 +677,7 @@ export default function LandingPage() {
             </motion.a>
             <MagneticButton
               href="https://app.prepassist.in/login"
-              className="bg-gradient-to-r from-[#1A73E8] to-[#2D8CF0] text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all inline-block border border-[#1A73E8]/50"
+              className="bg-black text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all inline-block"
             >
               Start Free Trial
             </MagneticButton>
@@ -729,7 +720,7 @@ export default function LandingPage() {
               >
                 <PremiumBadge color="blue">THE FUTURE OF UPSC PREPARATION</PremiumBadge>
 
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mt-8 mb-6 leading-[1.05] tracking-tight text-slate-900">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mt-8 mb-6 leading-[1.05] tracking-tight text-black">
                   Your Personal
                   <br />
                   <ShimmerText>AI Mentor</ShimmerText>
@@ -744,7 +735,7 @@ export default function LandingPage() {
                 <div className="flex flex-wrap gap-4 mb-12">
                   <MagneticButton
                     href="https://app.prepassist.in/login"
-                    className="inline-flex items-center gap-3 bg-gradient-to-r from-[#1A73E8] to-[#2D8CF0] text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-[#2D8CF0]/20 hover:shadow-2xl transition-all border border-[#1A73E8]/50"
+                    className="inline-flex items-center gap-3 bg-black text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-black/10 hover:shadow-2xl transition-all"
                   >
                     Start Learning Free <ArrowRight className="w-5 h-5" />
                   </MagneticButton>
@@ -930,25 +921,24 @@ export default function LandingPage() {
               <div className="absolute inset-0 bg-gradient-to-r from-[#2D8CF0] via-yellow-400/50 to-[#2D8CF0] opacity-70 rounded-[2rem] animate-shimmer" style={{ backgroundSize: '200% 200%' }} />
 
               {/* Inner container */}
-              <div className="relative bg-gradient-to-br from-[#0a2547] via-[#0f3d6e] to-[#0a2547] rounded-[calc(2rem-2px)] p-12 md:p-20 overflow-hidden">
-                {/* Radial spotlight */}
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[450px] bg-[#2D8CF0]/20 rounded-full blur-[150px]" />
-                <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-yellow-500/8 rounded-full blur-[100px]" />
-                <div className="absolute top-1/2 left-0 w-[300px] h-[300px] bg-[#2D8CF0]/10 rounded-full blur-[100px]" />
+              <div className="relative bg-[#0F172A] rounded-[calc(2rem-2px)] p-12 md:p-20 overflow-hidden">
+                {/* Subtle static globs instead of moving gradients */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[450px] bg-blue-600/10 rounded-full blur-[150px]" />
+                <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-amber-500/5 rounded-full blur-[100px]" />
 
-                {/* Dot pattern */}
-                <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxwYXRoIGQ9Ik0wIDBoNjB2NjBIMHoiLz48cGF0aCBkPSJNMzAgMzBtLTEgMGExIDEgMCAxIDEgMiAwYTEgMSAwIDEgMS0yIDB6IiBmaWxsPSJyZ2JhKDI1NSwyNTUsMjU1LDAuMDUpIi8+PC9nPjwvc3ZnPg==')] opacity-60" />
+                {/* Grid pattern */}
+                <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-20" />
 
                 <div className="relative z-10 text-center">
                   {/* Badge */}
                   <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
                     viewport={{ once: true }}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm mb-8"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm mb-8"
                   >
-                    <Sparkles className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm font-bold text-white/90 tracking-wider uppercase">Start Today</span>
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs font-bold text-white tracking-[0.15em] uppercase">Start Today</span>
                   </motion.div>
 
                   <motion.h2
@@ -960,7 +950,7 @@ export default function LandingPage() {
                   >
                     Ready to transform
                     <br />
-                    <span className="bg-gradient-to-r from-white via-blue-200 to-white bg-clip-text text-transparent">your preparation?</span>
+                    your preparation?
                   </motion.h2>
 
                   <motion.p
@@ -968,7 +958,7 @@ export default function LandingPage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.2 }}
-                    className="text-lg text-white/55 mb-12 max-w-xl mx-auto font-medium leading-relaxed"
+                    className="text-lg text-slate-400 mb-12 max-w-xl mx-auto font-medium leading-relaxed"
                   >
                     Join thousands of serious aspirants using AI to prepare smarter, not harder.
                   </motion.p>
@@ -982,14 +972,15 @@ export default function LandingPage() {
                   >
                     <MagneticButton
                       href="https://app.prepassist.in/login"
-                      className="inline-flex items-center gap-3 bg-white text-[#0a2547] px-8 py-4 rounded-xl font-bold text-base shadow-xl shadow-black/25 hover:shadow-2xl hover:bg-gray-50 transition-all relative overflow-hidden"
+                      className="inline-flex items-center gap-3 bg-white text-black px-8 py-4 rounded-xl font-bold text-base shadow-xl hover:bg-gray-100 transition-all relative overflow-hidden"
                     >
                       <span className="relative z-10 flex items-center gap-3">Start Your Free Trial <ArrowRight className="w-5 h-5" /></span>
                     </MagneticButton>
-                    <MagneticButton className="inline-flex items-center gap-3 border border-white/20 bg-white/5 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-white/10 hover:border-white/30 transition-all">
+                    <MagneticButton className="inline-flex items-center gap-3 border border-white/20 bg-white/5 backdrop-blur-sm text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-white/10 transition-all">
                       Talk to a Mentor
                     </MagneticButton>
                   </motion.div>
+
 
                   <motion.div
                     initial={{ opacity: 0 }}
