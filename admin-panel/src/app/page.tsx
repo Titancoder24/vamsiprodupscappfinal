@@ -780,31 +780,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Trusted by section */}
-      <section className="py-12 border-y border-gray-100 bg-gray-50/50 overflow-hidden">
-        <div className="max-w-6xl mx-auto px-6">
-          <motion.div
-            className="flex items-center justify-center gap-12 md:gap-24 flex-wrap"
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-          >
-            {['Ranked #1 UPSC App', '4.9★ App Store', 'Featured in Best Apps', '24/7 AI Support'].map((item, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-2 text-gray-500 font-semibold tracking-wide text-sm uppercase"
-              >
-                <CheckCircle className="w-5 h-5 text-[#2D8CF0]" />
-                {item}
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+
 
       {/* Stats Section */}
       <section className="py-24 px-6 md:px-10">

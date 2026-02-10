@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'UPSC Prep Admin Panel',
-  description: 'Admin panel for managing UPSC Prep application',
+  title: 'PrepAssist | Your Personal AI Mentor for UPSC',
+  description: 'India\'s most advanced AI-powered ecosystem for UPSC preparation. Features news feeds, MCQ generating, mind maps, and professional mains evaluation.',
 }
 
 export default function RootLayout({
