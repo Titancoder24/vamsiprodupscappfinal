@@ -218,6 +218,7 @@ const linking = {
           AIMCQGenerator: 'ai-mcq',
           Progress: 'progress',
           Settings: 'settings',
+          Articles: 'Articles',
           QuestionPaper: 'question-bank/:questionSetId',
         },
       },

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@800&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -29,7 +29,7 @@ body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #ffffff;
+  background: var(--bg-primary);
   color: var(--text-primary);
   overflow-x: hidden;
 }
@@ -38,20 +38,31 @@ body {
 .heading-display {
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   line-height: 1.1;
+}
+
+/* Premium Override Classes (Scoped to Landing Page) */
+.premium-font-display {
+  font-family: 'Bricolage Grotesque', sans-serif !important;
+  letter-spacing: -0.04em !important;
+}
+
+.premium-font-accent {
+  font-family: 'Instrument Serif', serif !important;
+  font-style: italic !important;
 }
 
 /* Text Gradients */
 .text-gradient-blue {
-  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  background: linear-gradient(135deg, #2D8CF0 0%, #1A73E8 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-.text-gradient-orange {
-  background: linear-gradient(135deg, #F5A623 0%, #E09100 100%);
+.text-gradient-premium {
+  background: linear-gradient(135deg, #0F172A 0%, #334155 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

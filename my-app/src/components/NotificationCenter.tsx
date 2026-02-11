@@ -47,7 +47,29 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
 
     useEffect(() => {
         checkStatus();
+        loadHistory();
     }, []);
+
+    const loadHistory = async () => {
+        if (Platform.OS !== 'web') return;
+        try {
+            const { fetchNotifications } = require('../services/notificationService');
+            const history = await fetchNotifications(20);
+
+            const mappedHistory: NotificationData[] = history.map((n: any) => ({
+                id: n.id,
+                title: n.title,
+                body: n.body,
+                type: n.type,
+                timestamp: new Date(n.created_at),
+                url: n.content_url
+            }));
+
+            setNotifications(mappedHistory);
+        } catch (error) {
+            console.error('[NotificationCenter] History load failed:', error);
+        }
+    };
 
     useEffect(() => {
         // Animate bell when new notification arrives
@@ -88,12 +110,14 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
     };
 
     const handleNewNotification = (notification: any) => {
+        console.log('[NotificationCenter] New notification payload:', notification);
         const newNotification: NotificationData = {
-            id: Date.now().toString(),
+            id: notification.id || Date.now().toString(),
             title: notification.title || 'New Notification',
             body: notification.body || notification.message || '',
             type: notification.type || 'info',
             timestamp: new Date(),
+            url: notification.content_url || notification.url,
         };
 
         // Add to list
@@ -102,6 +126,14 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
 
         // Show popup
         setCurrentPopup(newNotification);
+    };
+
+    const handleNotificationPress = (notif: NotificationData) => {
+        console.log('[Notification] Pressed:', notif);
+        if (notif.url && Platform.OS === 'web') {
+            window.location.href = notif.url;
+        }
+        setShowPanel(false);
     };
 
     const handleEnableNotifications = async () => {
@@ -133,6 +165,13 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
         if (minutes < 60) return `${minutes}m ago`;
         if (minutes < 1440) return `${Math.floor(minutes / 60)}h ago`;
         return date.toLocaleDateString();
+    };
+
+    const getTagInfo = (notif: NotificationData) => {
+        const url = notif.url || '';
+        if (url.includes('Articles')) return { label: 'Articles', color: '#3B82F6', icon: 'newspaper-outline' };
+        if (url.includes('questions')) return { label: 'Question Bank', color: '#8B5CF6', icon: 'book-outline' };
+        return { label: 'Update', color: '#64748B', icon: 'notifications-outline' };
     };
 
     const getTypeColor = (type?: string) => {
@@ -189,9 +228,12 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
 
             {/* Notification Popup */}
             <NotificationPopup
-                notification={currentPopup}
+                notification={currentPopup ? {
+                    ...currentPopup,
+                    action_url: currentPopup.url
+                } : null}
                 onDismiss={() => setCurrentPopup(null)}
-                onPress={(n) => console.log('Notification pressed:', n)}
+                onPress={(n) => handleNotificationPress(currentPopup!)}
             />
 
             {/* Notification Panel Modal */}
@@ -271,6 +313,7 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
                                         key={notif.id}
                                         style={styles.notificationItem}
                                         activeOpacity={0.7}
+                                        onPress={() => handleNotificationPress(notif)}
                                     >
                                         <View
                                             style={[
@@ -279,13 +322,28 @@ const NotificationCenter: React.FC<Props> = ({ iconColor = '#1A1A1A', size = 24 
                                             ]}
                                         />
                                         <View style={styles.notifContent}>
-                                            <Text style={styles.notifTitle}>{notif.title}</Text>
+                                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                                                <View style={{ flex: 1 }}>
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                                                        <View style={[styles.typeTag, { backgroundColor: getTagInfo(notif).color + '20' }]}>
+                                                            <Ionicons name={getTagInfo(notif).icon as any} size={10} color={getTagInfo(notif).color} />
+                                                            <Text style={[styles.typeTagText, { color: getTagInfo(notif).color }]}>
+                                                                {getTagInfo(notif).label}
+                                                            </Text>
+                                                        </View>
+                                                        <Text style={styles.notifTime}>{formatTime(notif.timestamp)}</Text>
+                                                    </View>
+                                                    <Text style={styles.notifTitle}>{notif.title}</Text>
+                                                </View>
+                                            </View>
                                             <Text style={styles.notifBody} numberOfLines={2}>
                                                 {notif.body}
                                             </Text>
-                                            <Text style={styles.notifTime}>
-                                                {formatTime(notif.timestamp)}
-                                            </Text>
+                                            {notif.url && (
+                                                <View style={styles.viewAction}>
+                                                    <Text style={styles.viewLinkText}>Open {getTagInfo(notif).label} →</Text>
+                                                </View>
+                                            )}
                                         </View>
                                     </TouchableOpacity>
                                 ))}
@@ -441,6 +499,33 @@ const styles = StyleSheet.create({
         color: '#94A3B8',
         marginTop: 6,
     },
+    urlIndicator: {
+        marginLeft: 8,
+    },
+    viewLinkText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#3B82F6',
+    },
+    typeTag: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    typeTagText: {
+        fontSize: 9,
+        fontWeight: '800',
+        textTransform: 'uppercase',
+    },
+    viewAction: {
+        marginTop: 8,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    }
 });
 
 export default NotificationCenter;

@@ -28,6 +28,7 @@ const navigation = [
     { name: 'References', href: '/dashboard/references', icon: BookOpen },
     { name: 'Question Bank', href: '/dashboard/question-bank', icon: FileQuestion },
     { name: 'Push Notifications', href: '/dashboard/push-notifications', icon: Bell },
+    { name: 'Push Engine (V1)', href: '/dashboard/push-notifications-v1', icon: Bell },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
 ];
 

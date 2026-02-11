@@ -21,8 +21,9 @@ export interface NotificationData {
     title: string;
     body: string;
     icon?: string;
-    type?: 'info' | 'success' | 'warning' | 'alert';
+    type?: 'info' | 'success' | 'warning' | 'alert' | string;
     action_url?: string;
+    url?: string;
     timestamp?: Date;
 }
 
@@ -171,6 +172,11 @@ const NotificationPopup: React.FC<Props> = ({
                             <Text style={styles.body} numberOfLines={2}>
                                 {notification.body}
                             </Text>
+                            {(notification.url || notification.action_url) && (
+                                <Text style={[styles.viewLink, { color: colors[0] }]}>
+                                    View Update →
+                                </Text>
+                            )}
                         </View>
 
                         {/* Close button */}
@@ -258,6 +264,11 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: 4,
+    },
+    viewLink: {
+        fontSize: 12,
+        fontWeight: '700',
+        marginTop: 6,
     },
     progressBar: {
         height: 3,

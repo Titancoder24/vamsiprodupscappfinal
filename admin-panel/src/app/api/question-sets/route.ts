@@ -22,6 +22,7 @@ export async function GET() {
             description: set.description,
             year: set.year,
             isPublished: set.is_published,
+            publishedDate: set.published_date,
             createdAt: set.created_at,
             updatedAt: set.updated_at,
         })) || [];
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
                 description: description || null,
                 year: year ? parseInt(year) : new Date().getFullYear(),
                 is_published: false,
+                published_date: body.publishedDate || new Date().toISOString(),
             })
             .select()
             .single();
@@ -67,6 +69,7 @@ export async function POST(req: Request) {
             description: newSet.description,
             year: newSet.year,
             isPublished: newSet.is_published,
+            publishedDate: newSet.published_date,
             createdAt: newSet.created_at,
             updatedAt: newSet.updated_at,
         };

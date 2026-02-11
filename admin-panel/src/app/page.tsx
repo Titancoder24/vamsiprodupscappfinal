@@ -32,7 +32,7 @@ function cn(...classes: (string | boolean | undefined)[]) {
 function ShimmerText({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
     <span className={cn("relative inline-block", className)}>
-      <span className="bg-gradient-to-r from-[#2D8CF0] via-[#60A5FA] to-[#2D8CF0] bg-[length:200%_auto] animate-shimmer bg-clip-text text-transparent">
+      <span className="bg-gradient-to-r from-[#2196F3] via-[#64B5F6] to-[#2196F3] bg-[length:200%_auto] animate-shimmer bg-clip-text text-transparent font-black tracking-tight drop-shadow-sm">
         {children}
       </span>
     </span>
@@ -86,30 +86,59 @@ function MagneticButton({ children, className = '', href }: { children: React.Re
 function FloatingParticles() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(20)].map((_, i) => (
+      {[...Array(25)].map((_, i) => (
         <motion.div
           key={i}
           className={cn(
             "absolute w-2 h-2 rounded-full",
-            i % 2 === 0 ? "bg-[#2D8CF0]/20" : "bg-yellow-400/20"
+            i % 2 === 0 ? "bg-[#2D8CF0]/10" : "bg-yellow-400/10"
           )}
           style={{
             left: `${Math.random() * 100}%`,
             top: `${Math.random() * 100}%`,
           }}
           animate={{
-            y: [0, -30, 0],
-            opacity: [0.2, 0.5, 0.2],
-            scale: [1, 1.2, 1],
+            y: [0, -100, 0],
+            x: [0, Math.random() * 50 - 25, 0],
+            opacity: [0.1, 0.4, 0.1],
+            scale: [1, 1.4, 1],
           }}
           transition={{
-            duration: 3 + Math.random() * 4,
+            duration: 5 + Math.random() * 5,
             repeat: Infinity,
-            delay: Math.random() * 2,
+            delay: Math.random() * 5,
+            ease: "easeInOut"
           }}
         />
       ))}
     </div>
+  );
+}
+
+// Cursor Glow Effect
+function CursorGlow() {
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mouseX.set(e.clientX);
+      mouseY.set(e.clientY);
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => window.removeEventListener("mousemove", handleMouseMove);
+  }, [mouseX, mouseY]);
+
+  return (
+    <motion.div
+      className="fixed inset-0 pointer-events-none z-30"
+      style={{
+        background: useTransform(
+          [mouseX, mouseY],
+          ([x, y]) => `radial-gradient(600px circle at ${x}px ${y}px, rgba(45, 140, 240, 0.05), transparent 80%)`
+        ),
+      }}
+    />
   );
 }
 
@@ -125,8 +154,8 @@ function GridBackground() {
 // Premium badge with glow - CLEAN MODERN LOOK
 function PremiumBadge({ children, color = 'blue' }: { children: React.ReactNode; color?: 'blue' | 'yellow' }) {
   const colors = {
-    blue: 'bg-blue-50 border-blue-100 text-[#2D8CF0]',
-    yellow: 'bg-amber-50 border-amber-100 text-amber-700',
+    blue: 'bg-blue-50/50 border-blue-100/50 text-[#2D8CF0]',
+    yellow: 'bg-amber-50/50 border-amber-100/50 text-amber-700',
   };
 
   return (
@@ -135,12 +164,12 @@ function PremiumBadge({ children, color = 'blue' }: { children: React.ReactNode;
       animate={{ opacity: 1, scale: 1 }}
       whileHover={{ y: -2, transition: { duration: 0.2 } }}
       className={cn(
-        "inline-flex items-center gap-2 px-4 py-1.5 rounded-full border backdrop-blur-sm shadow-sm",
+        "inline-flex items-center gap-2 px-5 py-2 rounded-full border backdrop-blur-md shadow-sm",
         colors[color]
       )}
     >
-      <Sparkles className={cn("w-3.5 h-3.5", color === 'blue' ? "text-[#2D8CF0]" : "text-amber-500")} />
-      <span className="text-[11px] font-bold tracking-[0.1em] uppercase">{children}</span>
+      <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", color === 'blue' ? "bg-[#2D8CF0]" : "bg-amber-500")} />
+      <span className="text-[10px] font-bold tracking-[0.2em] uppercase font-display">{children}</span>
     </motion.div>
   );
 }
@@ -240,43 +269,36 @@ function FeatureCard({ icon: Icon, title, description, gradient, index }: {
       initial={{ opacity: 0, y: 30 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, delay: index * 0.07, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -5, transition: { duration: 0.3, ease: 'easeOut' } }}
+      whileHover={{ y: -8, transition: { duration: 0.4, ease: 'easeOut' } }}
       className="group relative h-full"
     >
-      <div className="relative h-full rounded-[24px] bg-white border border-gray-100 shadow-[0_1px_2px_rgba(0,0,0,0.05)] overflow-hidden hover:shadow-[0_20px_25px_-5px_rgba(0,0,0,0.05),0_10px_10px_-5px_rgba(0,0,0,0.02)] hover:border-blue-500/20 transition-all duration-500 flex flex-col">
-
+      <div className="relative h-full rounded-[32px] bg-white border border-slate-100 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.07),0_4px_6px_-2px_rgba(0,0,0,0.05)] overflow-hidden hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] transition-all duration-700 flex flex-col">
+        {/* Glow effect on hover */}
+        <div className="absolute inset-x-0 -top-px h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
 
         {/* Header */}
-        <div className="px-7 pt-7 pb-5">
-          <div className="flex items-center gap-4">
+        <div className="px-8 pt-8 pb-6">
+          <div className="flex items-center gap-5">
             <div className="relative flex-shrink-0">
               <div className={cn(
-                "relative w-[52px] h-[52px] rounded-xl flex items-center justify-center shadow-sm transition-all duration-300 group-hover:scale-[1.1]",
-                gradient.startsWith('from') ? "bg-blue-600" : gradient
+                "relative w-[56px] h-[56px] rounded-2xl flex items-center justify-center shadow-inner transition-all duration-500 group-hover:scale-[1.15] group-hover:rotate-3",
+                gradient.startsWith('from') ? "bg-[#2D8CF0]" : gradient
               )}>
                 <Icon className="w-6 h-6 text-white" />
               </div>
             </div>
-            <h3 className="text-gray-900 font-bold text-[17px] tracking-tight leading-snug">
+            <h3 className="text-slate-900 font-bold text-[18px] tracking-tight leading-snug font-display">
               {title}
             </h3>
           </div>
         </div>
 
-        {/* Separator with subtle gradient */}
-        <div className="mx-7 h-px bg-gradient-to-r from-gray-100 via-gray-200/60 to-gray-100" />
-
         {/* Content area */}
-        <div className="px-7 pt-5 pb-7 flex flex-col flex-grow">
-          <p className="text-gray-600 text-[14px] leading-[1.8] flex-grow">
+        <div className="px-8 pb-8 flex flex-col flex-grow">
+          <p className="text-slate-500 text-[14.5px] leading-[1.7] flex-grow font-medium">
             {description}
           </p>
         </div>
-
-        {/* Bottom accent bar — scales in on hover */}
-        <div className={cn(
-          "absolute bottom-0 left-0 right-0 h-[3px] bg-blue-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"
-        )} />
       </div>
     </motion.div>
   );
@@ -634,6 +656,7 @@ export default function LandingPage() {
       {/* Background layers */}
       <GridBackground />
       <FloatingParticles />
+      <CursorGlow />
 
       {/* Gradient orbs - REFINED for Premium look */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -651,12 +674,12 @@ export default function LandingPage() {
 
       {/* Navigation */}
       <motion.nav
-        className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-4"
+        className="fixed top-0 left-0 right-0 z-50 px-4 md:px-6 py-6"
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="max-w-6xl mx-auto backdrop-blur-2xl bg-white/85 border border-gray-200/60 rounded-[1.25rem] px-8 py-4 flex items-center justify-between shadow-lg shadow-gray-200/30">
+        <div className="max-w-6xl mx-auto backdrop-blur-xl bg-white/70 border border-white/40 rounded-[2rem] px-10 py-5 flex items-center justify-between shadow-[0_8px_32px_rgba(0,0,0,0.04)] ring-1 ring-black/[0.03]">
           <PrepAssistLogo />
 
           <div className="hidden md:flex items-center gap-10">
@@ -728,10 +751,10 @@ export default function LandingPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8 }}
               >
-                <h1 className="text-5xl md:text-6xl lg:text-7xl font-black mb-6 leading-[1.05] tracking-tight text-black">
+                <h1 className="text-5xl md:text-6xl lg:text-7xl mb-10 leading-[0.95] text-black heading-display premium-font-display">
                   Your Personal
                   <br />
-                  <ShimmerText>AI Mentor</ShimmerText>
+                  <span className="premium-font-accent text-[#2D8CF0] font-normal leading-[1.2] opacity-90">AI Mentor</span>
                   <br />
                   for UPSC
                 </h1>
@@ -813,10 +836,10 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto relative z-10">
           <RevealOnScroll className="text-center mb-24">
             <PremiumBadge color="yellow">POWERFUL FEATURES</PremiumBadge>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 mb-6 tracking-tight text-gray-900">
+            <h2 className="text-4xl md:text-6xl heading-display premium-font-display mt-8 mb-8 text-slate-950">
               Everything you need to
               <br />
-              <ShimmerText>crack the exam</ShimmerText>
+              <span className="premium-font-accent text-[#2D8CF0] font-normal italic">crack the exam</span>
             </h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium leading-relaxed">
               Replace scattered books and outdated websites with one unified, intelligent platform specifically designed for the modern aspirant.
@@ -836,10 +859,10 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto">
           <RevealOnScroll className="text-center mb-20">
             <PremiumBadge color="blue">SUCCESS STORIES</PremiumBadge>
-            <h2 className="text-4xl md:text-5xl lg:text-6xl font-black mt-6 mb-6 tracking-tight">
+            <h2 className="text-4xl md:text-6xl mt-8 mb-8 heading-display premium-font-display text-slate-950">
               Loved by
               <br />
-              <ShimmerText>toppers & aspirants</ShimmerText>
+              <span className="premium-font-accent text-[#2D8CF0] font-normal">toppers & aspirants</span>
             </h2>
             <p className="text-xl text-gray-500 max-w-2xl mx-auto font-medium">
               Real results from serious candidates who switched to smart preparation.
@@ -933,11 +956,11 @@ export default function LandingPage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ delay: 0.1 }}
-                    className="text-4xl md:text-5xl lg:text-6xl font-black mb-6 text-white leading-[1.1] tracking-tight"
+                    className="text-4xl md:text-7xl mb-8 text-white leading-[0.9] heading-display premium-font-display"
                   >
                     Ready to transform
                     <br />
-                    your preparation?
+                    <span className="premium-font-accent text-[#2D8CF0] font-normal italic opacity-100">your preparation?</span>
                   </motion.h2>
 
                   <motion.p

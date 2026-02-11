@@ -92,6 +92,7 @@ export const questionSets = pgTable('question_sets', {
     description: text('description'),
     year: integer('year'),
     isPublished: boolean('is_published').default(false),
+    publishedDate: timestamp('published_date').defaultNow(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
